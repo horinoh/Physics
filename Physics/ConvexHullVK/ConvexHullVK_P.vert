@@ -4,11 +4,18 @@
 
 layout (location = 0) in vec3 InPosition;
 
+layout (set = 0, binding = 0) uniform WORLD_BUFFER
+{
+	mat4 World[16];
+} WB;
+layout (set = 0, binding = 1) uniform VIEW_PROJECTION_BUFFER
+{
+	mat4 ViewProjection;
+} VPB;
+
 void main()
 {
-	const mat4 PVW = mat4(1.93643117f, 0.0f, 0.0f, 0.0f,
-							0.0f, 3.89474273f, 0.0f, 0.0f,
-							0.0f, 0.0f, -1.00010002f, -1.0f,
-							0.0f, 0.0f, 2.99029899f, 3.0f);
+	const mat4 PVW = VPB.ViewProjection * WB.World[gl_InstanceIndex];
+
 	gl_Position = PVW * vec4(InPosition, 1.0f);
 }

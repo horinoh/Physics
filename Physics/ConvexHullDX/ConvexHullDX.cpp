@@ -159,6 +159,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             Inst->OnExitSizeMove(hWnd, hInst);
         }
         break;
+    case WM_TIMER:
+        if (nullptr != Inst) {
+            Inst->OnTimer(hWnd, hInst);
+        }
+        break;
     case WM_PAINT:
         {
             PAINTSTRUCT ps;

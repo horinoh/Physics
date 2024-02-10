@@ -1,11 +1,11 @@
-// ConvexHullVK.cpp : Defines the entry point for the application.
+// SphereDX.cpp : Defines the entry point for the application.
 //
 
 #define NOMINMAX
 #include "framework.h"
-#include "ConvexHullVK.h"
+#include "SphereDX.h"
 
-ConvexHullVK* Inst = nullptr;
+SphereDX* Inst = nullptr;
 
 #define MAX_LOADSTRING 100
 
@@ -32,7 +32,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_CONVEXHULLVK, szWindowClass, MAX_LOADSTRING);
+    LoadStringW(hInstance, IDC_SPHEREDX, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
     // Perform application initialization:
@@ -41,7 +41,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         return FALSE;
     }
 
-    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_CONVEXHULLVK));
+    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_SPHEREDX));
 
     MSG msg;
 
@@ -76,10 +76,10 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.cbClsExtra     = 0;
     wcex.cbWndExtra     = 0;
     wcex.hInstance      = hInstance;
-    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_CONVEXHULLVK));
+    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_SPHEREDX));
     wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_CONVEXHULLVK);
+    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_SPHEREDX);
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
@@ -147,12 +147,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_CREATE:
         if (nullptr == Inst) {
-            Inst = new ConvexHullVK();
-            Inst->OnCreate(hWnd, hInst, TEXT("ConvexHullVK"));
+            Inst = new SphereDX();
+            Inst->OnCreate(hWnd, hInst, TEXT("SphereDX"));
         }
         break;
     case WM_KEYDOWN:
         Inst->OnKeyDown(hWnd, hInst, wParam);
+        break;
+    case WM_EXITSIZEMOVE:
+        if (nullptr != Inst) {
+            Inst->OnExitSizeMove(hWnd, hInst);
+        }
         break;
     case WM_TIMER:
         if (nullptr != Inst) {

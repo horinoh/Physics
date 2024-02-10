@@ -8,7 +8,7 @@
 #include "../GltfSDK.h"
 #include "../Physics.h"
 
-class ConvexHullVK : public Gltf::SDK, public VK
+class SphereVK : public Gltf::SDK, public VK
 {
 public:
 	virtual void Process() override {
@@ -19,7 +19,7 @@ public:
 				case Microsoft::glTF::MeshMode::MESH_TRIANGLES:
 					break;
 				default:
-					__debugbreak(); 
+					__debugbreak();
 					break;
 				}
 
@@ -127,33 +127,7 @@ public:
 	}
 
 	virtual void CreateGeometry() override {
-		//Load(GLTF_PATH / "bunny.glb");
-		//Load(GLTF_PATH / "bunny2.glb");
-		Load(GLTF_PATH / "bunny4.glb");
-		//Load(GLTF_PATH / "happy_vrip.glb");
-		//Load(GLTF_PATH / "dragon.glb"); 
-		//Load(GLTF_PATH / "Box.glb");
-		//Load(GLTF_PATH / "Sphere.glb");
-
-#if 0
-		std::vector<Vec3> Vec3s;
-		Vec3s.reserve(size(Vertices));
-		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
-
-		std::vector<Vec3> HullVertices;
-		std::vector<TriangleIndices> HullIndices;
-		BuildConvexHull(Vec3s, HullVertices, HullIndices);
-		{
-			for (auto& i : HullVertices) {
-				VerticesCH.emplace_back(glm::vec3(i.X(), i.Y(), i.Z()));
-			}
-			for (auto i : HullIndices) {
-				IndicesCH.emplace_back(static_cast<uint32_t>(std::get<0>(i)));
-				IndicesCH.emplace_back(static_cast<uint32_t>(std::get<1>(i)));
-				IndicesCH.emplace_back(static_cast<uint32_t>(std::get<2>(i)));
-			}
-		}
-#endif
+		Load(GLTF_PATH / "Sphere.glb");
 
 		const auto& CB = CommandBuffers[0];
 		const auto PDMP = CurrentPhysicalDeviceMemoryProperties;
@@ -175,43 +149,17 @@ public:
 		VK::Scoped<StagingBuffer> StagingIndirect(Device);
 		StagingIndirect.Create(Device, PDMP, sizeof(DIIC), &DIIC);
 
-#if 0
-		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Vertices_CH));
-		VK::Scoped<StagingBuffer> StagingVertex_CH(Device);
-		StagingVertex_CH.Create(Device, PDMP, TotalSizeOf(Vertices_CH), data(Vertices_CH));
-
-		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Normals_CH));
-		VK::Scoped<StagingBuffer> StagingNormal_CH(Device);
-		StagingNormal_CH.Create(Device, PDMP, TotalSizeOf(Normals_CH), data(Normals_CH));
-
-		IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Indices_CH));
-		VK::Scoped<StagingBuffer> StagingIndex_CH(Device);
-		StagingIndex_CH.Create(Device, PDMP, TotalSizeOf(Indices_CH), data(Indices_CH));
-
-		const VkDrawIndexedIndirectCommand DIIC_CH = { .indexCount = static_cast<uint32_t>(size(Indices_CH)), .instanceCount = 1, .firstIndex = 0, .vertexOffset = 0, .firstInstance = 0 };
-		IndirectBuffers.emplace_back().Create(Device, PDMP, DIIC_CH);
-		VK::Scoped<StagingBuffer> StagingIndirect_CH(Device);
-		StagingIndirect_CH.Create(Device, PDMP, sizeof(DIIC_CH), &DIIC_CH);
-#endif
-
-		constexpr VkCommandBufferBeginInfo CBBI = { 
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, 
-			.pNext = nullptr, 
+		constexpr VkCommandBufferBeginInfo CBBI = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			.pNext = nullptr,
 			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-			.pInheritanceInfo = nullptr 
+			.pInheritanceInfo = nullptr
 		};
 		VERIFY_SUCCEEDED(vkBeginCommandBuffer(CB, &CBBI)); {
 			VertexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Vertices), StagingVertex.Buffer);
 			VertexBuffers[1].PopulateCopyCommand(CB, TotalSizeOf(Normals), StagingNormal.Buffer);
 			IndexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Indices), StagingIndex.Buffer);
 			IndirectBuffers[0].PopulateCopyCommand(CB, sizeof(DIIC), StagingIndirect.Buffer);
-
-#if 0
-			VertexBuffers[2].PopulateCopyCommand(CB, TotalSizeOf(Vertices_CH), StagingVertex_CH.Buffer);
-			VertexBuffers[3].PopulateCopyCommand(CB, TotalSizeOf(Normals_CH), StagingNormal_CH.Buffer);
-			IndexBuffers[1].PopulateCopyCommand(CB, TotalSizeOf(Indices_CH), StagingIndex_CH.Buffer);
-			IndirectBuffers[1].PopulateCopyCommand(CB, sizeof(DIIC_CH), StagingIndirect_CH.Buffer);
-#endif
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(CB));
 		VK::SubmitAndWait(GraphicsQueue, CB);
 	}
@@ -237,7 +185,7 @@ public:
 		CreateDescriptorSetLayout(DescriptorSetLayouts.emplace_back(), 0, {
 			VkDescriptorSetLayoutBinding({.binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .pImmutableSamplers = nullptr }),
 			VkDescriptorSetLayoutBinding({.binding = 1, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .pImmutableSamplers = nullptr }),
-		});
+			});
 		VK::CreatePipelineLayout(PipelineLayouts.emplace_back(), { DescriptorSetLayouts[0] }, {});
 	}
 	virtual void CreateRenderPass() {
@@ -245,11 +193,10 @@ public:
 	}
 	virtual void CreatePipeline() override {
 		Pipelines.emplace_back();
-		Pipelines.emplace_back();
 
 		const std::array SMs = {
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_PN.vert.spv"),
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_PN.frag.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "SphereVK.vert.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "SphereVK.frag.spv"),
 		};
 		const std::array PSSCIs = {
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs[0], .pName = "main", .pSpecializationInfo = nullptr }),
@@ -276,42 +223,11 @@ public:
 			.lineWidth = 1.0f
 		};
 		VK::CreatePipeline_VsFs_Input(Pipelines[0], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI, VK_TRUE, VIBDs, VIADs, PSSCIs);
-
-		const std::array SMs_CH = {
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_PN.vert.spv"),
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_PN.frag.spv"),
-		};
-		const std::array PSSCIs_CH = {
-			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs_CH[0], .pName = "main", .pSpecializationInfo = nullptr }),
-			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = SMs_CH[1], .pName = "main", .pSpecializationInfo = nullptr }),
-		};
-		const std::vector VIBDs_CH = {
-			VkVertexInputBindingDescription({.binding = 0, .stride = sizeof(Vertices_CH[0]), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
-			VkVertexInputBindingDescription({.binding = 1, .stride = sizeof(Normals_CH[0]), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
-		};
-		const std::vector VIADs_CH = {
-			VkVertexInputAttributeDescription({.location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = 0 }),
-			VkVertexInputAttributeDescription({.location = 1, .binding = 1, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = 0 }),
-		};
-		constexpr VkPipelineRasterizationStateCreateInfo PRSCI_CH = {
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-			.pNext = nullptr,
-			.flags = 0,
-			.depthClampEnable = VK_FALSE,
-			.rasterizerDiscardEnable = VK_FALSE,
-			.polygonMode = VK_POLYGON_MODE_LINE,
-			.cullMode = VK_CULL_MODE_BACK_BIT,
-			.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-			.depthBiasEnable = VK_FALSE, .depthBiasConstantFactor = 0.0f, .depthBiasClamp = 0.0f, .depthBiasSlopeFactor = 0.0f,
-			.lineWidth = 1.0f
-		};
-		VK::CreatePipeline_VsFs_Input(Pipelines[1], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI_CH, VK_TRUE, VIBDs_CH, VIADs_CH, PSSCIs_CH);
-
+		
 		for (auto& i : Threads) { i.join(); }
 		Threads.clear();
 
 		for (auto i : SMs) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
-		for (auto i : SMs_CH) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
 	}
 	virtual void CreateDescriptor() override {
 		const auto BackBufferCount = static_cast<uint32_t>(size(SwapchainBackBuffers));
@@ -323,7 +239,7 @@ public:
 
 		VK::CreateDescriptorPool(DescriptorPools.emplace_back(), 0, {
 			VkDescriptorPoolSize({.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = BackBufferCount * DescCount }),
-		});
+			});
 
 		auto DSL = DescriptorSetLayouts[0];
 		auto DP = DescriptorPools[0];
@@ -349,13 +265,13 @@ public:
 				.dstBinding = 0, .dstArrayElement = 0,
 				.descriptorCount = _countof(DescriptorUpdateInfo::DBI0), .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 				.offset = offsetof(DescriptorUpdateInfo, DBI0), .stride = sizeof(DescriptorUpdateInfo)
-			}),	
+			}),
 			VkDescriptorUpdateTemplateEntry({
 				.dstBinding = 1, .dstArrayElement = 0,
 				.descriptorCount = _countof(DescriptorUpdateInfo::DBI1), .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 				.offset = offsetof(DescriptorUpdateInfo, DBI1), .stride = sizeof(DescriptorUpdateInfo)
 			}),
-		}, DSL);
+			}, DSL);
 		for (uint32_t i = 0; i < BackBufferCount; ++i) {
 			const DescriptorUpdateInfo DUI = {
 				VkDescriptorBufferInfo({.buffer = UniformBuffers[UB0Index + i].Buffer, .offset = 0, .range = VK_WHOLE_SIZE }),
@@ -371,8 +287,7 @@ public:
 	virtual void PopulateSecondaryCommandBuffer(const size_t i) override {
 		const auto RP = RenderPasses[0];
 		const auto SCB = SecondaryCommandBuffers[i];
-		const auto PL0 = Pipelines[0];
-		const auto PL1 = Pipelines[1];
+		const auto PL = Pipelines[0];
 		const auto PLL = PipelineLayouts[0];
 		const auto DS = DescriptorSets[i];
 
@@ -401,23 +316,13 @@ public:
 
 			const std::array Offsets = { VkDeviceSize(0) };
 
-			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL0);
+			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL);
 			const std::array VBs = { VertexBuffers[0].Buffer };
 			const std::array NBs = { VertexBuffers[1].Buffer };
 			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs)), data(VBs), data(Offsets));
 			vkCmdBindVertexBuffers(SCB, 1, static_cast<uint32_t>(size(NBs)), data(NBs), data(Offsets));
 			vkCmdBindIndexBuffer(SCB, IndexBuffers[0].Buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[0].Buffer, 0, 1, 0);
-
-#if 0
-			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
-			const std::array VBs_CH = { VertexBuffers[2].Buffer };
-			const std::array NBs_CH = { VertexBuffers[3].Buffer };
-			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs_CH)), data(VBs_CH), data(Offsets));
-			vkCmdBindVertexBuffers(SCB, 1, static_cast<uint32_t>(size(NBs_CH)), data(NBs_CH), data(Offsets));
-			vkCmdBindIndexBuffer(SCB, IndexBuffers[1].Buffer, 0, VK_INDEX_TYPE_UINT32);
-			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[1].Buffer, 0, 1, 0);
-#endif
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(SCB));
 	}
 	virtual void PopulateCommandBuffer(const size_t i) override {
@@ -476,10 +381,6 @@ protected:
 	std::vector<uint32_t> Indices;
 	std::vector<glm::vec3> Vertices;
 	std::vector<glm::vec3> Normals;
-
-	std::vector<uint32_t> Indices_CH;
-	std::vector<glm::vec3> Vertices_CH;
-	std::vector<glm::vec3> Normals_CH;
 
 	struct WORLD_BUFFER {
 		glm::mat4 World[16];

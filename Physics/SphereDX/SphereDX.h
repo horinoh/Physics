@@ -8,7 +8,7 @@
 #include "../GltfSDK.h"
 #include "../Physics.h"
 
-class ConvexHullDX : public Gltf::SDK, public DX
+class SphereDX : public Gltf::SDK, public DX
 {
 public:
 	virtual void Process() override {
@@ -17,7 +17,7 @@ public:
 				switch (j.mode)
 				{
 				case Microsoft::glTF::MeshMode::MESH_TRIANGLES:
-					break;				
+					break;
 				default:
 					__debugbreak();
 					break;
@@ -125,33 +125,8 @@ public:
 		DX::CreateBundleCommandList(size(SwapChainBackBuffers));
 	}
 	virtual void CreateGeometry() override {
-		//Load(GLTF_PATH / "bunny.glb");
-		//Load(GLTF_PATH / "bunny2.glb");
-		Load(GLTF_PATH / "bunny4.glb");
-		//Load(GLTF_PATH / "happy_vrip.glb");
-		//Load(GLTF_PATH / "dragon.glb"); 
-		//Load(GLTF_PATH / "Box.glb");
-		//Load(GLTF_PATH / "Sphere.glb");
+		Load(GLTF_PATH / "Sphere.glb");
 
-#if 0
-		std::vector<Vec3> Vec3s;
-		Vec3s.reserve(size(Vertices));
-		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
-
-		std::vector<Vec3> HullVertices;
-		std::vector<TriangleIndices> HullIndices;
-		BuildConvexHull(Vec3s, HullVertices, HullIndices);
-		{
-			for (auto& i : HullVertices) {
-				VerticesCH.emplace_back(DirectX::XMFLOAT3(i.X(), i.Y(), i.Z()));
-			}
-			for (auto i : HullIndices) {
-				IndicesCH.emplace_back(static_cast<UINT32>(std::get<1>(i)));
-				IndicesCH.emplace_back(static_cast<UINT32>(std::get<0>(i)));
-				IndicesCH.emplace_back(static_cast<UINT32>(std::get<2>(i)));
-			}
-		}
-#endif
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);
 		const auto CL = COM_PTR_GET(DirectCommandLists[0]);
 		const auto CQ = COM_PTR_GET(GraphicsCommandQueue);
@@ -168,9 +143,9 @@ public:
 		UploadResource UploadIndex;
 		UploadIndex.Create(COM_PTR_GET(Device), TotalSizeOf(Indices), data(Indices));
 
-		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = { 
-			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)), 
-			.InstanceCount = 1, 
+		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = {
+			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)),
+			.InstanceCount = 1,
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
 			.StartInstanceLocation = 0
@@ -179,43 +154,11 @@ public:
 		UploadResource UploadIndirect;
 		UploadIndirect.Create(COM_PTR_GET(Device), sizeof(DIA), &DIA);
 
-#if 0
-		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Vertices_CH), sizeof(Vertices_CH[0]));
-		UploadResource UploadVertex_CH;
-		UploadVertex_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Vertices_CH), data(Vertices_CH));
-
-		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Normals_CH), sizeof(Normals_CH[0]));
-		UploadResource UploadNormal_CH;
-		UploadNormal_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Normals_CH), data(Normals_CH));
-
-		IndexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Indices_CH), DXGI_FORMAT_R32_UINT);
-		UploadResource UploadIndex_CH;
-		UploadIndex_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Indices_CH), data(Indices_CH));
-
-		const D3D12_DRAW_INDEXED_ARGUMENTS DIA_CH = {
-			.IndexCountPerInstance = static_cast<UINT32>(size(Indices_CH)),
-			.InstanceCount = 1,
-			.StartIndexLocation = 0,
-			.BaseVertexLocation = 0,
-			.StartInstanceLocation = 0
-		};
-		IndirectBuffers.emplace_back().Create(COM_PTR_GET(Device), DIA_CH);
-		UploadResource UploadIndirect_CH;
-		UploadIndirect_CH.Create(COM_PTR_GET(Device), sizeof(DIA_CH), &DIA_CH);
-#endif
-
 		VERIFY_SUCCEEDED(CL->Reset(CA, nullptr)); {
 			VertexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Vertices), COM_PTR_GET(UploadVertex.Resource));
 			VertexBuffers[1].PopulateCopyCommand(CL, TotalSizeOf(Normals), COM_PTR_GET(UploadNormal.Resource));
 			IndexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Indices), COM_PTR_GET(UploadIndex.Resource));
 			IndirectBuffers[0].PopulateCopyCommand(CL, sizeof(DIA), COM_PTR_GET(UploadIndirect.Resource));
-
-#if 0
-			VertexBuffers[2].PopulateCopyCommand(CL, TotalSizeOf(Vertices_CH), COM_PTR_GET(UploadVertex_CH.Resource));
-			VertexBuffers[3].PopulateCopyCommand(CL, TotalSizeOf(Normals_CH), COM_PTR_GET(UploadNormal_CH.Resource));
-			IndexBuffers[1].PopulateCopyCommand(CL, TotalSizeOf(Indices_CH), COM_PTR_GET(UploadIndex_CH.Resource));
-			IndirectBuffers[1].PopulateCopyCommand(CL, sizeof(DIA_CH), COM_PTR_GET(UploadIndirect_CH.Resource));
-#endif
 		} VERIFY_SUCCEEDED(CL->Close());
 		DX::ExecuteAndWait(CQ, CL, COM_PTR_GET(GraphicsFence));
 	}
@@ -262,11 +205,10 @@ public:
 	}
 	virtual void CreatePipelineState() override {
 		PipelineStates.emplace_back();
-		PipelineStates.emplace_back();
 
 		std::vector<COM_PTR<ID3DBlob>> SBs;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_PN.vs.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_PN.ps.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "SphereDX.vs.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "SphereDX.ps.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
 		const std::array SBCs = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs[0]->GetBufferPointer(), .BytecodeLength = SBs[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs[1]->GetBufferPointer(), .BytecodeLength = SBs[1]->GetBufferSize() }),
@@ -284,27 +226,6 @@ public:
 			.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
 		};
 		DX::CreatePipelineState_VsPs_Input(PipelineStates[0], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, RD, TRUE, IEDs, SBCs);
-
-		std::vector<COM_PTR<ID3DBlob>> SBs_CH;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_PN.vs.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_PN.ps.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
-		const std::array SBCs_CH = {
-			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CH[0]->GetBufferPointer(), .BytecodeLength = SBs_CH[0]->GetBufferSize() }),
-			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CH[1]->GetBufferPointer(), .BytecodeLength = SBs_CH[1]->GetBufferSize() }),
-		};
-		const std::vector IEDs_CH = {
-			D3D12_INPUT_ELEMENT_DESC({.SemanticName = "POSITION", .SemanticIndex = 0, .Format = DXGI_FORMAT_R32G32B32_FLOAT, .InputSlot = 0, .AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT, .InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, .InstanceDataStepRate = 0 }),
-			D3D12_INPUT_ELEMENT_DESC({.SemanticName = "NORMAL", .SemanticIndex = 0, .Format = DXGI_FORMAT_R32G32B32_FLOAT, .InputSlot = 1, .AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT, .InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, .InstanceDataStepRate = 0 }),
-		};
-		constexpr D3D12_RASTERIZER_DESC RD_CH = {
-			.FillMode = D3D12_FILL_MODE_WIREFRAME,
-			.CullMode = D3D12_CULL_MODE_BACK, .FrontCounterClockwise = TRUE,
-			.DepthBias = D3D12_DEFAULT_DEPTH_BIAS, .DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP, .SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
-			.DepthClipEnable = TRUE,
-			.MultisampleEnable = FALSE, .AntialiasedLineEnable = FALSE, .ForcedSampleCount = 0,
-			.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
-		};
-		DX::CreatePipelineState_VsPs_Input(PipelineStates[1], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, RD_CH, TRUE, IEDs_CH, SBCs_CH);
 
 		for (auto& i : Threads) { i.join(); }
 		Threads.clear();
@@ -376,28 +297,18 @@ public:
 		}
 	}
 	virtual void PopulateBundleCommandList(const size_t i) override {
-		const auto PS0 = COM_PTR_GET(PipelineStates[0]);
-		const auto PS1 = COM_PTR_GET(PipelineStates[1]);
+		const auto PS = COM_PTR_GET(PipelineStates[0]);
 		const auto BCL = COM_PTR_GET(BundleCommandLists[i]);
 		const auto BCA = COM_PTR_GET(BundleCommandAllocators[0]);
 
-		VERIFY_SUCCEEDED(BCL->Reset(BCA, PS0));
+		VERIFY_SUCCEEDED(BCL->Reset(BCA, PS));
 		{
 			BCL->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			BCL->SetPipelineState(PS0);
 			const std::array VBVs = { VertexBuffers[0].View, VertexBuffers[1].View };
 			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs)), data(VBVs));
 			BCL->IASetIndexBuffer(&IndexBuffers[0].View);
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
-
-#if 0
-			BCL->SetPipelineState(PS1);
-			const std::array VBVs_CH = { VertexBuffers[2].View, VertexBuffers[3].View };
-			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs_CH)), data(VBVs_CH));
-			BCL->IASetIndexBuffer(&IndexBuffers[1].View);
-			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[1].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[1].Resource), 0, nullptr, 0);
-#endif
 		}
 		VERIFY_SUCCEEDED(BCL->Close());
 	}
@@ -471,14 +382,10 @@ protected:
 	std::vector<DirectX::XMFLOAT3> Vertices;
 	std::vector<DirectX::XMFLOAT3> Normals;
 
-	std::vector<UINT32> Indices_CH;
-	std::vector<DirectX::XMFLOAT3> Vertices_CH;
-	std::vector<DirectX::XMFLOAT3> Normals_CH;
-
 	struct WORLD_BUFFER {
 		DirectX::XMFLOAT4X4 World[16];
 	};
-	WORLD_BUFFER WorldBuffer; 
+	WORLD_BUFFER WorldBuffer;
 	struct VIEW_PROJECTION_BUFFER {
 		DirectX::XMFLOAT4X4 ViewProjection;
 	};
