@@ -80,18 +80,6 @@ namespace Math
 			};
 		}
 
-		//inline Quat& operator=(const Vec2& rhs) {
-		//	Comps[0] = rhs.X(); Comps[1] = rhs.Y();
-		//	return *this;
-		//}
-		//inline Quat& operator=(const Vec3& rhs) {
-		//	Comps[0] = rhs.X(); Comps[1] = rhs.Y(); Comps[2] = rhs.Z();
-		//	return *this;
-		//}
-		//inline Quat& operator=(const Vec4& rhs) {
-		//	Comps[0] = rhs.X(); Comps[1] = rhs.Y(); Comps[2] = rhs.Z(); Comps[3] = rhs.W();
-		//	return *this;
-		//}
 		inline Quat& operator=(const Quat& rhs) { 
 			std::ranges::copy(rhs.Comps, std::begin(Comps));
 			return *this;

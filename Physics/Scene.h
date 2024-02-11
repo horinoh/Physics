@@ -24,6 +24,7 @@ namespace Physics
 			}
 		}
 
+#if 0
 		virtual void Init() 
 		{
 			//!< 動的オブジェクト配置
@@ -155,6 +156,7 @@ namespace Physics
 			}
 #endif
 		}
+#endif
 		virtual void BroadPhase(std::vector<CollidablePair>& CollidablePairs, const float DeltaSec)
 		{
 			std::vector<BoundEdge> BoundEdges;

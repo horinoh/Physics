@@ -113,6 +113,63 @@ public:
 		}
 	}
 
+	void PutSpheres() {
+		//!< 動的オブジェクト配置
+		{
+			constexpr auto Radius = 0.5f;
+			constexpr auto Y = 10.0f;
+
+			const auto n = 6;
+			const auto n2 = n >> 1;
+			for (auto x = 0; x < n; ++x) {
+				for (auto z = 0; z < n; ++z) {
+					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
+					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+					Rb->Init(new ShapeSphere(Radius));
+				}
+			}
+		}
+
+		//!< 静的オブジェクト配置
+		{
+			constexpr auto Radius = 80.0f;
+			constexpr auto Y = -Radius;
+
+			const auto n = 3;
+			const auto n2 = n >> 1;
+			for (auto x = 0; x < n; ++x) {
+				for (auto z = 0; z < n; ++z) {
+					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
+					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 0.25f, Y, static_cast<float>(z - n2) * Radius * 0.25f);
+					Rb->InvMass = 0;
+					Rb->Elasticity = 0.99f;
+					Rb->Init(new ShapeSphere(Radius));
+				}
+			}
+		}
+	}
+	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
+		DX::OnCreate(hWnd, hInstance, Title);
+
+		Scene = new Physics::Scene();
+		PutSpheres();
+	}
+	virtual void OnDestroy(HWND hWnd, HINSTANCE hInstance) override {
+		DX::OnDestroy(hWnd, hInstance);
+
+		if (nullptr != Scene) {
+			delete Scene;
+		}
+	}
+	virtual void OnTimer(HWND hWnd, HINSTANCE hInstance) override {
+		DX::OnTimer(hWnd, hInstance);
+
+		if (IsUpdate()) {
+			if (nullptr != Scene) {
+				Scene->Update(1.0f/60.0f);
+			}
+		}
+	}
 	virtual void DrawFrame(const UINT i) override {
 		UpdateWorldBuffer();
 		CopyToUploadResource(COM_PTR_GET(ConstantBuffers[i].Resource), RoundUp256(sizeof(WorldBuffer)), &WorldBuffer);
@@ -145,7 +202,7 @@ public:
 
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = {
 			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)),
-			.InstanceCount = 1,
+			.InstanceCount = _countof(WorldBuffer.World),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
 			.StartInstanceLocation = 0
@@ -354,16 +411,25 @@ public:
 		VERIFY_SUCCEEDED(DCL->Close());
 	}
 
-	float Angle = 0.0f;
 	virtual void UpdateWorldBuffer() {
-		//DirectX::XMStoreFloat4x4(&WorldBuffer.World[0], DirectX::XMMatrixIdentity());
+		if (nullptr != Scene) {
+			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
+				if (i < _countof(WorldBuffer.World)) {
+					const auto Rb = Scene->RigidBodies[i];
+					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::SPHERE) {
+						const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
+						const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
+						const auto Scl = static_cast<ShapeSphere*>(Rb->Shape)->Radius * 2.0f;
 
-		Angle += 1.0f;
-		while (Angle > 360.0f) { Angle -= 360.0f; }
-		DirectX::XMStoreFloat4x4(&WorldBuffer.World[0], DirectX::XMMatrixRotationY(DirectX::XMConvertToRadians(Angle)));
+						//DirectX::XMStoreFloat4x4(&WorldBuffer.World[i], DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
+						DirectX::XMStoreFloat4x4(&WorldBuffer.World[i], DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixTranslationFromVector(Pos));
+					}
+				}
+			}
+		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
-		const auto Pos = DirectX::XMVectorSet(0.0f, 0.0f, 3.0f, 1.0f);
+		const auto Pos = DirectX::XMVectorSet(0.0f, 15.0f, 30.0f, 1.0f);
 		const auto Tag = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 		const auto Up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 		const auto View = DirectX::XMMatrixLookAtRH(Pos, Tag, Up);
@@ -382,8 +448,10 @@ protected:
 	std::vector<DirectX::XMFLOAT3> Vertices;
 	std::vector<DirectX::XMFLOAT3> Normals;
 
+	Physics::Scene* Scene = nullptr;
+
 	struct WORLD_BUFFER {
-		DirectX::XMFLOAT4X4 World[16];
+		DirectX::XMFLOAT4X4 World[64];
 	};
 	WORLD_BUFFER WorldBuffer;
 	struct VIEW_PROJECTION_BUFFER {

@@ -113,6 +113,64 @@ public:
 		}
 	}
 
+	void PutSpheres() {
+		//!< 動的オブジェクト配置
+		{
+			constexpr auto Radius = 0.5f;
+			constexpr auto Y = 10.0f;
+
+			const auto n = 6;
+			const auto n2 = n >> 1;
+			for (auto x = 0; x < n; ++x) {
+				for (auto z = 0; z < n; ++z) {
+					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
+					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+					Rb->Init(new ShapeSphere(Radius));
+				}
+			}
+		}
+
+		//!< 静的オブジェクト配置
+		{
+			constexpr auto Radius = 80.0f;
+			constexpr auto Y = -Radius;
+
+			const auto n = 3;
+			const auto n2 = n >> 1;
+			for (auto x = 0; x < n; ++x) {
+				for (auto z = 0; z < n; ++z) {
+					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
+					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 0.25f, Y, static_cast<float>(z - n2) * Radius * 0.25f);
+					Rb->InvMass = 0;
+					Rb->Elasticity = 0.99f;
+					Rb->Init(new ShapeSphere(Radius));
+				}
+			}
+		}
+	}
+	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
+		VK::OnCreate(hWnd, hInstance, Title);
+
+		Scene = new Physics::Scene();
+		PutSpheres();
+	}
+	virtual void OnTimer(HWND hWnd, HINSTANCE hInstance) override {
+		VK::OnTimer(hWnd, hInstance);
+
+		if (IsUpdate()) {
+			if (nullptr != Scene) {
+				Scene->Update(1.0f / 60.0f);
+			}
+		}
+	}
+	virtual void OnDestroy(HWND hWnd, HINSTANCE hInstance) override {
+		VK::OnDestroy(hWnd, hInstance);
+
+		if (nullptr != Scene) {
+			delete Scene;
+		}
+	}
+
 	virtual void DrawFrame(const UINT i) override {
 		UpdateWorldBuffer();
 		CopyToHostVisibleDeviceMemory(Device, UniformBuffers[i].DeviceMemory, 0, sizeof(WorldBuffer), &WorldBuffer);
@@ -144,7 +202,13 @@ public:
 		VK::Scoped<StagingBuffer> StagingIndex(Device);
 		StagingIndex.Create(Device, PDMP, TotalSizeOf(Indices), data(Indices));
 
-		const VkDrawIndexedIndirectCommand DIIC = { .indexCount = static_cast<uint32_t>(size(Indices)), .instanceCount = 1, .firstIndex = 0, .vertexOffset = 0, .firstInstance = 0 };
+		const VkDrawIndexedIndirectCommand DIIC = {
+			.indexCount = static_cast<uint32_t>(size(Indices)), 
+			.instanceCount = _countof(WorldBuffer.World),
+			.firstIndex = 0, 
+			.vertexOffset = 0, 
+			.firstInstance = 0
+		};
 		IndirectBuffers.emplace_back().Create(Device, PDMP, DIIC);
 		VK::Scoped<StagingBuffer> StagingIndirect(Device);
 		StagingIndirect.Create(Device, PDMP, sizeof(DIIC), &DIIC);
@@ -354,16 +418,25 @@ public:
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(CB));
 	}
 
-	float Angle = 0.0f;
 	virtual void UpdateWorldBuffer() {
-		//WorldBuffer.World[0] = glm::mat4(1.0f);
+		if (nullptr != Scene) {
+			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
+				if (i < _countof(WorldBuffer.World)) {
+					const auto Rb = Scene->RigidBodies[i];
+					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::SPHERE) {
+						const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
+						const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
+						const auto Scl = static_cast<ShapeSphere*>(Rb->Shape)->Radius * 2.0f;
 
-		Angle += 1.0f;
-		while (Angle > 360.0) { Angle -= 360.0f; }
-		WorldBuffer.World[0] = glm::rotate(glm::mat4(1.0f), glm::radians(Angle), glm::vec3(0.0f, 1.0f, 0.0f));
+						//WorldBuffer.World[i] = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
+						WorldBuffer.World[i] = glm::scale(glm::translate(glm::mat4(1.0f), Pos), glm::vec3(Scl));
+					}
+				}
+			}
+		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
-		const auto Pos = glm::vec3(0.0f, 0.0f, 3.0f);
+		const auto Pos = glm::vec3(0.0f, 15.0f, 30.0f);
 		const auto Tag = glm::vec3(0.0f);
 		const auto Up = glm::vec3(0.0f, 1.0f, 0.0f);
 		const auto View = glm::lookAt(Pos, Tag, Up);
@@ -382,8 +455,10 @@ protected:
 	std::vector<glm::vec3> Vertices;
 	std::vector<glm::vec3> Normals;
 
+	Physics::Scene* Scene = nullptr;
+
 	struct WORLD_BUFFER {
-		glm::mat4 World[16];
+		glm::mat4 World[64];
 	};
 	WORLD_BUFFER WorldBuffer;
 	struct VIEW_PROJECTION_BUFFER {
