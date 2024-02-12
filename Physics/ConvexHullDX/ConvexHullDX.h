@@ -8,6 +8,8 @@
 #include "../GltfSDK.h"
 #include "../Physics.h"
 
+//#define NO_CONVEX_HULL
+
 class ConvexHullDX : public Gltf::SDK, public DX
 {
 public:
@@ -76,8 +78,6 @@ public:
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
 								std::memcpy(data(Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Vertices));
-
-								AdjustScale(Vertices, 1.0f);
 							}
 							break;
 							default: break;
@@ -116,24 +116,18 @@ public:
 	virtual void DrawFrame(const UINT i) override {
 		UpdateWorldBuffer();
 		CopyToUploadResource(COM_PTR_GET(ConstantBuffers[i].Resource), RoundUp256(sizeof(WorldBuffer)), &WorldBuffer);
-
-		//UpdateViewProjectionBuffer();
-		//CopyToUploadResource(COM_PTR_GET(ConstantBuffers[i + size(SwapChainBackBuffers)].Resource), RoundUp256(sizeof(ViewProjectionBuffer)), &ViewProjectionBuffer);
 	}
 	virtual void CreateCommandList() override {
 		DX::CreateCommandList();
 		DX::CreateBundleCommandList(size(SwapChainBackBuffers));
 	}
 	virtual void CreateGeometry() override {
-		//Load(GLTF_PATH / "bunny.glb");
-		//Load(GLTF_PATH / "bunny2.glb");
-		Load(GLTF_PATH / "bunny4.glb");
-		//Load(GLTF_PATH / "happy_vrip.glb");
-		//Load(GLTF_PATH / "dragon.glb"); 
-		//Load(GLTF_PATH / "Box.glb");
-		//Load(GLTF_PATH / "Sphere.glb");
+		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
+		//Load(GLTF_PATH / "Avocado" / "glTF-Binary" / "Avocado.glb");
+		//Load(ASSET_PATH / "bunny4.glb");
 
-#if 0
+		//!< “Ê•ï‚ð\’z
+#ifndef NO_CONVEX_HULL
 		std::vector<Vec3> Vec3s;
 		Vec3s.reserve(size(Vertices));
 		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
@@ -143,15 +137,16 @@ public:
 		BuildConvexHull(Vec3s, HullVertices, HullIndices);
 		{
 			for (auto& i : HullVertices) {
-				VerticesCH.emplace_back(DirectX::XMFLOAT3(i.X(), i.Y(), i.Z()));
+				Vertices_CH.emplace_back(DirectX::XMFLOAT3(i.X(), i.Y(), i.Z()));
 			}
 			for (auto i : HullIndices) {
-				IndicesCH.emplace_back(static_cast<UINT32>(std::get<1>(i)));
-				IndicesCH.emplace_back(static_cast<UINT32>(std::get<0>(i)));
-				IndicesCH.emplace_back(static_cast<UINT32>(std::get<2>(i)));
+				Indices_CH.emplace_back(static_cast<UINT32>(std::get<1>(i)));
+				Indices_CH.emplace_back(static_cast<UINT32>(std::get<0>(i)));
+				Indices_CH.emplace_back(static_cast<UINT32>(std::get<2>(i)));
 			}
 		}
 #endif
+
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);
 		const auto CL = COM_PTR_GET(DirectCommandLists[0]);
 		const auto CQ = COM_PTR_GET(GraphicsCommandQueue);
@@ -179,14 +174,10 @@ public:
 		UploadResource UploadIndirect;
 		UploadIndirect.Create(COM_PTR_GET(Device), sizeof(DIA), &DIA);
 
-#if 0
+#ifndef NO_CONVEX_HULL
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Vertices_CH), sizeof(Vertices_CH[0]));
 		UploadResource UploadVertex_CH;
 		UploadVertex_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Vertices_CH), data(Vertices_CH));
-
-		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Normals_CH), sizeof(Normals_CH[0]));
-		UploadResource UploadNormal_CH;
-		UploadNormal_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Normals_CH), data(Normals_CH));
 
 		IndexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Indices_CH), DXGI_FORMAT_R32_UINT);
 		UploadResource UploadIndex_CH;
@@ -209,10 +200,8 @@ public:
 			VertexBuffers[1].PopulateCopyCommand(CL, TotalSizeOf(Normals), COM_PTR_GET(UploadNormal.Resource));
 			IndexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Indices), COM_PTR_GET(UploadIndex.Resource));
 			IndirectBuffers[0].PopulateCopyCommand(CL, sizeof(DIA), COM_PTR_GET(UploadIndirect.Resource));
-
-#if 0
+#ifndef NO_CONVEX_HULL
 			VertexBuffers[2].PopulateCopyCommand(CL, TotalSizeOf(Vertices_CH), COM_PTR_GET(UploadVertex_CH.Resource));
-			VertexBuffers[3].PopulateCopyCommand(CL, TotalSizeOf(Normals_CH), COM_PTR_GET(UploadNormal_CH.Resource));
 			IndexBuffers[1].PopulateCopyCommand(CL, TotalSizeOf(Indices_CH), COM_PTR_GET(UploadIndex_CH.Resource));
 			IndirectBuffers[1].PopulateCopyCommand(CL, sizeof(DIA_CH), COM_PTR_GET(UploadIndirect_CH.Resource));
 #endif
@@ -286,19 +275,18 @@ public:
 		DX::CreatePipelineState_VsPs_Input(PipelineStates[0], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, RD, TRUE, IEDs, SBCs);
 
 		std::vector<COM_PTR<ID3DBlob>> SBs_CH;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_PN.vs.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_PN.ps.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
 		const std::array SBCs_CH = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CH[0]->GetBufferPointer(), .BytecodeLength = SBs_CH[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CH[1]->GetBufferPointer(), .BytecodeLength = SBs_CH[1]->GetBufferSize() }),
 		};
 		const std::vector IEDs_CH = {
 			D3D12_INPUT_ELEMENT_DESC({.SemanticName = "POSITION", .SemanticIndex = 0, .Format = DXGI_FORMAT_R32G32B32_FLOAT, .InputSlot = 0, .AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT, .InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, .InstanceDataStepRate = 0 }),
-			D3D12_INPUT_ELEMENT_DESC({.SemanticName = "NORMAL", .SemanticIndex = 0, .Format = DXGI_FORMAT_R32G32B32_FLOAT, .InputSlot = 1, .AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT, .InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, .InstanceDataStepRate = 0 }),
 		};
 		constexpr D3D12_RASTERIZER_DESC RD_CH = {
 			.FillMode = D3D12_FILL_MODE_WIREFRAME,
-			.CullMode = D3D12_CULL_MODE_BACK, .FrontCounterClockwise = TRUE,
+			.CullMode = D3D12_CULL_MODE_BACK, .FrontCounterClockwise = /*TRUE*/FALSE,
 			.DepthBias = D3D12_DEFAULT_DEPTH_BIAS, .DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP, .SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
 			.DepthClipEnable = TRUE,
 			.MultisampleEnable = FALSE, .AntialiasedLineEnable = FALSE, .ForcedSampleCount = 0,
@@ -391,9 +379,9 @@ public:
 			BCL->IASetIndexBuffer(&IndexBuffers[0].View);
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
 
-#if 0
+#ifndef NO_CONVEX_HULL
 			BCL->SetPipelineState(PS1);
-			const std::array VBVs_CH = { VertexBuffers[2].View, VertexBuffers[3].View };
+			const std::array VBVs_CH = { VertexBuffers[2].View };
 			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs_CH)), data(VBVs_CH));
 			BCL->IASetIndexBuffer(&IndexBuffers[1].View);
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[1].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[1].Resource), 0, nullptr, 0);
@@ -445,14 +433,13 @@ public:
 
 	float Angle = 0.0f;
 	virtual void UpdateWorldBuffer() {
-		//DirectX::XMStoreFloat4x4(&WorldBuffer.World[0], DirectX::XMMatrixIdentity());
-
 		Angle += 1.0f;
 		while (Angle > 360.0f) { Angle -= 360.0f; }
 		DirectX::XMStoreFloat4x4(&WorldBuffer.World[0], DirectX::XMMatrixRotationY(DirectX::XMConvertToRadians(Angle)));
 	}
 	virtual void UpdateViewProjectionBuffer() {
-		const auto Pos = DirectX::XMVectorSet(0.0f, 0.0f, 3.0f, 1.0f);
+		const auto Pos = DirectX::XMVectorSet(0.0f, 0.25f, 10.0f, 1.0f);
+		//const auto Pos = DirectX::XMVectorSet(0.0f, 0.25f, 1.0f, 1.0f);
 		const auto Tag = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 		const auto Up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 		const auto View = DirectX::XMMatrixLookAtRH(Pos, Tag, Up);
@@ -473,7 +460,6 @@ protected:
 
 	std::vector<UINT32> Indices_CH;
 	std::vector<DirectX::XMFLOAT3> Vertices_CH;
-	std::vector<DirectX::XMFLOAT3> Normals_CH;
 
 	struct WORLD_BUFFER {
 		DirectX::XMFLOAT4X4 World[16];

@@ -90,7 +90,7 @@ namespace Convex
 	static void BuildConvexHull(const std::vector<Vec3>& Pts, std::vector<Vec3>& HullVerts, std::vector<TriangleIndices>& HullInds)
 	{
 #ifdef _DEBUG
-		std::cout << "凸包を構築しています..." << std::endl;
+		LOG(data(std::format("Building convex hull...\n")));
 #endif
 		//!< まずは「なるべく」包含するような四面体を作成
 		BuildTetrahedron(Pts, HullVerts, HullInds);
@@ -102,7 +102,7 @@ namespace Convex
 		//!< 外部点が無くなるまで繰り返す
 		while (!std::empty(External)) {
 #ifdef _DEBUG
-			std::cout << "残りの頂点=" << size(External) << std::endl;
+			LOG(data(std::format("Rest vertices = {}\n", size(External))));
 #endif
 			//!< 最遠点を見つける
 			const auto FarIndexOfExternal = Distance::Farthest(External, External[0]);

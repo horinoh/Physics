@@ -21,7 +21,7 @@ float3 Specular(const float3 MaterialColor, const float4 LightColor, const float
 	return Phong(MaterialColor, LightColor, LN, L, N, V);
 }
 
-static const float3 LightDirection = float3(0.0f, 1.0f, 0.0f);
+static const float3 LightDirection = float3(0.0f, 1.0f, 1.0f);
 
 float4 main(IN In) : SV_TARGET
 {
@@ -30,7 +30,7 @@ float4 main(IN In) : SV_TARGET
 	const float3 L = normalize(LightDirection);
 	const float LN = dot(L, N);
 	const float3 Ambient = float3(0.1f, 0.1f, 0.1f);
-	const float3 MaterialColor = float3(1.0f, 1.0f, 1.0f);
+	const float3 MaterialColor = float3(0.75f, 0.75f, 0.75f);
 	const float4 LightColor = float4(1.0f, 1.0f, 1.0f, 8.0f);
 	const float Attenuate = 1.0;
 	const float Spot = 1.0;

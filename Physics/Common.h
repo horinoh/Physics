@@ -9,7 +9,8 @@
 #define LOG(x)
 #endif
 
-const auto GLTF_PATH = std::filesystem::path("..") / "Asset";
+const auto ASSET_PATH = std::filesystem::path("..") / "Asset";
+const auto GLTF_PATH = std::filesystem::path("..") / std::filesystem::path("..") / "glTF-Sample-Models" / "2.0";
 
 class Win 
 {

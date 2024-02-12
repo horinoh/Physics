@@ -76,8 +76,6 @@ public:
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
 								std::memcpy(data(Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Vertices));
-
-								AdjustScale(Vertices, 1.0f);
 							}
 							break;
 							default: break;
@@ -182,7 +180,7 @@ public:
 		DX::CreateBundleCommandList(size(SwapChainBackBuffers));
 	}
 	virtual void CreateGeometry() override {
-		Load(GLTF_PATH / "Sphere.glb");
+		Load(ASSET_PATH / "Sphere.glb");
 
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);
 		const auto CL = COM_PTR_GET(DirectCommandLists[0]);
@@ -419,10 +417,10 @@ public:
 					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::SPHERE) {
 						const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 						const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
-						const auto Scl = static_cast<ShapeSphere*>(Rb->Shape)->Radius * 2.0f;
+						const auto Scl = static_cast<ShapeSphere*>(Rb->Shape)->Radius;
 
-						//DirectX::XMStoreFloat4x4(&WorldBuffer.World[i], DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
-						DirectX::XMStoreFloat4x4(&WorldBuffer.World[i], DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixTranslationFromVector(Pos));
+						DirectX::XMStoreFloat4x4(&WorldBuffer.World[i], DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
+						//DirectX::XMStoreFloat4x4(&WorldBuffer.World[i], DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixTranslationFromVector(Pos));
 					}
 				}
 			}

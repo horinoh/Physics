@@ -76,8 +76,6 @@ public:
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
 								std::memcpy(data(Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Vertices));
-
-								AdjustScale(Vertices, 1.0f);
 							}
 							break;
 							default: break;
@@ -185,7 +183,7 @@ public:
 	}
 
 	virtual void CreateGeometry() override {
-		Load(GLTF_PATH / "Sphere.glb");
+		Load(ASSET_PATH / "Sphere.glb");
 
 		const auto& CB = CommandBuffers[0];
 		const auto PDMP = CurrentPhysicalDeviceMemoryProperties;
@@ -375,7 +373,7 @@ public:
 			vkCmdSetScissor(SCB, 0, static_cast<uint32_t>(size(ScissorRects)), data(ScissorRects));
 
 			const std::array DSs = { DS };
-			const std::array DynamicOffsets = { static_cast<uint32_t>(0) };
+			const std::array<uint32_t, 0> DynamicOffsets = {};
 			vkCmdBindDescriptorSets(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PLL, 0, static_cast<uint32_t>(size(DSs)), data(DSs), static_cast<uint32_t>(size(DynamicOffsets)), data(DynamicOffsets));
 
 			const std::array Offsets = { VkDeviceSize(0) };
@@ -426,10 +424,10 @@ public:
 					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::SPHERE) {
 						const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 						const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
-						const auto Scl = static_cast<ShapeSphere*>(Rb->Shape)->Radius * 2.0f;
+						const auto Scl = static_cast<ShapeSphere*>(Rb->Shape)->Radius;
 
-						//WorldBuffer.World[i] = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
-						WorldBuffer.World[i] = glm::scale(glm::translate(glm::mat4(1.0f), Pos), glm::vec3(Scl));
+						WorldBuffer.World[i] = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
+						//WorldBuffer.World[i] = glm::scale(glm::translate(glm::mat4(1.0f), Pos), glm::vec3(Scl));
 					}
 				}
 			}

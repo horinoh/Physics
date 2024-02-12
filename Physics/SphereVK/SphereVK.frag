@@ -25,7 +25,7 @@ vec3 Specular(const vec3 MaterialColor, const vec4 LightColor, const float LN, c
 	return Phong(MaterialColor, LightColor, LN, L, N, V);
 }
 
-const vec3 LightDirection = vec3(0.0f, 1.0f, 0.0f);
+const vec3 LightDirection = vec3(0.0f, 1.0f, 1.0f);
 
 void main()
 {
@@ -34,7 +34,7 @@ void main()
 	const vec3 L = normalize(LightDirection);
 	const float LN = dot(L, N);
 	const vec3 Ambient = vec3(0.1f, 0.1f, 0.1f);
-	const vec3 MaterialColor = vec3(1.0f, 1.0f, 1.0f);
+	const vec3 MaterialColor = vec3(0.75f, 0.75f, 0.75f);
 	const vec4 LightColor = vec4(1.0f, 1.0f, 1.0f, 8.0f);
 	const float Attenuate = 1.0;
 	const float Spot = 1.0;
