@@ -12,6 +12,8 @@
 const auto ASSET_PATH = std::filesystem::path("..") / "Asset";
 const auto GLTF_PATH = std::filesystem::path("..") / std::filesystem::path("..") / "glTF-Sample-Models" / "2.0";
 
+#define TO_RADIAN(x) ((x) * std::numbers::pi_v<float> / 180.0f)
+
 class Win 
 {
 public:

@@ -113,10 +113,85 @@ public:
 		}
 	}
 
+	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
+		Scene = new Physics::Scene();
+
+		DX::OnCreate(hWnd, hInstance, Title);
+	}
+	virtual void OnDestroy(HWND hWnd, HINSTANCE hInstance) override {
+		DX::OnDestroy(hWnd, hInstance);
+
+		if (nullptr != Scene) {
+			delete Scene;
+		}
+	}
+	virtual void OnTimer(HWND hWnd, HINSTANCE hInstance) override {
+		DX::OnTimer(hWnd, hInstance);
+
+		if (IsUpdate()) {
+			if (nullptr != Scene) {
+				Scene->Update(1.0f / 60.0f);
+			}
+		}
+	}
+	virtual void OnKeyDown(HWND hWnd, HINSTANCE hInstance, const WPARAM Param) override {
+		constexpr auto Speed = 0.1f;
+		constexpr auto RotSpeed = 1.0f;
+		auto X = 0.0f, Y = 0.0f, Z = 0.0f;
+		static auto RotY = 0.0f;
+		switch (Param) {
+		case 'W':
+			Y += Speed;
+			break;
+		case 'A':
+			X -= Speed;
+			break;
+		case 'S':
+			Y -= Speed;
+			break;
+		case 'D':
+			X += Speed;
+			break;
+
+		case VK_UP:
+			Z -= Speed;
+			break;
+		case VK_DOWN:
+			Z += Speed;
+			break;
+		case VK_LEFT:
+			RotY -= RotSpeed;
+			break;
+		case VK_RIGHT:
+			RotY += RotSpeed;
+			break;
+		default:
+			break;
+		}
+		while (RotY < 0.0f) { RotY += 360.0f; }
+		while (RotY > 360.0f) { RotY -= 360.0f; }
+
+		if (nullptr != Scene) {
+			if (0 < size(Scene->RigidBodies)) {
+				const auto Rb = Scene->RigidBodies[0];
+				
+				Rb->Position = Vec3(
+					(std::min)((std::max)(Rb->Position.X() + X, -5.0f), 5.0f), 
+					(std::min)((std::max)(Rb->Position.Y() + Y, -5.0f), 5.0f), 
+					(std::min)((std::max)(Rb->Position.Z() + Z, -5.0f), 5.0f)
+				);
+				Rb->Rotation = Quat(Vec3::AxisY(), TO_RADIAN(RotY));
+			}
+		}
+
+		Win::OnKeyDown(hWnd, hInstance, Param);
+	}
+
 	virtual void DrawFrame(const UINT i) override {
 		UpdateWorldBuffer();
 		CopyToUploadResource(COM_PTR_GET(ConstantBuffers[i].Resource), RoundUp256(sizeof(WorldBuffer)), &WorldBuffer);
 	}
+
 	virtual void CreateCommandList() override {
 		DX::CreateCommandList();
 		DX::CreateBundleCommandList(size(SwapChainBackBuffers));
@@ -140,12 +215,25 @@ public:
 				Vertices_CH.emplace_back(DirectX::XMFLOAT3(i.X(), i.Y(), i.Z()));
 			}
 			for (auto i : HullIndices) {
-				Indices_CH.emplace_back(static_cast<UINT32>(std::get<1>(i)));
 				Indices_CH.emplace_back(static_cast<UINT32>(std::get<0>(i)));
+				Indices_CH.emplace_back(static_cast<UINT32>(std::get<1>(i)));
 				Indices_CH.emplace_back(static_cast<UINT32>(std::get<2>(i)));
 			}
 		}
 #endif
+
+		for (auto i = 0; i < _countof(WorldBuffer.World); ++i) {
+			auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
+			Rb->Position = 0 == i ? Vec3::AxisZ() * 5.0f : Vec3::Zero();
+			Rb->Rotation = Quat::Identity();
+			Rb->InvMass = 0.0f;
+			Rb->Init(new ShapeConvex());
+#ifndef NO_CONVEX_HULL
+			auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
+			Points.resize(std::size(HullVertices));
+			std::ranges::copy(HullVertices, std::begin(Points));
+#endif
+		}
 
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);
 		const auto CL = COM_PTR_GET(DirectCommandLists[0]);
@@ -165,7 +253,7 @@ public:
 
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = { 
 			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)), 
-			.InstanceCount = 1, 
+			.InstanceCount = _countof(WorldBuffer.World),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
 			.StartInstanceLocation = 0
@@ -185,7 +273,7 @@ public:
 
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA_CH = {
 			.IndexCountPerInstance = static_cast<UINT32>(size(Indices_CH)),
-			.InstanceCount = 1,
+			.InstanceCount = _countof(WorldBuffer.World),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
 			.StartInstanceLocation = 0
@@ -286,7 +374,7 @@ public:
 		};
 		constexpr D3D12_RASTERIZER_DESC RD_CH = {
 			.FillMode = D3D12_FILL_MODE_WIREFRAME,
-			.CullMode = D3D12_CULL_MODE_BACK, .FrontCounterClockwise = /*TRUE*/FALSE,
+			.CullMode = D3D12_CULL_MODE_BACK, .FrontCounterClockwise = TRUE,
 			.DepthBias = D3D12_DEFAULT_DEPTH_BIAS, .DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP, .SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
 			.DepthClipEnable = TRUE,
 			.MultisampleEnable = FALSE, .AntialiasedLineEnable = FALSE, .ForcedSampleCount = 0,
@@ -431,15 +519,31 @@ public:
 		VERIFY_SUCCEEDED(DCL->Close());
 	}
 
-	float Angle = 0.0f;
 	virtual void UpdateWorldBuffer() {
-		Angle += 1.0f;
-		while (Angle > 360.0f) { Angle -= 360.0f; }
-		DirectX::XMStoreFloat4x4(&WorldBuffer.World[0], DirectX::XMMatrixRotationY(DirectX::XMConvertToRadians(Angle)));
+		if (nullptr != Scene) {
+			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
+				if (i < _countof(WorldBuffer.World)) {
+					const auto Rb = Scene->RigidBodies[i];
+					const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
+					const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
+
+					DirectX::XMStoreFloat4x4(&WorldBuffer.World[i], DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
+				}
+			}
+
+			if (1 < size(Scene->RigidBodies)) {
+				const auto RbA = Scene->RigidBodies[0];
+				const auto RbB = Scene->RigidBodies[1];
+				if (Collision::Intersection::GJK(RbA, RbB)) {
+#ifdef _DEBUG
+					LOG(data(std::format("Collide\n")));
+#endif
+				}
+			}
+		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
 		const auto Pos = DirectX::XMVectorSet(0.0f, 0.25f, 10.0f, 1.0f);
-		//const auto Pos = DirectX::XMVectorSet(0.0f, 0.25f, 1.0f, 1.0f);
 		const auto Tag = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 		const auto Up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 		const auto View = DirectX::XMMatrixLookAtRH(Pos, Tag, Up);
@@ -461,8 +565,10 @@ protected:
 	std::vector<UINT32> Indices_CH;
 	std::vector<DirectX::XMFLOAT3> Vertices_CH;
 
+	Physics::Scene* Scene = nullptr;
+
 	struct WORLD_BUFFER {
-		DirectX::XMFLOAT4X4 World[16];
+		DirectX::XMFLOAT4X4 World[2];
 	};
 	WORLD_BUFFER WorldBuffer; 
 	struct VIEW_PROJECTION_BUFFER {

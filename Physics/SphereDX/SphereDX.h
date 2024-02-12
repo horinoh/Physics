@@ -171,10 +171,8 @@ public:
 	virtual void DrawFrame(const UINT i) override {
 		UpdateWorldBuffer();
 		CopyToUploadResource(COM_PTR_GET(ConstantBuffers[i].Resource), RoundUp256(sizeof(WorldBuffer)), &WorldBuffer);
-
-		//UpdateViewProjectionBuffer();
-		//CopyToUploadResource(COM_PTR_GET(ConstantBuffers[i + size(SwapChainBackBuffers)].Resource), RoundUp256(sizeof(ViewProjectionBuffer)), &ViewProjectionBuffer);
 	}
+
 	virtual void CreateCommandList() override {
 		DX::CreateCommandList();
 		DX::CreateBundleCommandList(size(SwapChainBackBuffers));
@@ -420,7 +418,6 @@ public:
 						const auto Scl = static_cast<ShapeSphere*>(Rb->Shape)->Radius;
 
 						DirectX::XMStoreFloat4x4(&WorldBuffer.World[i], DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
-						//DirectX::XMStoreFloat4x4(&WorldBuffer.World[i], DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixTranslationFromVector(Pos));
 					}
 				}
 			}

@@ -173,7 +173,9 @@ namespace Physics
 		}
 
 		virtual Vec3 GetSupportPoint(const Vec3& Pos, const Quat& Rot, const Vec3& NDir, const float Bias) const override {
-			return *std::ranges::max_element(Points, [&](const auto lhs, const auto rhs) { return NDir.Dot(Rot.Rotate(lhs) + Pos) < NDir.Dot(Rot.Rotate(rhs) + Pos); }) + NDir * Bias;
+			return *std::ranges::max_element(Points, [&](const auto lhs, const auto rhs) { 
+				return NDir.Dot(Rot.Rotate(lhs) + Pos) < NDir.Dot(Rot.Rotate(rhs) + Pos); 
+			}) + NDir * Bias;
 		}
 		virtual float GetFastestPointSpeed(const Vec3& AngVel, const Vec3& Dir) const override {
 			auto MaxSpeed = 0.0f;
@@ -183,6 +185,7 @@ namespace Physics
 					MaxSpeed = Speed;
 				}
 			}
+			return MaxSpeed;
 		}
 
 	public:

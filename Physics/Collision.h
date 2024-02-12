@@ -223,4 +223,4 @@ namespace Collision
 #include "Convex.h"
 using namespace Convex;
 #include "GJK.h"
-using namespace Collision::GJK;
+using namespace Collision;

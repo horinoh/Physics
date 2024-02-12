@@ -146,11 +146,19 @@ public:
 			}
 		}
 	}
+
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
 		VK::OnCreate(hWnd, hInstance, Title);
 
 		Scene = new Physics::Scene();
 		PutSpheres();
+	}
+	virtual void OnDestroy(HWND hWnd, HINSTANCE hInstance) override {
+		VK::OnDestroy(hWnd, hInstance);
+
+		if (nullptr != Scene) {
+			delete Scene;
+		}
 	}
 	virtual void OnTimer(HWND hWnd, HINSTANCE hInstance) override {
 		VK::OnTimer(hWnd, hInstance);
@@ -161,20 +169,9 @@ public:
 			}
 		}
 	}
-	virtual void OnDestroy(HWND hWnd, HINSTANCE hInstance) override {
-		VK::OnDestroy(hWnd, hInstance);
-
-		if (nullptr != Scene) {
-			delete Scene;
-		}
-	}
-
 	virtual void DrawFrame(const UINT i) override {
 		UpdateWorldBuffer();
 		CopyToHostVisibleDeviceMemory(Device, UniformBuffers[i].DeviceMemory, 0, sizeof(WorldBuffer), &WorldBuffer);
-
-		//UpdateViewProjectionBuffer();
-		//CopyToHostVisibleDeviceMemory(Device, UniformBuffers[i + size(SwapchainBackBuffers)].DeviceMemory, 0, sizeof(ViewProjectionBuffer), &ViewProjectionBuffer);
 	}
 
 	virtual void AllocateCommandBuffer() override {
@@ -427,7 +424,6 @@ public:
 						const auto Scl = static_cast<ShapeSphere*>(Rb->Shape)->Radius;
 
 						WorldBuffer.World[i] = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
-						//WorldBuffer.World[i] = glm::scale(glm::translate(glm::mat4(1.0f), Pos), glm::vec3(Scl));
 					}
 				}
 			}

@@ -112,6 +112,80 @@ public:
 			}
 		}
 	}
+	
+	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
+		Scene = new Physics::Scene();
+
+		VK::OnCreate(hWnd, hInstance, Title);		
+	}
+	virtual void OnDestroy(HWND hWnd, HINSTANCE hInstance) override {
+		VK::OnDestroy(hWnd, hInstance);
+
+		if (nullptr != Scene) {
+			delete Scene;
+		}
+	}
+	virtual void OnTimer(HWND hWnd, HINSTANCE hInstance) override {
+		VK::OnTimer(hWnd, hInstance);
+
+		if (IsUpdate()) {
+			if (nullptr != Scene) {
+				Scene->Update(1.0f / 60.0f);
+			}
+		}
+	}
+	virtual void OnKeyDown(HWND hWnd, HINSTANCE hInstance, const WPARAM Param) override {
+		constexpr auto Speed = 0.1f;
+		constexpr auto RotSpeed = 1.0f;
+		auto X = 0.0f, Y = 0.0f, Z = 0.0f;
+		static auto RotY = 0.0f;
+		switch (Param) {
+		case 'W':
+			Y += Speed;
+			break;
+		case 'A':
+			X -= Speed;
+			break;
+		case 'S':
+			Y -= Speed;
+			break;
+		case 'D':
+			X += Speed;
+			break;
+
+		case VK_UP:
+			Z -= Speed;
+			break;
+		case VK_DOWN:
+			Z += Speed;
+			break;
+		case VK_LEFT:
+			RotY -= RotSpeed;
+			break;
+		case VK_RIGHT:
+			RotY += RotSpeed;
+			break;
+		default:
+			break;
+		}
+		while (RotY < 0.0f) { RotY += 360.0f; }
+		while (RotY > 360.0f) { RotY -= 360.0f; }
+
+		if (nullptr != Scene) {
+			if (0 < size(Scene->RigidBodies)) {
+				const auto Rb = Scene->RigidBodies[0];
+
+				Rb->Position = Vec3(
+					(std::min)((std::max)(Rb->Position.X() + X, -5.0f), 5.0f),
+					(std::min)((std::max)(Rb->Position.Y() + Y, -5.0f), 5.0f),
+					(std::min)((std::max)(Rb->Position.Z() + Z, -5.0f), 5.0f)
+				);
+				Rb->Rotation = Quat(Vec3::AxisY(), TO_RADIAN(RotY));
+			}
+		}
+
+		Win::OnKeyDown(hWnd, hInstance, Param);
+	}
 
 	virtual void DrawFrame(const UINT i) override {
 		UpdateWorldBuffer();
@@ -148,6 +222,18 @@ public:
 			}
 		}
 #endif
+		for (auto i = 0; i < _countof(WorldBuffer.World); ++i) {
+			auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
+			Rb->Position = 0 == i ? Vec3::AxisZ() * 5.0f : Vec3::Zero();
+			Rb->Rotation = Quat::Identity();
+			Rb->InvMass = 0.0f;
+			Rb->Init(new ShapeConvex());
+#ifndef NO_CONVEX_HULL
+			auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
+			Points.resize(std::size(HullVertices));
+			std::ranges::copy(HullVertices, std::begin(Points));
+#endif
+		}
 
 		const auto& CB = CommandBuffers[0];
 		const auto PDMP = CurrentPhysicalDeviceMemoryProperties;
@@ -164,7 +250,13 @@ public:
 		VK::Scoped<StagingBuffer> StagingIndex(Device);
 		StagingIndex.Create(Device, PDMP, TotalSizeOf(Indices), data(Indices));
 
-		const VkDrawIndexedIndirectCommand DIIC = { .indexCount = static_cast<uint32_t>(size(Indices)), .instanceCount = 1, .firstIndex = 0, .vertexOffset = 0, .firstInstance = 0 };
+		const VkDrawIndexedIndirectCommand DIIC = { 
+			.indexCount = static_cast<uint32_t>(size(Indices)), 
+			.instanceCount = _countof(WorldBuffer.World),
+			.firstIndex = 0, 
+			.vertexOffset = 0, 
+			.firstInstance = 0 
+		};
 		IndirectBuffers.emplace_back().Create(Device, PDMP, DIIC);
 		VK::Scoped<StagingBuffer> StagingIndirect(Device);
 		StagingIndirect.Create(Device, PDMP, sizeof(DIIC), &DIIC);
@@ -178,7 +270,13 @@ public:
 		VK::Scoped<StagingBuffer> StagingIndex_CH(Device);
 		StagingIndex_CH.Create(Device, PDMP, TotalSizeOf(Indices_CH), data(Indices_CH));
 
-		const VkDrawIndexedIndirectCommand DIIC_CH = { .indexCount = static_cast<uint32_t>(size(Indices_CH)), .instanceCount = 1, .firstIndex = 0, .vertexOffset = 0, .firstInstance = 0 };
+		const VkDrawIndexedIndirectCommand DIIC_CH = { 
+			.indexCount = static_cast<uint32_t>(size(Indices_CH)), 
+			.instanceCount = _countof(WorldBuffer.World), 
+			.firstIndex = 0, 
+			.vertexOffset = 0, 
+			.firstInstance = 0
+		};
 		IndirectBuffers.emplace_back().Create(Device, PDMP, DIIC_CH);
 		VK::Scoped<StagingBuffer> StagingIndirect_CH(Device);
 		StagingIndirect_CH.Create(Device, PDMP, sizeof(DIIC_CH), &DIIC_CH);
@@ -433,15 +531,31 @@ public:
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(CB));
 	}
 
-	float Angle = 0.0f;
 	virtual void UpdateWorldBuffer() {
-		Angle += 1.0f;
-		while (Angle > 360.0) { Angle -= 360.0f; }
-		WorldBuffer.World[0] = glm::rotate(glm::mat4(1.0f), glm::radians(Angle), glm::vec3(0.0f, 1.0f, 0.0f));
+		if (nullptr != Scene) {
+			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
+				if (i < _countof(WorldBuffer.World)) {
+					const auto Rb = Scene->RigidBodies[i];
+					const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
+					const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
+
+					WorldBuffer.World[i] = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
+				}
+			}
+
+			if (1 < size(Scene->RigidBodies)) {
+				const auto RbA = Scene->RigidBodies[0];
+				const auto RbB = Scene->RigidBodies[1];
+				if (Collision::Intersection::GJK(RbA, RbB)) {
+#ifdef _DEBUG
+					LOG(data(std::format("Collide\n")));
+#endif
+				}
+			}
+		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
 		const auto Pos = glm::vec3(0.0f, 0.25f, 10.0f);
-		//const auto Pos = glm::vec3(0.0f, 0.25f, 1.0f);
 		const auto Tag = glm::vec3(0.0f);
 		const auto Up = glm::vec3(0.0f, 1.0f, 0.0f);
 		const auto View = glm::lookAt(Pos, Tag, Up);
@@ -463,8 +577,10 @@ protected:
 	std::vector<uint32_t> Indices_CH;
 	std::vector<glm::vec3> Vertices_CH;
 
+	Physics::Scene* Scene = nullptr;
+
 	struct WORLD_BUFFER {
-		glm::mat4 World[16];
+		glm::mat4 World[2];
 	};
 	WORLD_BUFFER WorldBuffer;
 	struct VIEW_PROJECTION_BUFFER {
