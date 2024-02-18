@@ -114,6 +114,9 @@ public:
 	}
 
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
+#ifdef _DEBUG
+		SignedVolumeTest();
+#endif
 		Scene = new Physics::Scene();
 
 		DX::OnCreate(hWnd, hInstance, Title);
@@ -204,8 +207,15 @@ public:
 		//!< 凸包を構築
 #ifndef NO_CONVEX_HULL
 		std::vector<Vec3> Vec3s;
+#if 1
 		Vec3s.reserve(size(Vertices));
 		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
+#else
+		//!< コリジョンをダイアモンド型へ上書き
+		std::vector<Vec3> Diamond;
+		CreateVertices_Diamond(Diamond);
+		std::ranges::copy(Diamond, std::back_inserter(Vec3s));
+#endif
 
 		std::vector<Vec3> HullVertices;
 		std::vector<TriangleIndices> HullIndices;
@@ -222,7 +232,7 @@ public:
 		}
 #endif
 
-		for (auto i = 0; i < _countof(WorldBuffer.World); ++i) {
+		for (auto i = 0; i < _countof(WorldBuffer.RigidBodies); ++i) {
 			auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
 			Rb->Position = 0 == i ? Vec3::AxisZ() * 5.0f : Vec3::Zero();
 			Rb->Rotation = Quat::Identity();
@@ -253,7 +263,7 @@ public:
 
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = { 
 			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)), 
-			.InstanceCount = _countof(WorldBuffer.World),
+			.InstanceCount = _countof(WorldBuffer.RigidBodies),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
 			.StartInstanceLocation = 0
@@ -273,7 +283,7 @@ public:
 
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA_CH = {
 			.IndexCountPerInstance = static_cast<UINT32>(size(Indices_CH)),
-			.InstanceCount = _countof(WorldBuffer.World),
+			.InstanceCount = _countof(WorldBuffer.RigidBodies),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
 			.StartInstanceLocation = 0
@@ -522,24 +532,29 @@ public:
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-				if (i < _countof(WorldBuffer.World)) {
+				if (i < _countof(WorldBuffer.RigidBodies)) {
 					const auto Rb = Scene->RigidBodies[i];
 					const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 					const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
 
-					DirectX::XMStoreFloat4x4(&WorldBuffer.World[i], DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
+					DirectX::XMStoreFloat4x4(&WorldBuffer.RigidBodies[i].World, DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 				}
 			}
-
-			if (1 < size(Scene->RigidBodies)) {
-				const auto RbA = Scene->RigidBodies[0];
-				const auto RbB = Scene->RigidBodies[1];
-				if (Collision::Intersection::GJK(RbA, RbB)) {
-#ifdef _DEBUG
-					LOG(data(std::format("Collide\n")));
+			for (auto i = 0; i < size(Scene->RigidBodies); ++i) { WorldBuffer.RigidBodies[i].Color = { 1.0f, 1.0f, 1.0f }; }
+#ifndef NO_CONVEX_HULL
+			const auto RbA = Scene->RigidBodies[0];
+			const auto RbB = Scene->RigidBodies[1];
+			if (Collision::Intersection::GJK(RbA, RbB)) {
+				WorldBuffer.RigidBodies[0].Color = { 1.0f, 0.0f, 0.0f };
+				WorldBuffer.RigidBodies[1].Color = { 1.0f, 0.0f, 0.0f };
+			} 
+			else {
+				Vec3 OnA, OnB;
+				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
+				LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
+				LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
+			}
 #endif
-				}
-			}
 		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
@@ -567,8 +582,12 @@ protected:
 
 	Physics::Scene* Scene = nullptr;
 
+	struct RIGID_BODY {
+		DirectX::XMFLOAT4X4 World;
+		alignas(16) DirectX::XMFLOAT3 Color;
+	};
 	struct WORLD_BUFFER {
-		DirectX::XMFLOAT4X4 World[2];
+		RIGID_BODY RigidBodies[2];
 	};
 	WORLD_BUFFER WorldBuffer; 
 	struct VIEW_PROJECTION_BUFFER {

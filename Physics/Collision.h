@@ -89,7 +89,7 @@ namespace Collision
 			return false;
 		}
 		//!< 球 vs 球
-		[[nodiscard]] static bool Spheres(const ShapeSphere* SpA, const ShapeSphere* SpB,
+		[[nodiscard]] static bool SphereShpere(const ShapeSphere* SpA, const ShapeSphere* SpB,
 			const Vec3& PosA, const Vec3& PosB,
 			const Vec3& VelA, const Vec3& VelB,
 			const float DeltaSec, float& T)
@@ -97,8 +97,9 @@ namespace Collision
 			const auto Ray = (VelB - VelA) * DeltaSec;
 			const auto TotalRadius = SpA->Radius + SpB->Radius;
 
-			float T0 = 0.0f, T1 = 0.0f;
-			if (Ray.LengthSq() < 0.001f * 0.001f) {
+			auto T0 = 0.0f, T1 = 0.0f;
+			constexpr auto Eps2 = 0.001f * 0.001f;
+			if (Ray.LengthSq() < Eps2) {
 				//!< レイが十分短い場合は既に衝突しているかどうかのチェック
 				const auto PosAB = PosB - PosA;
 				const auto R = TotalRadius + 0.001f;
@@ -106,6 +107,7 @@ namespace Collision
 					return false;
 				}
 			}
+			//!< レイ vs 球 に帰着
 			else if (false == Intersection::RaySphere(PosA, Ray, PosB, TotalRadius, T0, T1) || (T0 > 1.0f || T1 < 0.0f)) {
 				return false;
 			}
@@ -123,7 +125,7 @@ namespace Collision
 			const auto SpA = static_cast<const ShapeSphere*>(RbA->Shape);
 			const auto SpB = static_cast<const ShapeSphere*>(RbB->Shape);
 			float T;
-			if (Intersection::Spheres(SpA, SpB, RbA->Position, RbB->Position, RbA->LinearVelocity, RbB->LinearVelocity, DeltaSec, T)) {
+			if (Intersection::SphereShpere(SpA, SpB, RbA->Position, RbB->Position, RbA->LinearVelocity, RbB->LinearVelocity, DeltaSec, T)) {
 				Ct.TimeOfImpact = T;
 
 				//!< 衝突時間のオブジェクトの位置
@@ -211,7 +213,7 @@ namespace Collision
 		}
 
 		//!< めり込みの追い出し (TOI == 0.0f の時点で衝突している場合)
-		if(0.0f == Ct.TimeOfImpact) {
+		if (0.0f == Ct.TimeOfImpact) {
 			//!< 質量により追い出し割合を考慮
 			const auto DistAB = Ct.PointB - Ct.PointA;
 			Ct.RigidBodyA->Position += DistAB * (Ct.RigidBodyA->InvMass / TotalInvMass);

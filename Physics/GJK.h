@@ -4,6 +4,7 @@
 using namespace Math;
 
 #include <algorithm>
+#include <functional>
 
 #include "Shape.h"
 #include "RigidBody.h"
@@ -13,33 +14,35 @@ namespace Collision
 {
 	//!< SignedVolue : 射影が最大となる軸や平面を見つけ、それに対し原点を射影して内部にあれば重心を返す
 
+	//!< TODO 未検証
 	[[nodiscard]] static Vec2 SignedVolume(const Vec3& A, const Vec3& B)
 	{
 		const auto AB = B - A;
-		const auto N = AB.Normalize();
 		//!< 原点を AB 軸に射影し P とする
-		const auto P = A + N * N.Dot(-A);
+		const auto P = A + AB * AB.Dot(-A) / AB.LengthSq(); //!< 平方根を省けるので正規化しない方が良い
 
 		//!< X, Y, Z 軸の内、絶対値が最大のものを見つける
-		auto MaxIndex = 0;
-		auto MaxSeg = 0.0f;
+		auto Index = 0;
+		auto MaxVal = 0.0f;
 		for (auto i = 0; i < 3; ++i) {
-			if (std::abs(MaxSeg) < std::abs(AB[i])) {
-				MaxSeg = AB[i];
-				MaxIndex = i;
+			if (std::abs(MaxVal) < std::abs(AB[i])) {
+				MaxVal = AB[i];
+				Index = i;
 			}
 		}
 
 		//!< 「P と線分」を選択した軸へ射影
-		const std::array PrjSeg = { A[MaxIndex] , B[MaxIndex] };
-		const auto PrjP = P[MaxIndex];
+		//const std::array PrjSeg = { A[Index] , B[Index] };
+		const auto PrjA = A[Index];
+		const auto PrjB = B[Index];
+		const auto PrjP = P[Index];
 
 		//!< P が [A, B] の内部にある場合
-		if ((PrjSeg[0] < PrjP && PrjP < PrjSeg[1]) || (PrjSeg[1] < PrjP && PrjP < PrjSeg[0])) {
-			return Vec2(PrjSeg[1] - PrjP, PrjP - PrjSeg[0]) / MaxSeg;
+		if ((PrjP > PrjA && PrjP < PrjB) || (PrjP > PrjB && PrjP < PrjA)) {
+			return Vec2(PrjB - PrjP, PrjP - PrjA) / MaxVal;
 		}
 		//!< P が A 側の外側
-		if ((PrjSeg[0] < PrjSeg[1] && PrjP <= PrjSeg[0]) || (PrjSeg[0] >= PrjSeg[1] && PrjP >= PrjSeg[0])) {
+		if ((PrjA <= PrjB && PrjP <= PrjA) || (PrjA >= PrjB && PrjP >= PrjA)) {
 			return Vec2::AxisX();
 		}
 		//!< P が B 側の外側
@@ -47,14 +50,15 @@ namespace Collision
 			return Vec2::AxisY();
 		}
 	}
+	//!< TODO 未検証
 	[[nodiscard]] static Vec3 SignedVolume(const Vec3& A, const Vec3& B, const Vec3& C)
 	{
-		const auto N = (B - A).Cross(C - A).Normalize();
-		const auto P = N * A.Dot(N);
+		const auto N = (B - A).Cross(C - A);
+		const auto P = N * A.Dot(N) / N.LengthSq(); //!< 平方根を省けるので正規化しない方が良い
 
 		//!<  XY, YZ, ZX 平面の内、射影面積が最大のものを見つける
-		auto MaxIndex = 0;
-		auto MaxArea = 0.0f;
+		auto Index = 0;
+		auto MaxVal = 0.0f;
 		for (auto i = 0; i < 3; ++i) {
 			const auto j = (i + 1) % 3;
 			const auto k = (i + 2) % 3;
@@ -67,17 +71,20 @@ namespace Collision
 			const auto Area = Mat2(AB, AC).Determinant();
 			//const auto Area = AB.X() * AC.Y() - AB.Y() * AC.X();
 
-			if (std::abs(Area) > std::abs(MaxArea)) {
-				MaxArea = Area;
-				MaxIndex = i;
+			if (std::abs(Area) > std::abs(MaxVal)) {
+				MaxVal = Area;
+				Index = i;
 			}
 		}
 
 		//!< 「P と三角形」を選択した平面に射影 (X が選択された場合 Index1, Index2 はそれぞれ Y, Z といった具合になる)
-		const auto Index1 = (MaxIndex + 1) % 3;
-		const auto Index2 = (MaxIndex + 2) % 3;
-		const std::array PrjTri = { Vec2(A[Index1], A[Index2]), Vec2(B[Index1], B[Index2]), Vec2(C[Index1], C[Index2]) };
-		const auto PrjP = Vec2(P[Index1], P[Index2]);
+		const auto X = (Index + 1) % 3;
+		const auto Y = (Index + 2) % 3;
+		const auto PrjA = Vec2(A[X], A[Y]);
+		const auto PrjB = Vec2(B[X], B[Y]);
+		const auto PrjC = Vec2(C[X], C[Y]);
+		const std::array PrjTri = { PrjA, PrjB, PrjC };
+		const auto PrjP = Vec2(P[X], P[Y]);
 
 		//!< 射影点と辺からなるサブ三角形の面積
 		Vec3 Areas;
@@ -85,35 +92,34 @@ namespace Collision
 			const auto j = (i + 1) % 3;
 			const auto k = (i + 2) % 3;
 
-			const auto AB = PrjTri[j] - PrjP;
-			const auto AC = PrjTri[k] - PrjP;
-			Areas[i] = Mat2(AB, AC).Determinant();
+			Areas[i] = Mat2(PrjTri[j] - PrjP, PrjTri[k] - PrjP).Determinant();
 			//Areas[i] = AB.X() * AC.Y() - AB.Y() * AC.X();
 		}
 		//!< P が [A, B, C] の内部にある場合 (サブ三角形の面積の符号から分かる)
-		if (Sign(MaxArea) == Sign(Areas.X()) && Sign(MaxArea) == Sign(Areas.Y()) && Sign(MaxArea) == Sign(Areas.Z())) {
-			return Areas / MaxArea;
+		if (Sign(MaxVal) == Sign(Areas.X()) && Sign(MaxVal) == Sign(Areas.Y()) && Sign(MaxVal) == Sign(Areas.Z())) {
+			return Areas / MaxVal;
 		}
 
 		//!< 3 辺に射影して一番近いものを見つける (1-SignedVolume に帰着)
 		const std::array EdgesPts = { A, B, C };
 		Vec3 Lambda;
-		auto MinLenSq = (std::numeric_limits<float>::max)();
+		auto MinVal = (std::numeric_limits<float>::max)();
 		for (auto i = 0; i < 3; ++i) {
 			const auto j = (i + 1) % 3;
 			const auto k = (i + 2) % 3;
 
 			const auto LambdaEdge = SignedVolume(EdgesPts[j], EdgesPts[k]);
 			const auto LenSq = (EdgesPts[j] * LambdaEdge[0] + EdgesPts[k] * LambdaEdge[1]).LengthSq();
-			if (LenSq < MinLenSq) {
+			if (LenSq < MinVal) {
 				Lambda[i] = 0.0f;
 				Lambda[j] = LambdaEdge[0];
 				Lambda[k] = LambdaEdge[1];
-				MinLenSq = LenSq;
+				MinVal = LenSq;
 			}
 		}
 		return Lambda;
 	}
+	//!< 検証済
 	[[nodiscard]] static Vec4 SignedVolume(const Vec3& A, const Vec3& B, const Vec3& C, const Vec3& D)
 	{
 		//const auto Cofactor = Vec4(-Mat3(B, C, D).Determinant(), Mat3(A, C, D).Determinant(), -Mat3(A, B, D).Determinant(), Mat3(A, B, C).Determinant());
@@ -129,47 +135,23 @@ namespace Collision
 		//!< 3 面に射影して一番近いものを見つける (2-SignedVolume に帰着)
 		const std::array FacePts = { A, B, C, D };
 		Vec4 Lambda;
-		auto MinLenSq = (std::numeric_limits<float>::max)();
+		auto MinVal = (std::numeric_limits<float>::max)();
 		for (auto i = 0; i < 4; ++i) {
 			const auto j = (i + 1) % 4;
 			const auto k = (i + 2) % 4;
 
 			const auto LambdaFace = SignedVolume(FacePts[i], FacePts[j], FacePts[k]);
 			const auto LenSq = (FacePts[i] * LambdaFace[0] + FacePts[j] * LambdaFace[1] + FacePts[k] * LambdaFace[2]).LengthSq();
-			if (LenSq < MinLenSq) {
+			if (LenSq < MinVal) {
 				Lambda.ToZero();
 				Lambda[i] = LambdaFace[0];
 				Lambda[j] = LambdaFace[1];
 				Lambda[k] = LambdaFace[2];
-				MinLenSq = LenSq;
+				MinVal = LenSq;
 			}
 		}
 		return Lambda;
 	}
-#ifdef _DEBUG
-	static void SignedVolumeTest()
-	{
-		const std::array Pts = {
-			Vec3(51.1996613f, 26.1989613f, 1.91339576f),
-			Vec3(-51.0567360f, -26.0565681f, -0.436143428f),
-			Vec3(50.8978920f, -24.1035538f, -1.04042661f),
-			Vec3(-49.1021080f, 25.8964462f, -1.04042661f)
-		};
-		const auto Lambda = SignedVolume(Pts[0], Pts[1], Pts[2], Pts[3]);
-		const auto V = Pts[0] * Lambda[0] + Pts[1] * Lambda[1] + Pts[2] * Lambda[2] + Pts[3] * Lambda[3];
-
-		//!< 答え合わせ
-		const auto CorrectLambda = Vec4(0.290f, 0.302f, 0.206f, 0.202f);
-		const auto CorrectV = Vec3::Zero();
-		constexpr auto Eps = 0.001f;
-		if (!Lambda.NearlyEqual(CorrectLambda, Eps)) {
-			__debugbreak();
-		}
-		if (!V.NearlyEqual(CorrectV, Eps)) {
-			__debugbreak();
-		}
-	}
-#endif
 
 	//!< サポートポイント : 特定の方向に最も遠い点
 	class SupportPoints
@@ -181,75 +163,41 @@ namespace Collision
 		const Vec3 GetB() const { return std::get<1>(Data); }
 		const Vec3 GetC() const { return std::get<2>(Data); }
 
+		bool operator == (const SupportPoints& rhs) const {
+			return GetA() == rhs.GetA() && GetB() == rhs.GetB() && GetC() == rhs.GetC();
+		}
 	private:
 		std::tuple<Vec3, Vec3, Vec3> Data;
 	};
 	//!< A, B のサポートポイントの差が、C (A, B のミンコフスキー差) のサポートポイントとなる
 	static [[nodiscard]] SupportPoints GetSupportPoints(const RigidBody* RbA, const RigidBody* RbB, const Vec3& NDir, const float Bias) {
-		return {
-			RbA->Shape->GetSupportPoint(RbA->Position, RbA->Rotation, NDir, Bias),
-			RbB->Shape->GetSupportPoint(RbB->Position, RbB->Rotation, -NDir, Bias)
-		};
+		return SupportPoints(RbA->Shape->GetSupportPoint(RbA->Position, RbA->Rotation, NDir, Bias), RbB->Shape->GetSupportPoint(RbB->Position, RbB->Rotation, -NDir, Bias));
 	}
-
-	static [[nodiscard]] bool SimplexSignedVolume2(const std::vector<SupportPoints>& Sps, Vec3& Dir, Vec4& OutLambda)
+	static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<SupportPoints>& Sps, Vec3& Dir, Vec4& OutLambda)
 	{
 		//constexpr auto Eps2 = (std::numeric_limits<float>::epsilon)() * (std::numeric_limits<float>::epsilon)();
 		constexpr auto Eps2 = 0.0001f * 0.00001f;
 
-		const auto Lambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC());
-		Dir = -1.0f * (Sps[0].GetC() * Lambda[0] + Sps[1].GetC() * Lambda[1]);
-
-		OutLambda = Lambda;
-
-		if (Dir.LengthSq() < Eps2) {
-			return true;
-		}
-
-		return false;
-	}
-	static [[nodiscard]] bool SimplexSignedVolume3(const std::vector<SupportPoints>& Pts, Vec3& Dir, Vec4& OutLambda)
-	{
-		constexpr auto Eps2 = 0.0001f * 0.00001f;
-
-		const auto Lambda = SignedVolume(Pts[0].GetC(), Pts[1].GetC(), Pts[2].GetC());
-
-		Dir = -1.0f * (Pts[0].GetC() * Lambda[0] + Pts[1].GetC() * Lambda[1] + Pts[2].GetC() * Lambda[2]);
-
-		OutLambda = Lambda;
-
-		if (Dir.LengthSq() < Eps2) {
-			return true;
-		}
-
-		return false;
-	}
-	static [[nodiscard]] bool SimplexSignedVolume4(const std::vector<SupportPoints>& Pts, Vec3& Dir, Vec4& OutLambda)
-	{
-		constexpr auto Eps2 = 0.0001f * 0.00001f;
-
-		const auto Lambda = SignedVolume(Pts[0].GetC(), Pts[1].GetC(), Pts[2].GetC(), Pts[3].GetC());
-
-		//!< Dir の更新
-		Dir = -1.0f * (Pts[0].GetC() * Lambda[0] + Pts[1].GetC() * Lambda[1] + Pts[2].GetC() * Lambda[2] + Pts[3].GetC() * Lambda[3]);
-
-		OutLambda = Lambda;
-
-		if (Dir.LengthSq() < Eps2) {
-			//!< 原点を含む -> 衝突
-			return true;
-		}
-
-		return false;
-	}
-	static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<SupportPoints>& Sps, Vec3& Dir, Vec4& OutLambda)
-	{
 		switch (size(Sps)) {
-		case 2: return SimplexSignedVolume2(Sps, Dir, OutLambda);
-		case 3: return SimplexSignedVolume3(Sps, Dir, OutLambda);
-		case 4: return SimplexSignedVolume4(Sps, Dir, OutLambda);
-		default: return false;
+		case 2:
+			OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC());
+			Dir = - (Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1]);
+		break;
+		case 3:
+			OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC(), Sps[2].GetC());
+			Dir = - (Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1] + Sps[2].GetC() * OutLambda[2]);
+			break;
+		case 4:
+			OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC(), Sps[2].GetC(), Sps[3].GetC());
+			Dir = - (Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1] + Sps[2].GetC() * OutLambda[2] + Sps[3].GetC() * OutLambda[3]);
+			break;
+		default:
+			__debugbreak();
+			break;
 		}
+
+		//!< 原点を含む -> 衝突
+		return Dir.LengthSq() < Eps2;
 	}
 
 	namespace Intersection {
@@ -265,7 +213,7 @@ namespace Collision
 		//!<	1, 2, 3, 4 がなす四面体が原点を含めば衝突、終了
 		//!<	一番近い三角形 (例えば 1, 2, 4) から、原点を向く法線方向の次のサポートポイント 5 を見つける
 		//!<	四面体が原点を含むか、サポートポイントが無くなるまで続ける
-		[[nodiscard]] static bool GJK(const RigidBody* RbA, const RigidBody* RbB)
+		[[nodiscard]] static bool GJK(const RigidBody* RbA, const RigidBody* RbB, std::function<void(const RigidBody*, const RigidBody*, const std::vector<SupportPoints>&, const float, Vec3&, Vec3&)> OnIntersect, const float Bias, Vec3& OnA, Vec3& OnB)
 		{
 			std::vector<SupportPoints> Sps;
 			Sps.reserve(4); //!< 4 枠
@@ -273,15 +221,15 @@ namespace Collision
 			//!< (1, 1, 1) 方向のサポートポイントを求める
 			Sps.emplace_back(GetSupportPoints(RbA, RbB, Vec3::One().Normalize(), 0.0f));
 
-			auto Closest = (std::numeric_limits<float>::max)();
+			auto ClosestDist = (std::numeric_limits<float>::max)();
 			auto Dir = -Sps.back().GetC();
+			auto ContainOrigin = false;
 			do {
-				const auto Pt = GetSupportPoints(RbA, RbB, Dir, 0.0f);
+				const auto Pt = GetSupportPoints(RbA, RbB, Dir.ToNormalized(), 0.0f);
+				Dir *= -1.0f;
 
-				//!< 既存の点が返るということはもう拡張できない -> 衝突無し
-				if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& rhs) {
-					return Pt.GetC().NearlyEqual(rhs.GetC());
-					})) {
+				//!< 既存の点ということはもうこれ以上拡張できない -> 衝突無し
+				if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& rhs) { return Pt == rhs; })) {
 					break;
 				}
 
@@ -294,14 +242,15 @@ namespace Collision
 
 				//!< 1, 2, 3-シンプレックス毎の処理 (Dir を更新、Lambda を返す)
 				Vec4 Lambda;
-				if (SimplexSignedVolumes(Sps, Dir, Lambda)) {
-					return true;
+				if ((ContainOrigin = SimplexSignedVolumes(Sps, Dir, Lambda))) {
+					//!< シンプレックスが原点を含む -> 衝突
+					break;
 				}
 
 				//!< 最短距離を更新、更新できなれば終了
-				const auto DistSq = Dir.LengthSq();
-				if (DistSq < Closest) {
-					Closest = DistSq;
+				const auto Dist = Dir.LengthSq();
+				if (Dist < ClosestDist) {
+					ClosestDist = Dist;
 				}
 				else {
 					break;
@@ -310,12 +259,180 @@ namespace Collision
 				//!< 有効な (Lambda が 非 0) Sps だけを残す
 				const auto [Beg, End] = std::ranges::remove_if(Sps, [&](const auto& rhs) {
 					return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, rhs))];
-					});
+				});
 				Sps.erase(Beg, End);
 
-			} while (4 != size(Sps)); //!< 四面体でここまで来たら衝突は無い (最後は四面体で決着することになる)
+				ContainOrigin = (4 == size(Sps));
+			} while (!ContainOrigin); //!< 原点を含まずここまで来たらループ (シンプレックスが原点を含む場合、シンプレックス四面体でループを終えた場合はループから出る)
 
-			return false;
+			//!< 原点を含まない状態でここまで来たら、衝突無し
+			if (!ContainOrigin) {
+				return false;
+			}
+
+			//!< この先衝突確定
+
+			//!< 衝突確定時に呼び出す関数 (EPA 等)
+			if (4 == size(Sps)) {
+				Vec3 OnA, OnB;
+				OnIntersect(RbA, RbB, Sps, Bias, OnA, OnB);
+				return true;
+			}
+
+			return true;
+		}
+		[[nodiscard]] static bool GJK(const RigidBody* RbA, const RigidBody* RbB) {
+			Vec3 OnA, OnB;
+			return GJK(RbA, RbB, [](const RigidBody*, const RigidBody*, const std::vector<SupportPoints>&, const float, Vec3&, Vec3&) {}, 0.001f, OnA, OnB);
+		}
+		[[nodiscard]] float EPA(const RigidBody*, const RigidBody*, const std::vector<SupportPoints>& Sps, const float Bias, Vec3& OnA, Vec3& OnB) {
+			return 0.0f;
 		}
 	}
+	namespace Closest {
+		static void GJK(const RigidBody* RbA, const RigidBody* RbB, Vec3& OnA, Vec3& OnB) {
+			std::vector<SupportPoints> Sps;
+			Sps.reserve(4);
+
+			Sps.emplace_back(GetSupportPoints(RbA, RbB, Vec3::One().Normalize(), 0.0f));
+
+			auto ClosestDist = (std::numeric_limits<float>::max)();
+			auto Dir = -Sps.back().GetC();
+			Vec4 Lambda;
+			do {
+				const auto Pt = GetSupportPoints(RbA, RbB, Dir.ToNormalized(), 0.0f);
+				Dir *= -1.0f;
+
+				if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& rhs) { return Pt == rhs; })) {
+					break;
+				}
+
+				Sps.emplace_back(Pt);
+
+				SimplexSignedVolumes(Sps, Dir, Lambda);
+
+				const auto [Beg, End] = std::ranges::remove_if(Sps, [&](const auto& rhs) {
+					return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, rhs))];
+				});
+				Sps.erase(Beg, End);
+
+				const auto Dist = Dir.LengthSq();
+				if (Dist < ClosestDist) {
+					ClosestDist = Dist;
+				}
+				else {
+					break;
+				}
+			} while (std::size(Sps) < 4);
+
+			if (4 == std::size(Sps)) {
+				OnA = Sps[0].GetA() * Lambda[0] + Sps[1].GetA() * Lambda[1] + Sps[2].GetA() * Lambda[2] + Sps[3].GetA() * Lambda[3];
+				OnB = Sps[0].GetB() * Lambda[0] + Sps[1].GetB() * Lambda[1] + Sps[2].GetB() * Lambda[2] + Sps[3].GetB() * Lambda[3];
+			}
+		}
+	}
+
+#ifdef _DEBUG
+	static void SignedVolumeTest()
+	{
+		constexpr auto Eps = 0.001f;	
+		{
+			const std::vector OrgPts = {
+				Vec3(0.0f, 0.0f, 0.0f),
+				Vec3(1.0f, 0.0f, 0.0f),
+				Vec3(0.0f, 1.0f, 0.0f),
+				Vec3(0.0f, 0.0f, 1.0f),
+			};
+			{
+				//!< 検証済
+				std::vector<Vec3> Pts;
+				Pts.resize(std::size(OrgPts));
+				std::ranges::transform(OrgPts, std::begin(Pts), std::bind(std::plus(), std::placeholders::_1, Vec3(1.0f, 1.0f, 1.0f)));
+				const auto Lambda = SignedVolume(Pts[0], Pts[1], Pts[2], Pts[3]);
+				const auto V = Pts[0] * Lambda[0] + Pts[1] * Lambda[1] + Pts[2] * Lambda[2] + Pts[3] * Lambda[3];
+
+				const auto CorrectLambda = Vec4(1.0f, 0.0f, 0.0f, 0.0f);
+				const auto CorrectV = Vec3::One();
+				if (!Lambda.NearlyEqual(CorrectLambda, Eps)) {
+					__debugbreak();
+				}
+				if (!V.NearlyEqual(CorrectV, Eps)) {
+					__debugbreak();
+				}
+			}
+			{
+				//!< 検証済
+				std::vector<Vec3> Pts;
+				Pts.resize(std::size(OrgPts));
+				std::ranges::transform(OrgPts, std::begin(Pts), std::bind(std::plus(), std::placeholders::_1, Vec3(-1.0f, -1.0f, -1.0f) * 0.25f));
+				const auto Lambda = SignedVolume(Pts[0], Pts[1], Pts[2], Pts[3]);
+				const auto V = Pts[0] * Lambda[0] + Pts[1] * Lambda[1] + Pts[2] * Lambda[2] + Pts[3] * Lambda[3];
+
+				const auto CorrectLambda = Vec4(0.25f, 0.25f, 0.25f, 0.25f);
+				const auto CorrectV = Vec3::Zero();
+				if (!Lambda.NearlyEqual(CorrectLambda, Eps)) {
+					__debugbreak();
+				}
+				if (!V.NearlyEqual(CorrectV, Eps)) {
+					__debugbreak();
+				}
+			}
+			{
+				//!< 検証済
+				std::vector<Vec3> Pts;
+				Pts.resize(std::size(OrgPts));
+				std::ranges::transform(OrgPts, std::begin(Pts), std::bind(std::plus(), std::placeholders::_1, Vec3(-1.0f, -1.0f, -1.0f)));
+				const auto Lambda = SignedVolume(Pts[0], Pts[1], Pts[2], Pts[3]);
+				const auto V = Pts[0] * Lambda[0] + Pts[1] * Lambda[1] + Pts[2] * Lambda[2] + Pts[3] * Lambda[3];
+
+				const auto CorrectLambda = Vec4(0.0f, 0.333f, 0.333f, 0.333f);
+				const auto CorrectV = Vec3(-0.667f, -0.667f, -0.667f);
+				if (!Lambda.NearlyEqual(CorrectLambda, Eps)) {
+					__debugbreak();
+				}
+				if (!V.NearlyEqual(CorrectV, Eps)) {
+					__debugbreak();
+				}
+			}
+			{
+				//!< 検証済
+				std::vector<Vec3> Pts;
+				Pts.resize(std::size(OrgPts));
+				std::ranges::transform(OrgPts, std::begin(Pts), std::bind(std::plus(), std::placeholders::_1, Vec3(1.0f, 1.0f, -0.5f)));
+				const auto Lambda = SignedVolume(Pts[0], Pts[1], Pts[2], Pts[3]);
+				const auto V = Pts[0] * Lambda[0] + Pts[1] * Lambda[1] + Pts[2] * Lambda[2] + Pts[3] * Lambda[3];
+
+				const auto CorrectLambda = Vec4(0.5f, 0.0f, 0.0f, 0.5f);
+				const auto CorrectV = Vec3(1.0f, 1.0f, 0.0f);
+				if (!Lambda.NearlyEqual(CorrectLambda, Eps)) {
+					__debugbreak();
+				}
+				if (!V.NearlyEqual(CorrectV, Eps)) {
+					__debugbreak();
+				}
+			}
+		}
+		{
+			//!< 検証済
+			const std::array Pts = {
+				Vec3(51.1996613f, 26.1989613f, 1.91339576f),
+				Vec3(-51.0567360f, -26.0565681f, -0.436143428f),
+				Vec3(50.8978920f, -24.1035538f, -1.04042661f),
+				Vec3(-49.1021080f, 25.8964462f, -1.04042661f)
+			};
+			const auto Lambda = SignedVolume(Pts[0], Pts[1], Pts[2], Pts[3]);
+			const auto V = Pts[0] * Lambda[0] + Pts[1] * Lambda[1] + Pts[2] * Lambda[2] + Pts[3] * Lambda[3];
+
+			//!< 答え合わせ
+			const auto CorrectLambda = Vec4(0.290f, 0.302f, 0.206f, 0.202f);
+			const auto CorrectV = Vec3::Zero();
+			if (!Lambda.NearlyEqual(CorrectLambda, Eps)) {
+				__debugbreak();
+			}
+			if (!V.NearlyEqual(CorrectV, Eps)) {
+				__debugbreak();
+			}
+		}
+	}
+#endif
 }

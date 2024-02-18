@@ -114,6 +114,9 @@ public:
 	}
 	
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
+#ifdef _DEBUG
+		SignedVolumeTest();
+#endif
 		Scene = new Physics::Scene();
 
 		VK::OnCreate(hWnd, hInstance, Title);		
@@ -222,7 +225,7 @@ public:
 			}
 		}
 #endif
-		for (auto i = 0; i < _countof(WorldBuffer.World); ++i) {
+		for (auto i = 0; i < _countof(WorldBuffer.RigidBodies); ++i) {
 			auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
 			Rb->Position = 0 == i ? Vec3::AxisZ() * 5.0f : Vec3::Zero();
 			Rb->Rotation = Quat::Identity();
@@ -252,7 +255,7 @@ public:
 
 		const VkDrawIndexedIndirectCommand DIIC = { 
 			.indexCount = static_cast<uint32_t>(size(Indices)), 
-			.instanceCount = _countof(WorldBuffer.World),
+			.instanceCount = _countof(WorldBuffer.RigidBodies),
 			.firstIndex = 0, 
 			.vertexOffset = 0, 
 			.firstInstance = 0 
@@ -272,7 +275,7 @@ public:
 
 		const VkDrawIndexedIndirectCommand DIIC_CH = { 
 			.indexCount = static_cast<uint32_t>(size(Indices_CH)), 
-			.instanceCount = _countof(WorldBuffer.World), 
+			.instanceCount = _countof(WorldBuffer.RigidBodies),
 			.firstIndex = 0, 
 			.vertexOffset = 0, 
 			.firstInstance = 0
@@ -534,24 +537,29 @@ public:
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-				if (i < _countof(WorldBuffer.World)) {
+				if (i < _countof(WorldBuffer.RigidBodies)) {
 					const auto Rb = Scene->RigidBodies[i];
 					const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 					const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
 
-					WorldBuffer.World[i] = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
+					WorldBuffer.RigidBodies[i].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
 				}
 			}
-
-			if (1 < size(Scene->RigidBodies)) {
-				const auto RbA = Scene->RigidBodies[0];
-				const auto RbB = Scene->RigidBodies[1];
-				if (Collision::Intersection::GJK(RbA, RbB)) {
-#ifdef _DEBUG
-					LOG(data(std::format("Collide\n")));
+			for (auto i = 0; i < size(Scene->RigidBodies); ++i) { WorldBuffer.RigidBodies[i].Color = { 1.0f, 1.0f, 1.0f }; }
+#ifndef NO_CONVEX_HULL
+			const auto RbA = Scene->RigidBodies[0];
+			const auto RbB = Scene->RigidBodies[1];
+			if (Collision::Intersection::GJK(RbA, RbB)) {
+				WorldBuffer.RigidBodies[0].Color = { 1.0f, 0.0f, 0.0f };
+				WorldBuffer.RigidBodies[1].Color = { 1.0f, 0.0f, 0.0f };
+			}
+			else {
+				Vec3 OnA, OnB;
+				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
+				LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
+				LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
+			}
 #endif
-				}
-			}
 		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
@@ -579,8 +587,12 @@ protected:
 
 	Physics::Scene* Scene = nullptr;
 
+	struct RIGID_BODY {
+		glm::mat4 World;
+		alignas(16) glm::vec3 Color;
+	};
 	struct WORLD_BUFFER {
-		glm::mat4 World[2];
+		RIGID_BODY RigidBodies[2];
 	};
 	WORLD_BUFFER WorldBuffer;
 	struct VIEW_PROJECTION_BUFFER {

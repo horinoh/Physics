@@ -5,9 +5,14 @@
 layout (location = 0) in vec3 InPosition;
 layout (location = 1) in vec3 InNormal;
 
+struct RIGID_BODY
+{
+	mat4 World;
+	vec3 Color;
+};
 layout (set = 0, binding = 0) uniform WORLD_BUFFER
 {
-	mat4 World[16];
+	RIGID_BODY RigidBodies[2];
 } WB;
 layout (set = 0, binding = 1) uniform VIEW_PROJECTION_BUFFER
 {
@@ -15,12 +20,14 @@ layout (set = 0, binding = 1) uniform VIEW_PROJECTION_BUFFER
 } VPB;
 
 layout (location = 0) out vec3 OutNormal;
+layout (location = 1) out vec3 OutColor;
 
 void main()
 {
-	const mat4 W = WB.World[gl_InstanceIndex];
+	const mat4 W = WB.RigidBodies[gl_InstanceIndex].World;
 	const mat4 PVW = VPB.ViewProjection * W;
 
 	gl_Position = PVW * vec4(InPosition, 1.0f);
 	OutNormal = transpose(mat3(W)) * InNormal;
+	OutColor = WB.RigidBodies[gl_InstanceIndex].Color;
 }

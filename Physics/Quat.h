@@ -9,9 +9,22 @@ namespace Math
 		Quat(const float x, const float y, const float z, const float w) : Comps({x, y, z, w}) {}
 		Quat(const Vec3& rhs) : Comps({ rhs.X(), rhs.Y(), rhs.Z(), 0.0f }) {}
 		Quat(const Vec3& Axis, const float Radian) {
+#if 1
 			const auto HalfRadian = 0.5f * Radian;
 			const auto Ax = Axis.Normalize() * sinf(HalfRadian);
 			Comps = { Ax.X(),Ax.Y(),Ax.Z(), cosf(HalfRadian) };
+#else
+			const float HalfRadian = 0.5f * Radian;
+
+			//w = cosf(HalfRadian);
+
+			const float HalfSine = sinf(HalfRadian);
+			const auto Ax = Axis.Normalize();
+			//x = Ax.X() * HalfSine;
+			//y = Ax.Y() * HalfSine;
+			//z = Ax.Z() * HalfSine;
+			Comps = { Ax.X() * HalfSine,  Ax.Y() * HalfSine, Ax.Z() * HalfSine, cosf(HalfRadian) };
+#endif
 		}
 
 		inline static Quat Identity() { return { 0.0f, 0.0f, 0.0f, 1.0f }; }
@@ -28,12 +41,10 @@ namespace Math
 			Quat r; std::ranges::transform(Comps, std::begin(r.Comps), std::bind(std::multiplies(), std::placeholders::_1, rhs)); return r;
 		}
 		inline Quat operator*(const Quat& rhs) const {
-			return { 
-				X() * rhs.W() + W() * rhs.X() + Y() * rhs.Z() - Z() * rhs.Y(), 
+			return Quat(X() * rhs.W() + W() * rhs.X() + Y() * rhs.Z() - Z() * rhs.Y(),
 				Y() * rhs.W() + W() * rhs.Y() + Z() * rhs.X() - X() * rhs.Z(),
 				Z() * rhs.W() + W() * rhs.Z() + X() * rhs.Y() - Y() * rhs.X(),
-				W() * rhs.W() - X() * rhs.X() - Y() * rhs.Y() - Z() * rhs.Z() 
-			};
+				W() * rhs.W() - X() * rhs.X() - Y() * rhs.Y() - Z() * rhs.Z());
 		}
 		inline Quat operator/(const float rhs) const { 
 			Quat r; std::ranges::transform(Comps, std::begin(r.Comps), std::bind(std::divides(), std::placeholders::_1, rhs)); return r;
@@ -68,7 +79,8 @@ namespace Math
 			}
 			return *this;
 		}
-		inline Quat Inverse() const { return Quat({ -X(), -Y(), -Z(), W() }) / LengthSq(); }
+		inline Quat Conjugate() const { return Quat(-X(), -Y(), -Z(), W()); }
+		inline Quat Inverse() const { return Conjugate() / LengthSq(); }
 		inline Vec3 Rotate(const Vec3& rhs) const {
 			return *this * Quat(rhs) * Inverse();
 		}
