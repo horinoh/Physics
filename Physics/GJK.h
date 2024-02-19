@@ -14,7 +14,7 @@ namespace Collision
 {
 	//!< SignedVolue : 射影が最大となる軸や平面を見つけ、それに対し原点を射影して内部にあれば重心を返す
 
-	//!< TODO 未検証
+	//!< 検証済
 	[[nodiscard]] static Vec2 SignedVolume(const Vec3& A, const Vec3& B)
 	{
 		const auto AB = B - A;
@@ -32,7 +32,6 @@ namespace Collision
 		}
 
 		//!< 「P と線分」を選択した軸へ射影
-		//const std::array PrjSeg = { A[Index] , B[Index] };
 		const auto PrjA = A[Index];
 		const auto PrjB = B[Index];
 		const auto PrjP = P[Index];
@@ -50,7 +49,7 @@ namespace Collision
 			return Vec2::AxisY();
 		}
 	}
-	//!< TODO 未検証
+	//!< 検証済
 	[[nodiscard]] static Vec3 SignedVolume(const Vec3& A, const Vec3& B, const Vec3& C)
 	{
 		const auto N = (B - A).Cross(C - A);
@@ -80,10 +79,7 @@ namespace Collision
 		//!< 「P と三角形」を選択した平面に射影 (X が選択された場合 Index1, Index2 はそれぞれ Y, Z といった具合になる)
 		const auto X = (Index + 1) % 3;
 		const auto Y = (Index + 2) % 3;
-		const auto PrjA = Vec2(A[X], A[Y]);
-		const auto PrjB = Vec2(B[X], B[Y]);
-		const auto PrjC = Vec2(C[X], C[Y]);
-		const std::array PrjTri = { PrjA, PrjB, PrjC };
+		const std::array PrjABC = { Vec2(A[X], A[Y]), Vec2(B[X], B[Y]), Vec2(C[X], C[Y]) };
 		const auto PrjP = Vec2(P[X], P[Y]);
 
 		//!< 射影点と辺からなるサブ三角形の面積
@@ -92,8 +88,7 @@ namespace Collision
 			const auto j = (i + 1) % 3;
 			const auto k = (i + 2) % 3;
 
-			Areas[i] = Mat2(PrjTri[j] - PrjP, PrjTri[k] - PrjP).Determinant();
-			//Areas[i] = AB.X() * AC.Y() - AB.Y() * AC.X();
+			Areas[i] = Mat2(PrjABC[j] - PrjP, PrjABC[k] - PrjP).Determinant();
 		}
 		//!< P が [A, B, C] の内部にある場合 (サブ三角形の面積の符号から分かる)
 		if (Sign(MaxVal) == Sign(Areas.X()) && Sign(MaxVal) == Sign(Areas.Y()) && Sign(MaxVal) == Sign(Areas.Z())) {
@@ -101,15 +96,15 @@ namespace Collision
 		}
 
 		//!< 3 辺に射影して一番近いものを見つける (1-SignedVolume に帰着)
-		const std::array EdgesPts = { A, B, C };
+		const std::array EdgePts = { A, B, C };
 		Vec3 Lambda;
 		auto MinVal = (std::numeric_limits<float>::max)();
 		for (auto i = 0; i < 3; ++i) {
 			const auto j = (i + 1) % 3;
 			const auto k = (i + 2) % 3;
 
-			const auto LambdaEdge = SignedVolume(EdgesPts[j], EdgesPts[k]);
-			const auto LenSq = (EdgesPts[j] * LambdaEdge[0] + EdgesPts[k] * LambdaEdge[1]).LengthSq();
+			const auto LambdaEdge = SignedVolume(EdgePts[j], EdgePts[k]);
+			const auto LenSq = (EdgePts[j] * LambdaEdge[0] + EdgePts[k] * LambdaEdge[1]).LengthSq();
 			if (LenSq < MinVal) {
 				Lambda[i] = 0.0f;
 				Lambda[j] = LambdaEdge[0];
@@ -181,15 +176,15 @@ namespace Collision
 		switch (size(Sps)) {
 		case 2:
 			OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC());
-			Dir = - (Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1]);
+			Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1]);
 		break;
 		case 3:
 			OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC(), Sps[2].GetC());
-			Dir = - (Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1] + Sps[2].GetC() * OutLambda[2]);
+			Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1] + Sps[2].GetC() * OutLambda[2]);
 			break;
 		case 4:
 			OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC(), Sps[2].GetC(), Sps[3].GetC());
-			Dir = - (Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1] + Sps[2].GetC() * OutLambda[2] + Sps[3].GetC() * OutLambda[3]);
+			Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1] + Sps[2].GetC() * OutLambda[2] + Sps[3].GetC() * OutLambda[3]);
 			break;
 		default:
 			__debugbreak();
@@ -229,21 +224,22 @@ namespace Collision
 				Dir *= -1.0f;
 
 				//!< 既存の点ということはもうこれ以上拡張できない -> 衝突無し
-				if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& rhs) { return Pt == rhs; })) {
+				if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& rhs) { return Pt.GetC().NearlyEqual(rhs.GetC()); })) {
 					break;
 				}
 
 				Sps.emplace_back(Pt);
 
+				//!< これはいらない気がする…
 				//!< 新しい点が原点を超えていない場合、原点が内部に含まれない -> 衝突無し
-				if (Dir.Dot(Pt.GetC()) < 0.0f) {
-					break;
-				}
+				//if (Dir.Dot(Pt.GetC()) < 0.0f) {
+				//	break;
+				//}
 
-				//!< 1, 2, 3-シンプレックス毎の処理 (Dir を更新、Lambda を返す)
+				//!< シンプレックスが原点を含む -> 衝突
+				//!< (Dir を更新、Lambda を返す)
 				Vec4 Lambda;
 				if ((ContainOrigin = SimplexSignedVolumes(Sps, Dir, Lambda))) {
-					//!< シンプレックスが原点を含む -> 衝突
 					break;
 				}
 
@@ -256,37 +252,97 @@ namespace Collision
 					break;
 				}
 
-				//!< 有効な (Lambda が 非 0) Sps だけを残す
+				//!< 有効 (Lambda[n] が 非 0) な Sps だけを残す
 				const auto [Beg, End] = std::ranges::remove_if(Sps, [&](const auto& rhs) {
 					return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, rhs))];
-				});
+					});
 				Sps.erase(Beg, End);
 
+				//!< シンプレックスが四面体でここまで来たら原点を含む
 				ContainOrigin = (4 == size(Sps));
-			} while (!ContainOrigin); //!< 原点を含まずここまで来たらループ (シンプレックスが原点を含む場合、シンプレックス四面体でループを終えた場合はループから出る)
+			} while (!ContainOrigin); //!< 原点を含まずここまで来たらループ
 
-			//!< 原点を含まない状態でここまで来たら、衝突無し
+			//!< 原点を含まずループを根けた場合 -> 衝突無し
 			if (!ContainOrigin) {
 				return false;
 			}
 
-			//!< この先衝突確定
-
-			//!< 衝突確定時に呼び出す関数 (EPA 等)
-			if (4 == size(Sps)) {
-				Vec3 OnA, OnB;
-				OnIntersect(RbA, RbB, Sps, Bias, OnA, OnB);
-				return true;
+			//!< ここから先衝突確定
+			
+			if (1 == std::size(Sps)) {
+				Sps.emplace_back(GetSupportPoints(RbA, RbB, -Sps[0].GetC().Normalize(), 0.0f));
 			}
+			if (2 == std::size(Sps)) {
+				const auto AB = Sps[1].GetC() - Sps[0].GetC();
+				Vec3 U, V;
+				AB.GetOrtho(U, V);
+				Sps.emplace_back(GetSupportPoints(RbA, RbB, U, 0.0f));
+			}
+			if (3 == std::size(Sps)) {
+				const auto AB = Sps[1].GetC() - Sps[0].GetC();
+				const auto AC = Sps[2].GetC() - Sps[0].GetC();
+				Sps.emplace_back(GetSupportPoints(RbA, RbB, AB.Cross(AC).Normalize(), 0.0f));
+			}
+
+			//!< シンプレックスをバイアスの分だけ拡張する
+			const auto Avg = (Sps[0].GetC() + Sps[1].GetC() + Sps[2].GetC() + Sps[3].GetC()) * 0.25f;
+#if 1
+			std::ranges::transform(Sps, std::begin(Sps), [&](const auto& rhs) { 
+				const auto Dir = (rhs.GetC() - Avg).Normalize() * Bias;
+				return SupportPoints(rhs.GetA() + Dir, rhs.GetB() - Dir);
+			});
+#else
+			for (auto& i : Sps) {
+				const auto Dir = (i.GetC() - Avg).Normalize() * Bias;
+				i = SupportPoints(i.GetA() + Dir, i.GetB() - Dir);
+			}
+#endif
+			//!< 衝突確定時に呼び出す関数 (EPA 等)
+			OnIntersect(RbA, RbB, Sps, Bias, OnA, OnB);
 
 			return true;
 		}
+		
+		[[nodiscard]] float EPA(const RigidBody*, const RigidBody*, const std::vector<SupportPoints>& Sps, const float Bias, Vec3& OnA, Vec3& OnB) {
+#ifdef _DEBUG
+			if (4 != std::size(Sps)) { 
+				__debugbreak(); 
+			}
+#endif
+			std::vector<std::tuple<int, int, int>> Triangles;
+
+			const Vec3 Center = (Sps[0].GetC() + Sps[1].GetC() + Sps[2].GetC() + Sps[3].GetC()) * 0.25f;
+
+			//!< 三角形をビルド
+			for (auto i = 0; i < 4; ++i) {
+				const auto j = (i + 1) % 4;
+				const auto k = (i + 2) % 4;
+				const auto l = (i + 3) % 4;
+
+				//float dist = SignedDistanceToTriangle(Triangles, Sps[l].GetC(), Sps);
+				// The unused point is always on the negative/inside of the triangle.. make sure the normal points away
+				//if (dist > 0.0f) {
+				//	std::swap(tri.a, tri.b);
+				//}
+				const auto Dist = 0.0f;
+				if (Dist > 0.0f) {
+					Triangles.emplace_back(std::tuple<int, int, int>({ j, i, k }));
+				}
+				else {
+					Triangles.emplace_back(std::tuple<int, int, int>({ i, j, k }));
+				}
+			}
+
+			//!< #TODO
+			return 0.0f;
+		}
+
 		[[nodiscard]] static bool GJK(const RigidBody* RbA, const RigidBody* RbB) {
 			Vec3 OnA, OnB;
 			return GJK(RbA, RbB, [](const RigidBody*, const RigidBody*, const std::vector<SupportPoints>&, const float, Vec3&, Vec3&) {}, 0.001f, OnA, OnB);
 		}
-		[[nodiscard]] float EPA(const RigidBody*, const RigidBody*, const std::vector<SupportPoints>& Sps, const float Bias, Vec3& OnA, Vec3& OnB) {
-			return 0.0f;
+		[[nodiscard]] static bool GJK_EPA(const RigidBody* RbA, const RigidBody* RbB, const float Bias, Vec3& OnA, Vec3& OnB) {
+			return GJK(RbA, RbB, EPA, Bias, OnA, OnB);
 		}
 	}
 	namespace Closest {
@@ -303,7 +359,7 @@ namespace Collision
 				const auto Pt = GetSupportPoints(RbA, RbB, Dir.ToNormalized(), 0.0f);
 				Dir *= -1.0f;
 
-				if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& rhs) { return Pt == rhs; })) {
+				if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& rhs) { return Pt.GetC().NearlyEqual(rhs.GetC()); })) {
 					break;
 				}
 

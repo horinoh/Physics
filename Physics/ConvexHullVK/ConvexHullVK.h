@@ -208,8 +208,15 @@ public:
 		//!< 凸包を構築
 #ifndef NO_CONVEX_HULL
 		std::vector<Vec3> Vec3s;
+#if 1
 		Vec3s.reserve(size(Vertices));
 		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
+#else
+		//!< コリジョンをダイアモンド形状へ上書き
+		std::vector<Vec3> Diamond;
+		CreateVertices_Diamond(Diamond);
+		std::ranges::copy(Diamond, std::back_inserter(Vec3s));
+#endif
 
 		std::vector<Vec3> HullVertices;
 		std::vector<TriangleIndices> HullIndices;
@@ -553,12 +560,12 @@ public:
 				WorldBuffer.RigidBodies[0].Color = { 1.0f, 0.0f, 0.0f };
 				WorldBuffer.RigidBodies[1].Color = { 1.0f, 0.0f, 0.0f };
 			}
-			else {
-				Vec3 OnA, OnB;
-				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
-				LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
-				LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
-			}
+			//else {
+			//	Vec3 OnA, OnB;
+			//	Collision::Closest::GJK(RbA, RbB, OnA, OnB);
+			//	LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
+			//	LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
+			//}
 #endif
 		}
 	}
