@@ -50,17 +50,29 @@ namespace Collision
 			return (Pt - A).Dot((B - A).Cross(C - A).Normalize());
 		}
 
-		//!< 指定の方向に一番遠い点のインデックスを返す 
-		[[nodiscard]] static size_t Farthest(const std::vector<Vec3>& Pts, const Vec3& Dir) {
-			return std::distance(std::begin(Pts), std::ranges::max_element(Pts, [&](const auto& lhs, const auto& rhs) { return Dir.Dot(lhs) < Dir.Dot(rhs); }));
+		//!< 指定の方向に一番遠い点のイテレータを返す 
+		[[nodiscard]] static auto Farthest(const std::vector<Vec3>& Pts, const Vec3& Dir) {
+			return std::ranges::max_element(Pts, [&](const auto& lhs, const auto& rhs) { return Dir.Dot(lhs) < Dir.Dot(rhs); });
 		}
-		//!< レイから一番遠い点のインデックスを返す
-		[[nodiscard]] static size_t Farthest(const std::vector<Vec3>& Pts, const Vec3& RayPos, const Vec3& RayDir) {
-			return std::distance(std::begin(Pts), std::ranges::max_element(Pts, [&](const auto& lhs, const auto& rhs) { return PointRaySq(lhs, RayPos, RayDir) < PointRaySq(rhs, RayPos, RayDir); }));
+		//!< 指定の方向に一番近い点のイテレータを返す 
+		[[nodiscard]] static auto Closest(const std::vector<Vec3>& Pts, const Vec3& Dir) {
+			return std::ranges::min_element(Pts, [&](const auto& lhs, const auto& rhs) { return Dir.Dot(lhs) < Dir.Dot(rhs); });
 		}
-		//!< 三角形から一番遠い点のインデックスを返す
-		[[nodiscard]] static size_t Farthest(const std::vector<Vec3>& Pts, const Vec3& A, const Vec3& B, const Vec3& C) {
-			return std::distance(std::begin(Pts), std::ranges::max_element(Pts, [&](const auto& lhs, const auto& rhs) { return PointTriangle(lhs, A, B, C) < PointTriangle(rhs, A, B, C); }));
+		//!< レイから一番遠い点のイテレータを返す
+		[[nodiscard]] static auto Farthest(const std::vector<Vec3>& Pts, const Vec3& RayPos, const Vec3& RayDir) {
+			return std::ranges::max_element(Pts, [&](const auto& lhs, const auto& rhs) { return PointRaySq(lhs, RayPos, RayDir) < PointRaySq(rhs, RayPos, RayDir); });
+		}
+		//!< レイから一番近い点のイテレータを返す
+		[[nodiscard]] static auto Closest(const std::vector<Vec3>& Pts, const Vec3& RayPos, const Vec3& RayDir) {
+			return std::ranges::min_element(Pts, [&](const auto& lhs, const auto& rhs) { return PointRaySq(lhs, RayPos, RayDir) < PointRaySq(rhs, RayPos, RayDir); });
+		}
+		//!< 三角形から一番遠い点のイテレータを返す
+		[[nodiscard]] static auto Farthest(const std::vector<Vec3>& Pts, const Vec3& A, const Vec3& B, const Vec3& C) {
+			return std::ranges::max_element(Pts, [&](const auto& lhs, const auto& rhs) { return PointTriangle(lhs, A, B, C) < PointTriangle(rhs, A, B, C); });
+		}
+		//!< 三角形から一番近い点のイテレータを返す
+		[[nodiscard]] static auto Closest(const std::vector<Vec3>& Pts, const Vec3& A, const Vec3& B, const Vec3& C) {
+			return std::ranges::min_element(Pts, [&](const auto& lhs, const auto& rhs) { return PointTriangle(lhs, A, B, C) < PointTriangle(rhs, A, B, C); });
 		}
 	}
 	namespace Intersection {

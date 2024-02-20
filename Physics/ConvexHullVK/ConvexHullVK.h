@@ -219,16 +219,16 @@ public:
 #endif
 
 		std::vector<Vec3> HullVertices;
-		std::vector<TriangleIndices> HullIndices;
+		std::vector<TriInds> HullIndices;
 		BuildConvexHull(Vec3s, HullVertices, HullIndices);
 		{
 			for (auto& i : HullVertices) {
 				Vertices_CH.emplace_back(glm::vec3(i.X(), i.Y(), i.Z()));
 			}
 			for (auto i : HullIndices) {
-				Indices_CH.emplace_back(static_cast<uint32_t>(std::get<0>(i)));
-				Indices_CH.emplace_back(static_cast<uint32_t>(std::get<1>(i)));
-				Indices_CH.emplace_back(static_cast<uint32_t>(std::get<2>(i)));
+				Indices_CH.emplace_back(i[0]);
+				Indices_CH.emplace_back(i[1]);
+				Indices_CH.emplace_back(i[2]);
 			}
 		}
 #endif

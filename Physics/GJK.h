@@ -152,17 +152,15 @@ namespace Collision
 	class SupportPoints
 	{
 	public:
-		SupportPoints(const Vec3& A, const Vec3& B) : Data({ A, B, A - B }) { }
+		SupportPoints(const Vec3& A, const Vec3& B) : SPs({ A - B, A, B }) { }
 
-		const Vec3 GetA() const { return std::get<0>(Data); }
-		const Vec3 GetB() const { return std::get<1>(Data); }
-		const Vec3 GetC() const { return std::get<2>(Data); }
+		const Vec3 GetA() const { return SPs[1]; }
+		const Vec3 GetB() const { return SPs[2]; }
+		const Vec3 GetC() const { return SPs[0]; }
 
-		bool operator == (const SupportPoints& rhs) const {
-			return GetA() == rhs.GetA() && GetB() == rhs.GetB() && GetC() == rhs.GetC();
-		}
+		bool operator == (const SupportPoints& rhs) const { return std::ranges::equal(SPs, rhs.SPs); }
 	private:
-		std::tuple<Vec3, Vec3, Vec3> Data;
+		std::array<Vec3, 3> SPs;
 	};
 	//!< A, B のサポートポイントの差が、C (A, B のミンコフスキー差) のサポートポイントとなる
 	static [[nodiscard]] SupportPoints GetSupportPoints(const RigidBody* RbA, const RigidBody* RbB, const Vec3& NDir, const float Bias) {
@@ -255,20 +253,20 @@ namespace Collision
 				//!< 有効 (Lambda[n] が 非 0) な Sps だけを残す
 				const auto [Beg, End] = std::ranges::remove_if(Sps, [&](const auto& rhs) {
 					return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, rhs))];
-					});
+				});
 				Sps.erase(Beg, End);
 
 				//!< シンプレックスが四面体でここまで来たら原点を含む
 				ContainOrigin = (4 == size(Sps));
 			} while (!ContainOrigin); //!< 原点を含まずここまで来たらループ
 
-			//!< 原点を含まずループを根けた場合 -> 衝突無し
+			//!< 原点を含まずループを抜けた場合 -> 衝突無し
 			if (!ContainOrigin) {
 				return false;
 			}
 
 			//!< ここから先衝突確定
-			
+						//!< EPA は四面体を必要とするので、四面体を形成する
 			if (1 == std::size(Sps)) {
 				Sps.emplace_back(GetSupportPoints(RbA, RbB, -Sps[0].GetC().Normalize(), 0.0f));
 			}
@@ -287,29 +285,63 @@ namespace Collision
 			//!< シンプレックスをバイアスの分だけ拡張する
 			const auto Avg = (Sps[0].GetC() + Sps[1].GetC() + Sps[2].GetC() + Sps[3].GetC()) * 0.25f;
 #if 1
-			std::ranges::transform(Sps, std::begin(Sps), [&](const auto& rhs) { 
+			std::ranges::transform(Sps, std::begin(Sps), [&](const auto& rhs) {
 				const auto Dir = (rhs.GetC() - Avg).Normalize() * Bias;
 				return SupportPoints(rhs.GetA() + Dir, rhs.GetB() - Dir);
-			});
+				});
 #else
 			for (auto& i : Sps) {
 				const auto Dir = (i.GetC() - Avg).Normalize() * Bias;
 				i = SupportPoints(i.GetA() + Dir, i.GetB() - Dir);
 			}
 #endif
+
 			//!< 衝突確定時に呼び出す関数 (EPA 等)
 			OnIntersect(RbA, RbB, Sps, Bias, OnA, OnB);
 
 			return true;
 		}
 		
+		void PreEPA(const RigidBody* RbA, const RigidBody* RbB, const float Bias, std::vector<SupportPoints>& Sps) {
+			//!< EPA は四面体を必要とするので、四面体を形成する
+			if (1 == std::size(Sps)) {
+				Sps.emplace_back(GetSupportPoints(RbA, RbB, -Sps[0].GetC().Normalize(), 0.0f));
+			}
+			if (2 == std::size(Sps)) {
+				const auto AB = Sps[1].GetC() - Sps[0].GetC();
+				Vec3 U, V;
+				AB.GetOrtho(U, V);
+				Sps.emplace_back(GetSupportPoints(RbA, RbB, U, 0.0f));
+			}
+			if (3 == std::size(Sps)) {
+				const auto AB = Sps[1].GetC() - Sps[0].GetC();
+				const auto AC = Sps[2].GetC() - Sps[0].GetC();
+				Sps.emplace_back(GetSupportPoints(RbA, RbB, AB.Cross(AC).Normalize(), 0.0f));
+			}
+		
+			//!< シンプレックスをバイアスの分だけ拡張する
+			const auto Avg = (Sps[0].GetC() + Sps[1].GetC() + Sps[2].GetC() + Sps[3].GetC()) * 0.25f;
+#if 1
+			std::ranges::transform(Sps, std::begin(Sps), [&](const auto& rhs) {
+				const auto Dir = (rhs.GetC() - Avg).Normalize() * Bias;
+				return SupportPoints(rhs.GetA() + Dir, rhs.GetB() - Dir);
+				});
+#else
+			for (auto& i : Sps) {
+				const auto Dir = (i.GetC() - Avg).Normalize() * Bias;
+				i = SupportPoints(i.GetA() + Dir, i.GetB() - Dir);
+			}
+#endif
+		}
+
 		[[nodiscard]] float EPA(const RigidBody*, const RigidBody*, const std::vector<SupportPoints>& Sps, const float Bias, Vec3& OnA, Vec3& OnB) {
 #ifdef _DEBUG
 			if (4 != std::size(Sps)) { 
 				__debugbreak(); 
 			}
 #endif
-			std::vector<std::tuple<int, int, int>> Triangles;
+			//std::vector<std::tuple<int, int, int>> Triangles;
+			std::vector<TriInds> Triangles;
 
 			const Vec3 Center = (Sps[0].GetC() + Sps[1].GetC() + Sps[2].GetC() + Sps[3].GetC()) * 0.25f;
 
@@ -326,10 +358,10 @@ namespace Collision
 				//}
 				const auto Dist = 0.0f;
 				if (Dist > 0.0f) {
-					Triangles.emplace_back(std::tuple<int, int, int>({ j, i, k }));
+					Triangles.emplace_back(TriInds({ static_cast<uint32_t>(j), static_cast<uint32_t>(i), static_cast<uint32_t>(k) }));
 				}
 				else {
-					Triangles.emplace_back(std::tuple<int, int, int>({ i, j, k }));
+					Triangles.emplace_back(TriInds({ static_cast<uint32_t>(i), static_cast<uint32_t>(j), static_cast<uint32_t>(k) }));
 				}
 			}
 

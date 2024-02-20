@@ -133,9 +133,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Bound.h" />
+    <ClInclude Include="..\Collision.h" />
     <ClInclude Include="..\Common.h" />
+    <ClInclude Include="..\Convex.h" />
     <ClInclude Include="..\DX.h" />
+    <ClInclude Include="..\GJK.h" />
     <ClInclude Include="..\GltfSDK.h" />
+    <ClInclude Include="..\Mat.h" />
+    <ClInclude Include="..\Math.h" />
+    <ClInclude Include="..\Physics.h" />
+    <ClInclude Include="..\Quat.h" />
+    <ClInclude Include="..\RigidBody.h" />
+    <ClInclude Include="..\Scene.h" />
+    <ClInclude Include="..\Shape.h" />
+    <ClInclude Include="..\Vec.h" />
     <ClInclude Include="ConvexHullDX.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Resource.h" />
