@@ -47,7 +47,7 @@ namespace Collision
 		}
 
 		[[nodiscard]] static float PointTriangle(const Vec3& Pt, const Vec3& A, const Vec3& B, const Vec3& C) {
-			return (Pt - A).Dot((B - A).Cross(C - A).Normalize());
+			return (Pt - A).Dot(Vec3::Normal(A, B, C));
 		}
 
 		//!< 指定の方向に一番遠い点のイテレータを返す 

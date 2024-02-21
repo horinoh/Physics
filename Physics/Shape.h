@@ -38,6 +38,7 @@ namespace Physics
 		AABB Aabb;
 	};
 
+	//!< ŒŸØÏ‚Ý
 	class ShapeSphere : public Shape 
 	{
 	private:
@@ -66,6 +67,7 @@ namespace Physics
 		float Radius = 1.0f;
 	};
 
+	//!< #TODO –¢ŒŸØ
 	class ShapeBox : public Shape
 	{
 	private:
@@ -119,10 +121,17 @@ namespace Physics
 				Vec3(-Extent.X(), -Extent.Y(), Extent.Z()),
 				-Extent 
 			};
-			const auto MaxPt = std::ranges::max_element(Points, [&](const auto lhs, const auto rhs) {
-				return NDir.Dot(Rot.Rotate(lhs) + Pos) < NDir.Dot(Rot.Rotate(rhs) + Pos);
-			});
-			return *MaxPt + NDir * Bias;
+			Vec3 MaxPt = Rot.Rotate(Points[0]) + Pos;
+			auto MaxDist = NDir.Dot(MaxPt);
+			for (auto i = 1; i < std::size(Points); ++i) {
+				const auto Pt = Rot.Rotate(Points[i]) + Pos;
+				const auto Dist = NDir.Dot(Pt);
+				if (Dist > MaxDist) {
+					MaxDist = Dist;
+					MaxPt = Pt;
+				}
+			}
+			return MaxPt + NDir * Bias;
 		}
 		virtual float GetFastestPointSpeed(const Vec3& AngVel, const Vec3& Dir) const override {
 			const std::array Points = {
@@ -148,6 +157,7 @@ namespace Physics
 		Vec3 Extent = Vec3::One();
 	};
 
+	//!< #TODO
 	class ShapeConvex : public Shape
 	{
 	private:

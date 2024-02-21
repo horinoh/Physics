@@ -9,22 +9,9 @@ namespace Math
 		Quat(const float x, const float y, const float z, const float w) : Comps({x, y, z, w}) {}
 		Quat(const Vec3& rhs) : Comps({ rhs.X(), rhs.Y(), rhs.Z(), 0.0f }) {}
 		Quat(const Vec3& Axis, const float Radian) {
-#if 1
 			const auto HalfRadian = 0.5f * Radian;
 			const auto Ax = Axis.Normalize() * sinf(HalfRadian);
 			Comps = { Ax.X(),Ax.Y(),Ax.Z(), cosf(HalfRadian) };
-#else
-			const float HalfRadian = 0.5f * Radian;
-
-			//w = cosf(HalfRadian);
-
-			const float HalfSine = sinf(HalfRadian);
-			const auto Ax = Axis.Normalize();
-			//x = Ax.X() * HalfSine;
-			//y = Ax.Y() * HalfSine;
-			//z = Ax.Z() * HalfSine;
-			Comps = { Ax.X() * HalfSine,  Ax.Y() * HalfSine, Ax.Z() * HalfSine, cosf(HalfRadian) };
-#endif
 		}
 
 		inline static Quat Identity() { return { 0.0f, 0.0f, 0.0f, 1.0f }; }

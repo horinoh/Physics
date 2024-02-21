@@ -548,12 +548,12 @@ public:
 				WorldBuffer.RigidBodies[0].Color = { 1.0f, 0.0f, 0.0f };
 				WorldBuffer.RigidBodies[1].Color = { 1.0f, 0.0f, 0.0f };
 			} 
-			//else {
-			//	Vec3 OnA, OnB;
-			//	Collision::Closest::GJK(RbA, RbB, OnA, OnB);
-			//	LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
-			//	LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
-			//}
+			else {
+				Vec3 OnA, OnB;
+				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
+				LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
+				LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
+			}
 #endif
 		}
 	}

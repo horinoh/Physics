@@ -148,49 +148,78 @@ namespace Collision
 		return Lambda;
 	}
 
-	//!< サポートポイント : 特定の方向に最も遠い点
-	class SupportPoints
-	{
-	public:
-		SupportPoints(const Vec3& A, const Vec3& B) : SPs({ A - B, A, B }) { }
+	namespace SupportPoint {
+		//!< サポートポイント : 特定の方向に最も遠い点
 
-		const Vec3 GetA() const { return SPs[1]; }
-		const Vec3 GetB() const { return SPs[2]; }
-		const Vec3 GetC() const { return SPs[0]; }
+		//!< A, B のサポートポイントの差が、(A, B のミンコフスキー差) C のサポートポイントとなる
+		class Points
+		{
+		public:
+			Points(const Vec3& A, const Vec3& B) : SPs({ A - B, A, B }) { }
 
-		bool operator == (const SupportPoints& rhs) const { return std::ranges::equal(SPs, rhs.SPs); }
-	private:
-		std::array<Vec3, 3> SPs;
-	};
-	//!< A, B のサポートポイントの差が、C (A, B のミンコフスキー差) のサポートポイントとなる
-	static [[nodiscard]] SupportPoints GetSupportPoints(const RigidBody* RbA, const RigidBody* RbB, const Vec3& NDir, const float Bias) {
-		return SupportPoints(RbA->Shape->GetSupportPoint(RbA->Position, RbA->Rotation, NDir, Bias), RbB->Shape->GetSupportPoint(RbB->Position, RbB->Rotation, -NDir, Bias));
-	}
-	static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<SupportPoints>& Sps, Vec3& Dir, Vec4& OutLambda)
-	{
-		//constexpr auto Eps2 = (std::numeric_limits<float>::epsilon)() * (std::numeric_limits<float>::epsilon)();
-		constexpr auto Eps2 = 0.0001f * 0.00001f;
+			const Vec3 GetA() const { return SPs[1]; }
+			const Vec3 GetB() const { return SPs[2]; }
+			const Vec3 GetC() const { return SPs[0]; }
 
-		switch (size(Sps)) {
-		case 2:
-			OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC());
-			Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1]);
-		break;
-		case 3:
-			OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC(), Sps[2].GetC());
-			Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1] + Sps[2].GetC() * OutLambda[2]);
-			break;
-		case 4:
-			OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC(), Sps[2].GetC(), Sps[3].GetC());
-			Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1] + Sps[2].GetC() * OutLambda[2] + Sps[3].GetC() * OutLambda[3]);
-			break;
-		default:
-			__debugbreak();
-			break;
+			bool operator == (const Points& i) const { return std::ranges::equal(SPs, i.SPs); }
+		private:
+			std::array<Vec3, 3> SPs;
+		};
+		static [[nodiscard]] Points GetPoints(const RigidBody* RbA, const RigidBody* RbB, const Vec3& NDir, const float Bias) {
+			return Points(RbA->Shape->GetSupportPoint(RbA->Position, RbA->Rotation, NDir, Bias), RbB->Shape->GetSupportPoint(RbB->Position, RbB->Rotation, -NDir, Bias));
+		}
+		static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<Points>& Sps, Vec3& Dir, Vec4& OutLambda)
+		{
+			//constexpr auto Eps2 = (std::numeric_limits<float>::epsilon)() * (std::numeric_limits<float>::epsilon)();
+			constexpr auto Eps2 = 0.0001f * 0.00001f;
+
+			switch (size(Sps)) {
+			case 2:
+				OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC());
+				Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1]);
+				break;
+			case 3:
+				OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC(), Sps[2].GetC());
+				Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1] + Sps[2].GetC() * OutLambda[2]);
+				break;
+			case 4:
+				OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC(), Sps[2].GetC(), Sps[3].GetC());
+				Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1] + Sps[2].GetC() * OutLambda[2] + Sps[3].GetC() * OutLambda[3]);
+				break;
+			default:
+				__debugbreak();
+				break;
+			}
+
+			//!< 原点を含む -> 衝突
+			return Dir.LengthSq() < Eps2;
 		}
 
-		//!< 原点を含む -> 衝突
-		return Dir.LengthSq() < Eps2;
+		//!< サポートポイントが四面体をなしていない場合、四面体を形成する
+		void ToTetrahedron(const RigidBody* RbA, const RigidBody* RbB, std::vector<SupportPoint::Points>& Sps) {
+			if (1 == std::size(Sps)) {
+				Sps.emplace_back(GetPoints(RbA, RbB, -Sps[0].GetC().Normalize(), 0.0f));
+			}
+			if (2 == std::size(Sps)) {
+				const auto AB = Sps[1].GetC() - Sps[0].GetC();
+				Vec3 U, V;
+				AB.GetOrtho(U, V);
+				Sps.emplace_back(GetPoints(RbA, RbB, U, 0.0f));
+			}
+			if (3 == std::size(Sps)) {
+				const auto AB = Sps[1].GetC() - Sps[0].GetC();
+				const auto AC = Sps[2].GetC() - Sps[0].GetC();
+				Sps.emplace_back(GetPoints(RbA, RbB, AB.Cross(AC).Normalize(), 0.0f));
+			}
+		}
+		//!< バイアスの分だけ拡張する
+		void Expand(const float Bias, std::vector<SupportPoint::Points>& Sps) {
+			const auto Center = (Sps[0].GetC() + Sps[1].GetC() + Sps[2].GetC() + Sps[3].GetC()) * 0.25f;
+			std::ranges::transform(Sps, std::begin(Sps), [&](const auto& rhs) {
+				const auto Dir = (rhs.GetC() - Center).Normalize() * Bias;
+				return SupportPoint::Points(rhs.GetA() + Dir, rhs.GetB() - Dir);
+			});
+		}
 	}
 
 	namespace Intersection {
@@ -206,19 +235,19 @@ namespace Collision
 		//!<	1, 2, 3, 4 がなす四面体が原点を含めば衝突、終了
 		//!<	一番近い三角形 (例えば 1, 2, 4) から、原点を向く法線方向の次のサポートポイント 5 を見つける
 		//!<	四面体が原点を含むか、サポートポイントが無くなるまで続ける
-		[[nodiscard]] static bool GJK(const RigidBody* RbA, const RigidBody* RbB, std::function<void(const RigidBody*, const RigidBody*, const std::vector<SupportPoints>&, const float, Vec3&, Vec3&)> OnIntersect, const float Bias, Vec3& OnA, Vec3& OnB)
+		[[nodiscard]] static bool GJK(const RigidBody* RbA, const RigidBody* RbB, std::function<void(const RigidBody*, const RigidBody*, const std::vector<SupportPoint::Points>&, const float, Vec3&, Vec3&)> OnIntersect, const float Bias, Vec3& OnA, Vec3& OnB)
 		{
-			std::vector<SupportPoints> Sps;
+			std::vector<SupportPoint::Points> Sps;
 			Sps.reserve(4); //!< 4 枠
 
 			//!< (1, 1, 1) 方向のサポートポイントを求める
-			Sps.emplace_back(GetSupportPoints(RbA, RbB, Vec3::One().Normalize(), 0.0f));
+			Sps.emplace_back(SupportPoint::GetPoints(RbA, RbB, Vec3::One().Normalize(), 0.0f));
 
 			auto ClosestDist = (std::numeric_limits<float>::max)();
 			auto Dir = -Sps.back().GetC();
 			auto ContainOrigin = false;
 			do {
-				const auto Pt = GetSupportPoints(RbA, RbB, Dir.ToNormalized(), 0.0f);
+				const auto Pt = SupportPoint::GetPoints(RbA, RbB, Dir.ToNormalized(), 0.0f);
 				Dir *= -1.0f;
 
 				//!< 既存の点ということはもうこれ以上拡張できない -> 衝突無し
@@ -237,7 +266,7 @@ namespace Collision
 				//!< シンプレックスが原点を含む -> 衝突
 				//!< (Dir を更新、Lambda を返す)
 				Vec4 Lambda;
-				if ((ContainOrigin = SimplexSignedVolumes(Sps, Dir, Lambda))) {
+				if ((ContainOrigin = SupportPoint::SimplexSignedVolumes(Sps, Dir, Lambda))) {
 					break;
 				}
 
@@ -265,104 +294,81 @@ namespace Collision
 				return false;
 			}
 
-			//!< ここから先衝突確定
-						//!< EPA は四面体を必要とするので、四面体を形成する
-			if (1 == std::size(Sps)) {
-				Sps.emplace_back(GetSupportPoints(RbA, RbB, -Sps[0].GetC().Normalize(), 0.0f));
-			}
-			if (2 == std::size(Sps)) {
-				const auto AB = Sps[1].GetC() - Sps[0].GetC();
-				Vec3 U, V;
-				AB.GetOrtho(U, V);
-				Sps.emplace_back(GetSupportPoints(RbA, RbB, U, 0.0f));
-			}
-			if (3 == std::size(Sps)) {
-				const auto AB = Sps[1].GetC() - Sps[0].GetC();
-				const auto AC = Sps[2].GetC() - Sps[0].GetC();
-				Sps.emplace_back(GetSupportPoints(RbA, RbB, AB.Cross(AC).Normalize(), 0.0f));
-			}
-
+			//!< ---- 衝突確定 ----
+		
+			//!< EPA は四面体を必要とするので、四面体を形成する
+			SupportPoint::ToTetrahedron(RbA, RbB, Sps);
+	
 			//!< シンプレックスをバイアスの分だけ拡張する
-			const auto Avg = (Sps[0].GetC() + Sps[1].GetC() + Sps[2].GetC() + Sps[3].GetC()) * 0.25f;
-#if 1
-			std::ranges::transform(Sps, std::begin(Sps), [&](const auto& rhs) {
-				const auto Dir = (rhs.GetC() - Avg).Normalize() * Bias;
-				return SupportPoints(rhs.GetA() + Dir, rhs.GetB() - Dir);
-				});
-#else
-			for (auto& i : Sps) {
-				const auto Dir = (i.GetC() - Avg).Normalize() * Bias;
-				i = SupportPoints(i.GetA() + Dir, i.GetB() - Dir);
-			}
-#endif
+			SupportPoint::Expand(Bias, Sps);
 
 			//!< 衝突確定時に呼び出す関数 (EPA 等)
 			OnIntersect(RbA, RbB, Sps, Bias, OnA, OnB);
 
 			return true;
 		}
-		
-		void PreEPA(const RigidBody* RbA, const RigidBody* RbB, const float Bias, std::vector<SupportPoints>& Sps) {
-			//!< EPA は四面体を必要とするので、四面体を形成する
-			if (1 == std::size(Sps)) {
-				Sps.emplace_back(GetSupportPoints(RbA, RbB, -Sps[0].GetC().Normalize(), 0.0f));
-			}
-			if (2 == std::size(Sps)) {
-				const auto AB = Sps[1].GetC() - Sps[0].GetC();
-				Vec3 U, V;
-				AB.GetOrtho(U, V);
-				Sps.emplace_back(GetSupportPoints(RbA, RbB, U, 0.0f));
-			}
-			if (3 == std::size(Sps)) {
-				const auto AB = Sps[1].GetC() - Sps[0].GetC();
-				const auto AC = Sps[2].GetC() - Sps[0].GetC();
-				Sps.emplace_back(GetSupportPoints(RbA, RbB, AB.Cross(AC).Normalize(), 0.0f));
-			}
-		
-			//!< シンプレックスをバイアスの分だけ拡張する
-			const auto Avg = (Sps[0].GetC() + Sps[1].GetC() + Sps[2].GetC() + Sps[3].GetC()) * 0.25f;
-#if 1
-			std::ranges::transform(Sps, std::begin(Sps), [&](const auto& rhs) {
-				const auto Dir = (rhs.GetC() - Avg).Normalize() * Bias;
-				return SupportPoints(rhs.GetA() + Dir, rhs.GetB() - Dir);
-				});
-#else
-			for (auto& i : Sps) {
-				const auto Dir = (i.GetC() - Avg).Normalize() * Bias;
-				i = SupportPoints(i.GetA() + Dir, i.GetB() - Dir);
-			}
-#endif
-		}
 
-		[[nodiscard]] float EPA(const RigidBody*, const RigidBody*, const std::vector<SupportPoints>& Sps, const float Bias, Vec3& OnA, Vec3& OnB) {
-#ifdef _DEBUG
-			if (4 != std::size(Sps)) { 
-				__debugbreak(); 
+		//!< EPA (Expanding Polytope Algorithm)
+		[[nodiscard]] float EPA(const RigidBody* RbA, const RigidBody* RbB, const std::vector<SupportPoint::Points>& _Sps, const float Bias, Vec3& OnA, Vec3& OnB) {
+			//!< 作業用サポートポイント
+			std::vector<SupportPoint::Points> Sps;
+			Sps.assign(std::begin(_Sps), std::end(_Sps));
+
+			//!< 頂点から三角形のインデックスリストを生成
+			std::vector<TriInds> Tris;
+			for (uint32_t i = 0; i < 4; ++i) {
+				const auto j = (i + 1) % 4;
+				const auto k = (i + 2) % 4;
+
+				const auto l = (i + 3) % 4;
+
+				if (Distance::PointTriangle(Sps[l].GetC(), Sps[i].GetC(), Sps[j].GetC(), Sps[k].GetC()) > 0.0f) {
+					Tris.emplace_back(TriInds({ j, i, k }));
+				}
+				else {
+					Tris.emplace_back(TriInds({ i, j, k }));
+				}
 			}
-#endif
-			//std::vector<std::tuple<int, int, int>> Triangles;
-			std::vector<TriInds> Triangles;
 
 			const Vec3 Center = (Sps[0].GetC() + Sps[1].GetC() + Sps[2].GetC() + Sps[3].GetC()) * 0.25f;
 
-			//!< 三角形をビルド
-			for (auto i = 0; i < 4; ++i) {
-				const auto j = (i + 1) % 4;
-				const auto k = (i + 2) % 4;
-				const auto l = (i + 3) % 4;
+			while (true) {
+				//!< 原点に最も近い三角形を取得
+				const auto& CTri = *std::ranges::min_element(Tris, [&](const auto& lhs, const auto& rhs) {
+					return Distance::PointTriangle(Vec3::Zero(), Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC()) < Distance::PointTriangle(Vec3::Zero(), Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC());
+				});
+				//!< 三角形の法線
+				const auto Nrm = Vec3::Normal(Sps[CTri[0]].GetC(), Sps[CTri[1]].GetC(), Sps[CTri[2]].GetC());
+			
+				//!< 法線方向のサポートポイントを取得
+				const auto Pt = SupportPoint::GetPoints(RbA, RbB, Nrm, Bias);
 
-				//float dist = SignedDistanceToTriangle(Triangles, Sps[l].GetC(), Sps);
-				// The unused point is always on the negative/inside of the triangle.. make sure the normal points away
-				//if (dist > 0.0f) {
-				//	std::swap(tri.a, tri.b);
-				//}
-				const auto Dist = 0.0f;
-				if (Dist > 0.0f) {
-					Triangles.emplace_back(TriInds({ static_cast<uint32_t>(j), static_cast<uint32_t>(i), static_cast<uint32_t>(k) }));
+				//!< サポートポイントが既出の場合は、これ以上拡張できない
+				if (std::ranges::any_of(Tris, [&](const auto rhs) {
+					return Sps[rhs[0]].GetC().NearlyEqual(Pt.GetC()) || Sps[rhs[1]].GetC().NearlyEqual(Pt.GetC()) || Sps[rhs[2]].GetC().NearlyEqual(Pt.GetC());
+				})) {
+					break;
 				}
-				else {
-					Triangles.emplace_back(TriInds({ static_cast<uint32_t>(i), static_cast<uint32_t>(j), static_cast<uint32_t>(k) }));
+
+				//!< サポートポイントと三角形の距離が 0 以下の場合は、これ以上拡張できない
+				if (Distance::PointTriangle(Pt.GetC(), Sps[CTri[0]].GetC(), Sps[CTri[1]].GetC(), Sps[CTri[2]].GetC()) <= 0.0f) {
+					break;
 				}
+				
+				Sps.emplace_back(Pt);
+
+				//!< サポートポイント側を向いている三角形を削除、削除できない場合は終了
+				const auto Range = std::ranges::remove_if(Tris, [&](const auto& i) {
+					return Distance::PointTriangle(Pt.GetC(), Sps[i[0]].GetC(), Sps[i[1]].GetC(), Sps[i[2]].GetC()) > 0.0f;
+				});
+				Tris.erase(std::begin(Range), std::end(Range));
+				if (0 == std::ranges::distance(Range)) {
+					break;
+				}
+
+				//!< 宙ぶらりんの辺を探す、無ければ終了
+				
+				//!< #TODO
 			}
 
 			//!< #TODO
@@ -371,7 +377,7 @@ namespace Collision
 
 		[[nodiscard]] static bool GJK(const RigidBody* RbA, const RigidBody* RbB) {
 			Vec3 OnA, OnB;
-			return GJK(RbA, RbB, [](const RigidBody*, const RigidBody*, const std::vector<SupportPoints>&, const float, Vec3&, Vec3&) {}, 0.001f, OnA, OnB);
+			return GJK(RbA, RbB, [](const RigidBody*, const RigidBody*, const std::vector<SupportPoint::Points>&, const float, Vec3&, Vec3&) {}, 0.001f, OnA, OnB);
 		}
 		[[nodiscard]] static bool GJK_EPA(const RigidBody* RbA, const RigidBody* RbB, const float Bias, Vec3& OnA, Vec3& OnB) {
 			return GJK(RbA, RbB, EPA, Bias, OnA, OnB);
@@ -379,16 +385,16 @@ namespace Collision
 	}
 	namespace Closest {
 		static void GJK(const RigidBody* RbA, const RigidBody* RbB, Vec3& OnA, Vec3& OnB) {
-			std::vector<SupportPoints> Sps;
+			std::vector<SupportPoint::Points> Sps;
 			Sps.reserve(4);
 
-			Sps.emplace_back(GetSupportPoints(RbA, RbB, Vec3::One().Normalize(), 0.0f));
+			Sps.emplace_back(SupportPoint::GetPoints(RbA, RbB, Vec3::One().Normalize(), 0.0f));
 
 			auto ClosestDist = (std::numeric_limits<float>::max)();
 			auto Dir = -Sps.back().GetC();
 			Vec4 Lambda;
 			do {
-				const auto Pt = GetSupportPoints(RbA, RbB, Dir.ToNormalized(), 0.0f);
+				const auto Pt = SupportPoint::GetPoints(RbA, RbB, Dir.ToNormalized(), 0.0f);
 				Dir *= -1.0f;
 
 				if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& rhs) { return Pt.GetC().NearlyEqual(rhs.GetC()); })) {
@@ -397,7 +403,7 @@ namespace Collision
 
 				Sps.emplace_back(Pt);
 
-				SimplexSignedVolumes(Sps, Dir, Lambda);
+				SupportPoint::SimplexSignedVolumes(Sps, Dir, Lambda);
 
 				const auto [Beg, End] = std::ranges::remove_if(Sps, [&](const auto& rhs) {
 					return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, rhs))];
@@ -413,9 +419,11 @@ namespace Collision
 				}
 			} while (std::size(Sps) < 4);
 
-			if (4 == std::size(Sps)) {
-				OnA = Sps[0].GetA() * Lambda[0] + Sps[1].GetA() * Lambda[1] + Sps[2].GetA() * Lambda[2] + Sps[3].GetA() * Lambda[3];
-				OnB = Sps[0].GetB() * Lambda[0] + Sps[1].GetB() * Lambda[1] + Sps[2].GetB() * Lambda[2] + Sps[3].GetB() * Lambda[3];
+			OnA.ToZero();
+			OnB.ToZero();
+			for (auto i = 0; i < std::size(Sps); ++i) {
+				OnA += Sps[i].GetA() * Lambda[i];
+				OnB += Sps[i].GetB() * Lambda[i];
 			}
 		}
 	}

@@ -106,6 +106,7 @@ namespace Math
 		inline static Vec3 Epsilon() { return Vec3((std::numeric_limits<float>::epsilon)()); }
 		inline static Vec3 Min() { return Vec3((std::numeric_limits<float>::min)()); }
 		inline static Vec3 Max() { return Vec3((std::numeric_limits<float>::max)()); }
+		inline static Vec3 Normal(const Vec3& A, const Vec3& B, const Vec3& C) { return (B - A).Cross(C - A).Normalize(); }
 
 		inline bool NearlyEqual(const Vec3& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
 			return std::ranges::equal(Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
