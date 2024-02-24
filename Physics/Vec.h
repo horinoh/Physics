@@ -287,7 +287,7 @@ namespace Math
 		inline Vec4& ToZero() { return (*this = Zero()); }
 		inline Vec4& ToNormalized() { return (*this = Normalize()); }
 
-	private:
+	//private:
 		std::array<float, 4> Comps = { 0.0f, 0.0f, 0.0f, 0.0f };
 	};
 

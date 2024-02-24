@@ -8,7 +8,7 @@
 #include "../GltfSDK.h"
 #include "../Physics.h"
 
-//#define NO_CONVEX_HULL
+//#define DRAW_MESH
 
 class ConvexHullDX : public Gltf::SDK, public DX
 {
@@ -205,7 +205,6 @@ public:
 		//Load(ASSET_PATH / "bunny4.glb");
 
 		//!< “Ê•ï‚ð\’z
-#ifndef NO_CONVEX_HULL
 		std::vector<Vec3> Vec3s;
 #if 1
 		Vec3s.reserve(size(Vertices));
@@ -230,7 +229,6 @@ public:
 				Indices_CH.emplace_back(i[2]);
 			}
 		}
-#endif
 
 		for (auto i = 0; i < _countof(WorldBuffer.RigidBodies); ++i) {
 			auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
@@ -238,11 +236,10 @@ public:
 			Rb->Rotation = Quat::Identity();
 			Rb->InvMass = 0.0f;
 			Rb->Init(new ShapeConvex());
-#ifndef NO_CONVEX_HULL
+
 			auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
 			Points.resize(std::size(HullVertices));
 			std::ranges::copy(HullVertices, std::begin(Points));
-#endif
 		}
 
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);
@@ -252,15 +249,12 @@ public:
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Vertices), sizeof(Vertices[0]));
 		UploadResource UploadVertex;
 		UploadVertex.Create(COM_PTR_GET(Device), TotalSizeOf(Vertices), data(Vertices));
-
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Normals), sizeof(Normals[0]));
 		UploadResource UploadNormal;
 		UploadNormal.Create(COM_PTR_GET(Device), TotalSizeOf(Normals), data(Normals));
-
 		IndexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Indices), DXGI_FORMAT_R32_UINT);
 		UploadResource UploadIndex;
 		UploadIndex.Create(COM_PTR_GET(Device), TotalSizeOf(Indices), data(Indices));
-
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = { 
 			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)), 
 			.InstanceCount = _countof(WorldBuffer.RigidBodies),
@@ -272,15 +266,12 @@ public:
 		UploadResource UploadIndirect;
 		UploadIndirect.Create(COM_PTR_GET(Device), sizeof(DIA), &DIA);
 
-#ifndef NO_CONVEX_HULL
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Vertices_CH), sizeof(Vertices_CH[0]));
 		UploadResource UploadVertex_CH;
 		UploadVertex_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Vertices_CH), data(Vertices_CH));
-
 		IndexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Indices_CH), DXGI_FORMAT_R32_UINT);
 		UploadResource UploadIndex_CH;
 		UploadIndex_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Indices_CH), data(Indices_CH));
-
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA_CH = {
 			.IndexCountPerInstance = static_cast<UINT32>(size(Indices_CH)),
 			.InstanceCount = _countof(WorldBuffer.RigidBodies),
@@ -291,18 +282,28 @@ public:
 		IndirectBuffers.emplace_back().Create(COM_PTR_GET(Device), DIA_CH);
 		UploadResource UploadIndirect_CH;
 		UploadIndirect_CH.Create(COM_PTR_GET(Device), sizeof(DIA_CH), &DIA_CH);
-#endif
+
+		const D3D12_DRAW_ARGUMENTS DA_CP = {
+			.VertexCountPerInstance = 1,
+			.InstanceCount = _countof(WorldBuffer.RigidBodies),
+			.StartVertexLocation = 0,
+			.StartInstanceLocation = 0,
+		};
+		IndirectBuffers.emplace_back().Create(COM_PTR_GET(Device), DA_CP);
+		UploadResource UploadIndirect_CP;
+		UploadIndirect_CP.Create(COM_PTR_GET(Device), sizeof(DA_CP), &DA_CP);
 
 		VERIFY_SUCCEEDED(CL->Reset(CA, nullptr)); {
 			VertexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Vertices), COM_PTR_GET(UploadVertex.Resource));
 			VertexBuffers[1].PopulateCopyCommand(CL, TotalSizeOf(Normals), COM_PTR_GET(UploadNormal.Resource));
 			IndexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Indices), COM_PTR_GET(UploadIndex.Resource));
 			IndirectBuffers[0].PopulateCopyCommand(CL, sizeof(DIA), COM_PTR_GET(UploadIndirect.Resource));
-#ifndef NO_CONVEX_HULL
+
 			VertexBuffers[2].PopulateCopyCommand(CL, TotalSizeOf(Vertices_CH), COM_PTR_GET(UploadVertex_CH.Resource));
 			IndexBuffers[1].PopulateCopyCommand(CL, TotalSizeOf(Indices_CH), COM_PTR_GET(UploadIndex_CH.Resource));
 			IndirectBuffers[1].PopulateCopyCommand(CL, sizeof(DIA_CH), COM_PTR_GET(UploadIndirect_CH.Resource));
-#endif
+
+			IndirectBuffers[2].PopulateCopyCommand(CL, sizeof(DA_CP), COM_PTR_GET(UploadIndirect_CP.Resource));
 		} VERIFY_SUCCEEDED(CL->Close());
 		DX::ExecuteAndWait(CQ, CL, COM_PTR_GET(GraphicsFence));
 	}
@@ -350,6 +351,7 @@ public:
 	virtual void CreatePipelineState() override {
 		PipelineStates.emplace_back();
 		PipelineStates.emplace_back();
+		PipelineStates.emplace_back();
 
 		std::vector<COM_PTR<ID3DBlob>> SBs;
 		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_PN.vs.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
@@ -373,8 +375,8 @@ public:
 		DX::CreatePipelineState_VsPs_Input(PipelineStates[0], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, RD, TRUE, IEDs, SBCs);
 
 		std::vector<COM_PTR<ID3DBlob>> SBs_CH;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CH_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CH_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
 		const std::array SBCs_CH = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CH[0]->GetBufferPointer(), .BytecodeLength = SBs_CH[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CH[1]->GetBufferPointer(), .BytecodeLength = SBs_CH[1]->GetBufferSize() }),
@@ -391,6 +393,26 @@ public:
 			.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
 		};
 		DX::CreatePipelineState_VsPs_Input(PipelineStates[1], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, RD_CH, TRUE, IEDs_CH, SBCs_CH);
+
+		std::vector<COM_PTR<ID3DBlob>> SBs_CP;
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CP_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CP.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CP_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CP.emplace_back())));
+		const std::array SBCs_CP = {
+			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CP[0]->GetBufferPointer(), .BytecodeLength = SBs_CP[0]->GetBufferSize() }),
+			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CP[1]->GetBufferPointer(), .BytecodeLength = SBs_CP[1]->GetBufferSize() }),
+		};
+		const std::vector IEDs_CP = {
+			D3D12_INPUT_ELEMENT_DESC({.SemanticName = "POSITION", .SemanticIndex = 0, .Format = DXGI_FORMAT_R32G32B32_FLOAT, .InputSlot = 0, .AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT, .InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, .InstanceDataStepRate = 0 }),
+		};
+		constexpr D3D12_RASTERIZER_DESC RD_CP = {
+			.FillMode = D3D12_FILL_MODE_SOLID,
+			.CullMode = D3D12_CULL_MODE_BACK, .FrontCounterClockwise = TRUE,
+			.DepthBias = D3D12_DEFAULT_DEPTH_BIAS, .DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP, .SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+			.DepthClipEnable = TRUE,
+			.MultisampleEnable = FALSE, .AntialiasedLineEnable = FALSE, .ForcedSampleCount = 0,
+			.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
+		};
+		DX::CreatePipelineState_VsPs_Input(PipelineStates[2], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT, RD_CP, TRUE, IEDs_CP, SBCs_CP);
 
 		for (auto& i : Threads) { i.join(); }
 		Threads.clear();
@@ -464,6 +486,7 @@ public:
 	virtual void PopulateBundleCommandList(const size_t i) override {
 		const auto PS0 = COM_PTR_GET(PipelineStates[0]);
 		const auto PS1 = COM_PTR_GET(PipelineStates[1]);
+		const auto PS2 = COM_PTR_GET(PipelineStates[2]);
 		const auto BCL = COM_PTR_GET(BundleCommandLists[i]);
 		const auto BCA = COM_PTR_GET(BundleCommandAllocators[0]);
 
@@ -475,15 +498,18 @@ public:
 			const std::array VBVs = { VertexBuffers[0].View, VertexBuffers[1].View };
 			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs)), data(VBVs));
 			BCL->IASetIndexBuffer(&IndexBuffers[0].View);
+#ifdef DRAW_MESH
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
+#endif
 
-#ifndef NO_CONVEX_HULL
 			BCL->SetPipelineState(PS1);
 			const std::array VBVs_CH = { VertexBuffers[2].View };
 			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs_CH)), data(VBVs_CH));
 			BCL->IASetIndexBuffer(&IndexBuffers[1].View);
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[1].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[1].Resource), 0, nullptr, 0);
-#endif
+
+			BCL->SetPipelineState(PS2);
+			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[2].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[2].Resource), 0, nullptr, 0);
 		}
 		VERIFY_SUCCEEDED(BCL->Close());
 	}
@@ -540,8 +566,10 @@ public:
 					DirectX::XMStoreFloat4x4(&WorldBuffer.RigidBodies[i].World, DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 				}
 			}
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) { WorldBuffer.RigidBodies[i].Color = { 1.0f, 1.0f, 1.0f }; }
-#ifndef NO_CONVEX_HULL
+			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
+				WorldBuffer.RigidBodies[i].Color = { 1.0f, 1.0f, 1.0f };
+				WorldBuffer.RigidBodies[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
+			}
 			const auto RbA = Scene->RigidBodies[0];
 			const auto RbB = Scene->RigidBodies[1];
 			if (Collision::Intersection::GJK(RbA, RbB)) {
@@ -551,10 +579,11 @@ public:
 			else {
 				Vec3 OnA, OnB;
 				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
-				LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
-				LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
+				DirectX::XMStoreFloat3(&WorldBuffer.RigidBodies[0].ClosestPoint, DirectX::XMVectorSet(OnA.X(), OnA.Y(), OnA.Z(), 0.0f));
+				DirectX::XMStoreFloat3(&WorldBuffer.RigidBodies[1].ClosestPoint, DirectX::XMVectorSet(OnB.X(), OnB.Y(), OnB.Z(), 0.0f));
+				//LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
+				//LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
 			}
-#endif
 		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
@@ -585,6 +614,7 @@ protected:
 	struct RIGID_BODY {
 		DirectX::XMFLOAT4X4 World;
 		alignas(16) DirectX::XMFLOAT3 Color;
+		alignas(16) DirectX::XMFLOAT3 ClosestPoint;
 	};
 	struct WORLD_BUFFER {
 		RIGID_BODY RigidBodies[2];

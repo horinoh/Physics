@@ -101,16 +101,22 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="ConvexHullVK_P.frag">
-      <Filter>Shader Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="ConvexHullVK_P.vert">
-      <Filter>Shader Files</Filter>
-    </CustomBuild>
     <CustomBuild Include="ConvexHullVK_PN.frag">
       <Filter>Shader Files</Filter>
     </CustomBuild>
     <CustomBuild Include="ConvexHullVK_PN.vert">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ConvexHullVK_CH_P.frag">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ConvexHullVK_CH_P.vert">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ConvexHullVK_CP_P.frag">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ConvexHullVK_CP_P.vert">
       <Filter>Shader Files</Filter>
     </CustomBuild>
   </ItemGroup>

@@ -8,7 +8,7 @@
 #include "../GltfSDK.h"
 #include "../Physics.h"
 
-//#define NO_CONVEX_HULL
+//#define DRAW_MESH
 
 class ConvexHullVK : public Gltf::SDK, public VK
 {
@@ -206,7 +206,6 @@ public:
 		//Load(ASSET_PATH / "bunny4.glb");
 
 		//!< “Ê•ï‚ð\’z
-#ifndef NO_CONVEX_HULL
 		std::vector<Vec3> Vec3s;
 #if 1
 		Vec3s.reserve(size(Vertices));
@@ -231,18 +230,17 @@ public:
 				Indices_CH.emplace_back(i[2]);
 			}
 		}
-#endif
+
 		for (auto i = 0; i < _countof(WorldBuffer.RigidBodies); ++i) {
 			auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
 			Rb->Position = 0 == i ? Vec3::AxisZ() * 5.0f : Vec3::Zero();
 			Rb->Rotation = Quat::Identity();
 			Rb->InvMass = 0.0f;
 			Rb->Init(new ShapeConvex());
-#ifndef NO_CONVEX_HULL
+
 			auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
 			Points.resize(std::size(HullVertices));
 			std::ranges::copy(HullVertices, std::begin(Points));
-#endif
 		}
 
 		const auto& CB = CommandBuffers[0];
@@ -251,15 +249,12 @@ public:
 		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Vertices));
 		VK::Scoped<StagingBuffer> StagingVertex(Device);
 		StagingVertex.Create(Device, PDMP, TotalSizeOf(Vertices), data(Vertices));
-
 		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Normals));
 		VK::Scoped<StagingBuffer> StagingNormal(Device);
 		StagingNormal.Create(Device, PDMP, TotalSizeOf(Normals), data(Normals));
-
 		IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Indices));
 		VK::Scoped<StagingBuffer> StagingIndex(Device);
 		StagingIndex.Create(Device, PDMP, TotalSizeOf(Indices), data(Indices));
-
 		const VkDrawIndexedIndirectCommand DIIC = { 
 			.indexCount = static_cast<uint32_t>(size(Indices)), 
 			.instanceCount = _countof(WorldBuffer.RigidBodies),
@@ -271,15 +266,12 @@ public:
 		VK::Scoped<StagingBuffer> StagingIndirect(Device);
 		StagingIndirect.Create(Device, PDMP, sizeof(DIIC), &DIIC);
 
-#ifndef NO_CONVEX_HULL
 		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Vertices_CH));
 		VK::Scoped<StagingBuffer> StagingVertex_CH(Device);
 		StagingVertex_CH.Create(Device, PDMP, TotalSizeOf(Vertices_CH), data(Vertices_CH));
-
 		IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Indices_CH));
 		VK::Scoped<StagingBuffer> StagingIndex_CH(Device);
 		StagingIndex_CH.Create(Device, PDMP, TotalSizeOf(Indices_CH), data(Indices_CH));
-
 		const VkDrawIndexedIndirectCommand DIIC_CH = { 
 			.indexCount = static_cast<uint32_t>(size(Indices_CH)), 
 			.instanceCount = _countof(WorldBuffer.RigidBodies),
@@ -290,7 +282,16 @@ public:
 		IndirectBuffers.emplace_back().Create(Device, PDMP, DIIC_CH);
 		VK::Scoped<StagingBuffer> StagingIndirect_CH(Device);
 		StagingIndirect_CH.Create(Device, PDMP, sizeof(DIIC_CH), &DIIC_CH);
-#endif
+
+		const VkDrawIndirectCommand DIC_CP = {
+			.vertexCount = 1,
+			.instanceCount = _countof(WorldBuffer.RigidBodies),
+			.firstVertex = 0,
+			.firstInstance = 0,
+		};
+		IndirectBuffers.emplace_back().Create(Device, PDMP, DIC_CP);
+		VK::Scoped<StagingBuffer> StagingIndirect_CP(Device);
+		StagingIndirect_CP.Create(Device, PDMP, sizeof(DIC_CP), &DIC_CP);
 
 		constexpr VkCommandBufferBeginInfo CBBI = { 
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, 
@@ -303,11 +304,12 @@ public:
 			VertexBuffers[1].PopulateCopyCommand(CB, TotalSizeOf(Normals), StagingNormal.Buffer);
 			IndexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Indices), StagingIndex.Buffer);
 			IndirectBuffers[0].PopulateCopyCommand(CB, sizeof(DIIC), StagingIndirect.Buffer);
-#ifndef NO_CONVEX_HULL
+
 			VertexBuffers[2].PopulateCopyCommand(CB, TotalSizeOf(Vertices_CH), StagingVertex_CH.Buffer);
 			IndexBuffers[1].PopulateCopyCommand(CB, TotalSizeOf(Indices_CH), StagingIndex_CH.Buffer);
 			IndirectBuffers[1].PopulateCopyCommand(CB, sizeof(DIIC_CH), StagingIndirect_CH.Buffer);
-#endif
+
+			IndirectBuffers[2].PopulateCopyCommand(CB, sizeof(DIC_CP), StagingIndirect_CP.Buffer);
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(CB));
 		VK::SubmitAndWait(GraphicsQueue, CB);
 	}
@@ -342,6 +344,7 @@ public:
 	virtual void CreatePipeline() override {
 		Pipelines.emplace_back();
 		Pipelines.emplace_back();
+		Pipelines.emplace_back();
 
 		const std::array SMs = {
 			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_PN.vert.spv"),
@@ -374,8 +377,8 @@ public:
 		VK::CreatePipeline_VsFs_Input(Pipelines[0], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI, VK_TRUE, VIBDs, VIADs, PSSCIs);
 
 		const std::array SMs_CH = {
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_P.vert.spv"),
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_P.frag.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CH_P.vert.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CH_P.frag.spv"),
 		};
 		const std::array PSSCIs_CH = {
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs_CH[0], .pName = "main", .pSpecializationInfo = nullptr }),
@@ -401,11 +404,40 @@ public:
 		};
 		VK::CreatePipeline_VsFs_Input(Pipelines[1], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI_CH, VK_TRUE, VIBDs_CH, VIADs_CH, PSSCIs_CH);
 
+		const std::array SMs_CP = {
+			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CP_P.vert.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CP_P.frag.spv"),
+		};
+		const std::array PSSCIs_CP = {
+			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs_CP[0], .pName = "main", .pSpecializationInfo = nullptr }),
+			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = SMs_CP[1], .pName = "main", .pSpecializationInfo = nullptr }),
+		};
+		const std::vector VIBDs_CP = {
+			VkVertexInputBindingDescription({.binding = 0, .stride = sizeof(glm::vec3), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
+		};
+		const std::vector VIADs_CP = {
+			VkVertexInputAttributeDescription({.location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = 0 }),
+		};
+		constexpr VkPipelineRasterizationStateCreateInfo PRSCI_CP = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.depthClampEnable = VK_FALSE,
+			.rasterizerDiscardEnable = VK_FALSE,
+			.polygonMode = VK_POLYGON_MODE_FILL,
+			.cullMode = VK_CULL_MODE_BACK_BIT,
+			.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+			.depthBiasEnable = VK_FALSE, .depthBiasConstantFactor = 0.0f, .depthBiasClamp = 0.0f, .depthBiasSlopeFactor = 0.0f,
+			.lineWidth = 1.0f
+		};
+		VK::CreatePipeline_VsFs_Input(Pipelines[2], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_POINT_LIST, 0, PRSCI_CP, VK_TRUE, VIBDs_CP, VIADs_CP, PSSCIs_CP);
+
 		for (auto& i : Threads) { i.join(); }
 		Threads.clear();
 
 		for (auto i : SMs) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
 		for (auto i : SMs_CH) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
+		for (auto i : SMs_CP) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
 	}
 	virtual void CreateDescriptor() override {
 		const auto BackBufferCount = static_cast<uint32_t>(size(SwapchainBackBuffers));
@@ -467,6 +499,7 @@ public:
 		const auto SCB = SecondaryCommandBuffers[i];
 		const auto PL0 = Pipelines[0];
 		const auto PL1 = Pipelines[1];
+		const auto PL2 = Pipelines[2];
 		const auto PLL = PipelineLayouts[0];
 		const auto DS = DescriptorSets[i];
 
@@ -501,15 +534,18 @@ public:
 			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs)), data(VBs), data(Offsets));
 			vkCmdBindVertexBuffers(SCB, 1, static_cast<uint32_t>(size(NBs)), data(NBs), data(Offsets));
 			vkCmdBindIndexBuffer(SCB, IndexBuffers[0].Buffer, 0, VK_INDEX_TYPE_UINT32);
+#ifdef DRAW_MESH
 			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[0].Buffer, 0, 1, 0);
+#endif
 
-#ifndef NO_CONVEX_HULL
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
 			const std::array VBs_CH = { VertexBuffers[2].Buffer };
 			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs_CH)), data(VBs_CH), data(Offsets));
 			vkCmdBindIndexBuffer(SCB, IndexBuffers[1].Buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[1].Buffer, 0, 1, 0);
-#endif
+
+			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL2);
+			vkCmdDrawIndirect(SCB, IndirectBuffers[2].Buffer, 0, 1, 0);
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(SCB));
 	}
 	virtual void PopulateCommandBuffer(const size_t i) override {
@@ -552,8 +588,10 @@ public:
 					WorldBuffer.RigidBodies[i].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
 				}
 			}
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) { WorldBuffer.RigidBodies[i].Color = { 1.0f, 1.0f, 1.0f }; }
-#ifndef NO_CONVEX_HULL
+			for (auto i = 0; i < size(Scene->RigidBodies); ++i) { 
+				WorldBuffer.RigidBodies[i].Color = { 1.0f, 1.0f, 1.0f };
+				WorldBuffer.RigidBodies[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
+			}
 			const auto RbA = Scene->RigidBodies[0];
 			const auto RbB = Scene->RigidBodies[1];
 			if (Collision::Intersection::GJK(RbA, RbB)) {
@@ -563,10 +601,11 @@ public:
 			else {
 				Vec3 OnA, OnB;
 				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
-				LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
-				LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
+				WorldBuffer.RigidBodies[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
+				WorldBuffer.RigidBodies[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());
+				//LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
+				//LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
 			}
-#endif
 		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
@@ -597,6 +636,7 @@ protected:
 	struct RIGID_BODY {
 		glm::mat4 World;
 		alignas(16) glm::vec3 Color;
+		alignas(16) glm::vec3 ClosestPoint;
 	};
 	struct WORLD_BUFFER {
 		RIGID_BODY RigidBodies[2];
