@@ -125,8 +125,8 @@ public:
 				for (auto z = 0; z < n; ++z) {
 					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
 					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+					Rb->Rotation = Quat(Vec3::AxisX(), TO_RADIAN(90.0f));
 					Rb->Init(new ShapeConvex());
-					//Rb->InvMass = 0.0f;
 
 					auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
 					Points.resize(std::size(Vertices));
@@ -136,24 +136,6 @@ public:
 		}
 		//!< 静的オブジェクト配置
 		{
-			constexpr auto Radius = 80.0f;
-			constexpr auto Y = -Radius;
-
-			const auto n = 3;
-			const auto n2 = n >> 1;
-			for (auto x = 0; x < n; ++x) {
-				for (auto z = 0; z < n; ++z) {
-					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
-					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 0.25f, Y, static_cast<float>(z - n2) * Radius * 0.25f);
-					Rb->InvMass = 0;
-					Rb->Elasticity = 0.99f;
-					Rb->Init(new ShapeConvex());
-
-					auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
-					Points.resize(std::size(Vertices));
-					std::ranges::copy(Vertices, std::begin(Points));
-				}
-			}
 		}
 	}
 

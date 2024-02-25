@@ -74,6 +74,7 @@ namespace Physics
 		using Super = Shape;
 	public:
 		ShapeBox() {}
+		ShapeBox(const float R) : Extent(Vec3(R)) {}
 		virtual ~ShapeBox() {}
 
 		virtual SHAPE GetShapeTyoe() const override { return SHAPE::BOX; }
@@ -151,6 +152,7 @@ namespace Physics
 					MaxSpeed = Speed;
 				}
 			}
+			return MaxSpeed;
 		}
 
 	public:
