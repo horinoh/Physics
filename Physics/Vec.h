@@ -18,10 +18,11 @@ namespace Math
 		inline static Vec2 Epsilon() { return  Vec2((std::numeric_limits<float>::epsilon)()); }
 		inline static Vec2 Min() { return Vec2((std::numeric_limits<float>::min)()); }
 		inline static Vec2 Max() { return Vec2((std::numeric_limits<float>::max)()); }
-
-		inline bool NearlyEqual(const Vec2& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
-			return std::ranges::equal(Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
+		inline static bool NearlyEqual(const Vec2& lhs, const Vec2& rhs, const float Epsilon) {
+			return std::ranges::equal(lhs.Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
 		}
+
+		inline bool NearlyEqual(const Vec2& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { return NearlyEqual(*this, rhs, Epsilon); }
 
 		inline bool operator==(const Vec2& rhs) const { 
 			return std::ranges::equal(Comps, rhs.Comps);
@@ -106,11 +107,13 @@ namespace Math
 		inline static Vec3 Epsilon() { return Vec3((std::numeric_limits<float>::epsilon)()); }
 		inline static Vec3 Min() { return Vec3((std::numeric_limits<float>::min)()); }
 		inline static Vec3 Max() { return Vec3((std::numeric_limits<float>::max)()); }
-		inline static Vec3 Normal(const Vec3& A, const Vec3& B, const Vec3& C) { return (B - A).Cross(C - A).Normalize(); }
-
-		inline bool NearlyEqual(const Vec3& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
-			return std::ranges::equal(Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
+		inline static bool NearlyEqual(const Vec3& lhs, const Vec3& rhs, const float Epsilon) {
+			return std::ranges::equal(lhs.Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
 		}
+		inline static Vec3 Normal(const Vec3& A, const Vec3& B, const Vec3& C) { return (B - A).Cross(C - A); }
+		inline static Vec3 UnitNormal(const Vec3& A, const Vec3& B, const Vec3& C) { return Normal(A, B, C).Normalize(); }
+		
+		inline bool NearlyEqual(const Vec3& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { return NearlyEqual(*this, rhs, Epsilon); }
 
 		inline bool operator==(const Vec3& rhs) const {
 			return std::ranges::equal(Comps, rhs.Comps);
@@ -208,10 +211,11 @@ namespace Math
 		inline static Vec4 Epsilon() { return Vec4((std::numeric_limits<float>::epsilon)()); }
 		inline static Vec4 Min() { return Vec4((std::numeric_limits<float>::min)()); }
 		inline static Vec4 Max() { return Vec4((std::numeric_limits<float>::max)()); }
-
-		inline bool NearlyEqual(const Vec4& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { 
-			return std::ranges::equal(Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
+		inline static bool NearlyEqual(const Vec4& lhs, const Vec4& rhs, const float Epsilon) {
+			return std::ranges::equal(lhs.Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
 		}
+
+		inline bool NearlyEqual(const Vec4& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { return NearlyEqual(*this, rhs, Epsilon); }
 
 		inline bool operator==(const Vec4& rhs) const {
 			return std::ranges::equal(Comps, rhs.Comps);
@@ -303,10 +307,11 @@ namespace Math
 		inline static Vec Epsilon() { return Vec((std::numeric_limits<float>::epsilon)()); }
 		inline static Vec Min() { return Vec((std::numeric_limits<float>::min)()); }
 		inline static Vec Max() { return Vec((std::numeric_limits<float>::max)()); }
-
-		inline bool NearlyEqual(const Vec& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
-			return std::ranges::equal(Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
+		inline static bool NearlyEqual(const Vec lhs, const Vec& rhs, const float Epsilon) {
+			return std::ranges::equal(lhs.Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
 		}
+
+		inline bool NearlyEqual(const Vec& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { return NearlyEqual(*this, rhs, Epsilon); }
 
 		inline bool operator==(const Vec& rhs) const { return std::ranges::equal(Comps, rhs.Comps); }
 		inline bool operator!=(const Vec& rhs) const { return !(*this == rhs); }

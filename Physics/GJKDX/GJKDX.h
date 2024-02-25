@@ -10,7 +10,7 @@
 
 #define DRAW_MESH
 
-class ConvexHullDX : public Gltf::SDK, public DX
+class GJKDX : public Gltf::SDK, public DX
 {
 public:
 	virtual void Process() override {
@@ -19,7 +19,7 @@ public:
 				switch (j.mode)
 				{
 				case Microsoft::glTF::MeshMode::MESH_TRIANGLES:
-					break;				
+					break;
 				default:
 					__debugbreak();
 					break;
@@ -177,10 +177,10 @@ public:
 		if (nullptr != Scene) {
 			if (0 < size(Scene->RigidBodies)) {
 				const auto Rb = Scene->RigidBodies[0];
-				
+
 				Rb->Position = Vec3(
-					(std::min)((std::max)(Rb->Position.X() + X, -5.0f), 5.0f), 
-					(std::min)((std::max)(Rb->Position.Y() + Y, -5.0f), 5.0f), 
+					(std::min)((std::max)(Rb->Position.X() + X, -5.0f), 5.0f),
+					(std::min)((std::max)(Rb->Position.Y() + Y, -5.0f), 5.0f),
 					(std::min)((std::max)(Rb->Position.Z() + Z, -5.0f), 5.0f)
 				);
 				Rb->Rotation = Quat(Vec3::AxisY(), TO_RADIAN(RotY));
@@ -255,8 +255,8 @@ public:
 		IndexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Indices), DXGI_FORMAT_R32_UINT);
 		UploadResource UploadIndex;
 		UploadIndex.Create(COM_PTR_GET(Device), TotalSizeOf(Indices), data(Indices));
-		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = { 
-			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)), 
+		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = {
+			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)),
 			.InstanceCount = _countof(WorldBuffer.RigidBodies),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
@@ -354,8 +354,8 @@ public:
 		PipelineStates.emplace_back();
 
 		std::vector<COM_PTR<ID3DBlob>> SBs;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_PN.vs.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_PN.ps.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "GJKDX_PN.vs.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "GJKDX_PN.ps.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
 		const std::array SBCs = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs[0]->GetBufferPointer(), .BytecodeLength = SBs[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs[1]->GetBufferPointer(), .BytecodeLength = SBs[1]->GetBufferSize() }),
@@ -375,8 +375,8 @@ public:
 		DX::CreatePipelineState_VsPs_Input(PipelineStates[0], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, RD, TRUE, IEDs, SBCs);
 
 		std::vector<COM_PTR<ID3DBlob>> SBs_CH;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CH_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CH_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "GJKDX_CH_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "GJKDX_CH_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
 		const std::array SBCs_CH = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CH[0]->GetBufferPointer(), .BytecodeLength = SBs_CH[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CH[1]->GetBufferPointer(), .BytecodeLength = SBs_CH[1]->GetBufferSize() }),
@@ -395,8 +395,8 @@ public:
 		DX::CreatePipelineState_VsPs_Input(PipelineStates[1], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, RD_CH, TRUE, IEDs_CH, SBCs_CH);
 
 		std::vector<COM_PTR<ID3DBlob>> SBs_CP;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CP_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CP.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CP_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CP.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "GJKDX_CP_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CP.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "GJKDX_CP_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CP.emplace_back())));
 		const std::array SBCs_CP = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CP[0]->GetBufferPointer(), .BytecodeLength = SBs_CP[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CP[1]->GetBufferPointer(), .BytecodeLength = SBs_CP[1]->GetBufferSize() }),
@@ -575,7 +575,7 @@ public:
 			if (Collision::Intersection::GJK(RbA, RbB)) {
 				WorldBuffer.RigidBodies[0].Color = { 1.0f, 0.0f, 0.0f };
 				WorldBuffer.RigidBodies[1].Color = { 1.0f, 0.0f, 0.0f };
-			} 
+			}
 			else {
 				Vec3 OnA, OnB;
 				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
@@ -619,7 +619,7 @@ protected:
 	struct WORLD_BUFFER {
 		RIGID_BODY RigidBodies[2];
 	};
-	WORLD_BUFFER WorldBuffer; 
+	WORLD_BUFFER WorldBuffer;
 	struct VIEW_PROJECTION_BUFFER {
 		DirectX::XMFLOAT4X4 ViewProjection;
 	};

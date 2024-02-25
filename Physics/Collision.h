@@ -1,13 +1,10 @@
 #pragma once
 
-#include "Math.h"
-using namespace Math;
-
 #include <algorithm>
 
+#include "Math.h"
 #include "Shape.h"
 #include "RigidBody.h"
-using namespace Physics;
 
 namespace Collision
 {
@@ -22,8 +19,8 @@ namespace Collision
 	{
 		float TimeOfImpact = 0.0f;
 
-		RigidBody* RigidBodyA = nullptr;
-		RigidBody* RigidBodyB = nullptr;
+		Physics::RigidBody* RigidBodyA = nullptr;
+		Physics::RigidBody* RigidBodyB = nullptr;
 
 		Vec3 PointA;
 		Vec3 PointB;
@@ -47,7 +44,7 @@ namespace Collision
 		}
 
 		[[nodiscard]] static float PointTriangle(const Vec3& Pt, const Vec3& A, const Vec3& B, const Vec3& C) {
-			return (Pt - A).Dot(Vec3::Normal(A, B, C));
+			return (Pt - A).Dot(Vec3::UnitNormal(A, B, C));
 		}
 
 		//!< 指定の方向に一番遠い点のイテレータを返す 
@@ -101,7 +98,7 @@ namespace Collision
 			return false;
 		}
 		//!< 球 vs 球
-		[[nodiscard]] static bool SphereShpere(const ShapeSphere* SpA, const ShapeSphere* SpB,
+		[[nodiscard]] static bool SphereShpere(const Physics::ShapeSphere* SpA, const Physics::ShapeSphere* SpB,
 			const Vec3& PosA, const Vec3& PosB,
 			const Vec3& VelA, const Vec3& VelB,
 			const float DeltaSec, float& T)
@@ -130,40 +127,6 @@ namespace Collision
 			T = (std::max)(T0, 0.0f);
 
 			return true;
-		}
-
-		//!< 剛体(球) vs 剛体(球)
-		[[nodiscard]] static bool RigidBodySpheres(const RigidBody* RbA, const RigidBody* RbB, const float DeltaSec, Contact& Ct) {
-			const auto SpA = static_cast<const ShapeSphere*>(RbA->Shape);
-			const auto SpB = static_cast<const ShapeSphere*>(RbB->Shape);
-			float T;
-			if (Intersection::SphereShpere(SpA, SpB, RbA->Position, RbB->Position, RbA->LinearVelocity, RbB->LinearVelocity, DeltaSec, T)) {
-				Ct.TimeOfImpact = T;
-
-				//!< 衝突時間のオブジェクトの位置
-				const auto CPosA = RbA->Position + RbA->LinearVelocity * T;
-				const auto CPosB = RbB->Position + RbB->LinearVelocity * T;
-				//!< 法線 A -> B
-				Ct.Normal = (CPosB - CPosA).Normalize();
-
-				//!< 衝突点
-				Ct.PointA = CPosA + Ct.Normal * SpA->Radius;
-				Ct.PointB = CPosB - Ct.Normal * SpB->Radius;
-
-				//!< 衝突剛体を覚えておく
-				Ct.RigidBodyA = const_cast<RigidBody*>(RbA);
-				Ct.RigidBodyB = const_cast<RigidBody*>(RbB);
-
-				return true;
-			}
-			return false;
-		}
-		//!< 剛体 vs 剛体
-		[[nodiscard]] static bool RigidBodies(const RigidBody* RbA, const RigidBody* RbB, const float DeltaSec, Contact& Ct) {
-			if (RbA->Shape->GetShapeTyoe() == Shape::SHAPE::SPHERE && RbB->Shape->GetShapeTyoe() == Shape::SHAPE::SPHERE) {
-				return RigidBodySpheres(RbA, RbB, DeltaSec, Ct);
-			}
-			return false;
 		}
 	}
 
@@ -235,6 +198,96 @@ namespace Collision
 }
 
 #include "Convex.h"
-using namespace Convex;
 #include "GJK.h"
-using namespace Collision;
+
+namespace Collision {
+	namespace Intersection {
+		//!< 剛体 vs 剛体
+		[[nodiscard]] static bool RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct) {
+			if (RbA->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::SPHERE && RbB->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::SPHERE) {
+				const auto SpA = static_cast<const Physics::ShapeSphere*>(RbA->Shape);
+				const auto SpB = static_cast<const Physics::ShapeSphere*>(RbB->Shape);
+				float T;
+				if (Intersection::SphereShpere(SpA, SpB, RbA->Position, RbB->Position, RbA->LinearVelocity, RbB->LinearVelocity, DeltaSec, T)) {
+					Ct.TimeOfImpact = T;
+
+					//!< 衝突時間のオブジェクトの位置
+					const auto CPosA = RbA->Position + RbA->LinearVelocity * T;
+					const auto CPosB = RbB->Position + RbB->LinearVelocity * T;
+					//!< 法線 A -> B
+					Ct.Normal = (CPosB - CPosA).Normalize();
+
+					//!< 衝突点
+					Ct.PointA = CPosA + Ct.Normal * SpA->Radius;
+					Ct.PointB = CPosB - Ct.Normal * SpB->Radius;
+
+					//!< 衝突剛体を覚えておく
+					Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
+					Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
+
+					return true;
+				}
+				return false;
+			}
+			else {
+				auto DT = DeltaSec;
+				auto TOI = 0.0f;
+				auto ItCount = 0;
+				while (DT > 0.0f) {
+					//!< 衝突点、最近接点
+					Vec3 OnA, OnB;
+					constexpr auto Bias = 0.001f;
+					if (Intersection::GJK_EPA(RbA, RbB, Bias, OnA, OnB)) {
+						Ct.TimeOfImpact = TOI;
+
+						//!< 法線 A -> B
+						Ct.Normal = (OnB - OnA).Normalize();
+						OnA -= Ct.Normal * Bias;
+						OnB += Ct.Normal * Bias;
+
+						//!< 衝突点
+						Ct.PointA = OnA;
+						Ct.PointB = OnB;
+
+						//!< 衝突剛体を覚えておく
+						Ct.RigidBodyA = const_cast<RigidBody*>(RbA);
+						Ct.RigidBodyB = const_cast<RigidBody*>(RbB);
+
+						return true;
+					}
+					else {
+						//!< 衝突が無い場合は、最近接点を求める
+						Closest::GJK(RbA, RbB, OnA, OnB);
+					}
+
+					//!< 移動せずその場で回転しているような場合、ループから抜け出さない事があるのでループに上限回数を設ける
+					++ItCount;
+					if (ItCount > 10) {
+						break;
+					}
+
+					//!< 回転を考慮した相対速度を求める
+					const auto Dir = (OnB - OnA).Normalize();
+					const auto LVel = RbA->LinearVelocity - RbB->LinearVelocity;
+					const auto AngVelA = RbA->Shape->GetFastestPointSpeed(RbA->AngularVelocity, Dir);
+					const auto AngVelB = RbB->Shape->GetFastestPointSpeed(RbB->AngularVelocity, -Dir);
+					const auto OrthoSpeed = LVel.Dot(Dir) + AngVelA + AngVelB;
+					if (OrthoSpeed <= 0.0f) {
+						break;
+					}
+
+					//!< 衝突直前まで時間を進める
+					const auto SeparationDistance = (OnB - OnA).Length();
+					const auto TimeToGo = SeparationDistance / OrthoSpeed;
+					if (TimeToGo > DT) {
+						break;
+					}
+
+					DT -= TimeToGo;
+					TOI += TimeToGo;
+				}
+			}
+			return false;
+		}
+	}
+}

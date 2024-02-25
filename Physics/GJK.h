@@ -148,6 +148,58 @@ namespace Collision
 		return Lambda;
 	}
 
+	[[nodiscard]] static Vec3 Barycentric(const Vec3& A, const Vec3& B, const Vec3& C, const Vec3& Pt) 
+	{
+		const auto PA = A - Pt;
+		const auto PB = B - Pt;
+		const auto PC = C - Pt;
+
+		const auto N = Vec3::Normal(PA, PB, PC);
+		const auto P = N * A.Dot(N) / N.LengthSq();
+
+		//!<  XY, YZ, ZX 平面の内、射影面積が最大のものを見つける
+		auto Index = 0;
+		auto MaxVal = 0.0f;
+		for (auto i = 0; i < 3; ++i) {
+			const auto j = (i + 1) % 3;
+			const auto k = (i + 2) % 3;
+
+			const auto A = Vec2(PA[j], PA[k]);
+			const auto B = Vec2(PB[j], PB[k]);
+			const auto C = Vec2(PC[j], PC[k]);
+			const auto AB = B - A;
+			const auto AC = C - A;
+			const auto Area = Mat2(AB, AC).Determinant();
+
+			if (std::abs(Area) > std::abs(MaxVal)) {
+				MaxVal = Area;
+				Index = i;
+			}
+		}
+
+		//!< 「P と三角形」を選択した平面に射影 (X が選択された場合 Index1, Index2 はそれぞれ Y, Z といった具合になる)
+		const auto X = (Index + 1) % 3;
+		const auto Y = (Index + 2) % 3;
+		const std::array PrjABC = { Vec2(A[X], A[Y]), Vec2(B[X], B[Y]), Vec2(C[X], C[Y]) };
+		const auto PrjP = Vec2(P[X], P[Y]);
+
+		//!< 射影点と辺からなるサブ三角形の面積
+		Vec3 Areas;
+		for (auto i = 0; i < 3; i++) {
+			const auto j = (i + 1) % 3;
+			const auto k = (i + 2) % 3;
+
+			Areas[i] = Mat2(PrjABC[j] - PrjP, PrjABC[k] - PrjP).Determinant();
+		}
+
+		//!< P が [A, B, C] の内部にある場合 (サブ三角形の面積の符号から分かる)
+		if (Sign(MaxVal) == Sign(Areas.X()) && Sign(MaxVal) == Sign(Areas.Y()) && Sign(MaxVal) == Sign(Areas.Z())) {
+			return Areas / MaxVal;
+		}
+
+		return Vec3::AxisX();
+	}
+
 	namespace SupportPoint {
 		//!< サポートポイント : 特定の方向に最も遠い点
 
@@ -309,7 +361,7 @@ namespace Collision
 		}
 
 		//!< EPA (Expanding Polytope Algorithm)
-		[[nodiscard]] float EPA(const RigidBody* RbA, const RigidBody* RbB, const std::vector<SupportPoint::Points>& _Sps, const float Bias, Vec3& OnA, Vec3& OnB) {
+		[[nodiscard]] void EPA(const RigidBody* RbA, const RigidBody* RbB, const std::vector<SupportPoint::Points>& _Sps, const float Bias, Vec3& OnA, Vec3& OnB) {
 			//!< 作業用サポートポイント
 			std::vector<SupportPoint::Points> Sps;
 			Sps.assign(std::begin(_Sps), std::end(_Sps));
@@ -336,19 +388,19 @@ namespace Collision
 				//!< 原点に最も近い三角形を取得
 				const auto CTriIt = std::ranges::min_element(Tris, [&](const auto& lhs, const auto& rhs) {
 					return Distance::PointTriangle(Vec3::Zero(), Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC()) < Distance::PointTriangle(Vec3::Zero(), Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC());
-				});
+					});
 				const auto& CTri = *CTriIt;
 
 				//!< 三角形の法線
-				const auto Nrm = Vec3::Normal(Sps[CTri[0]].GetC(), Sps[CTri[1]].GetC(), Sps[CTri[2]].GetC());
-			
+				const auto Nrm = Vec3::UnitNormal(Sps[CTri[0]].GetC(), Sps[CTri[1]].GetC(), Sps[CTri[2]].GetC());
+
 				//!< 法線方向のサポートポイントを取得
 				const auto Pt = SupportPoint::GetPoints(RbA, RbB, Nrm, Bias);
 
 				//!< サポートポイントが既出の場合は、これ以上拡張できない
 				if (std::ranges::any_of(Tris, [&](const auto rhs) {
 					return Sps[rhs[0]].GetC().NearlyEqual(Pt.GetC()) || Sps[rhs[1]].GetC().NearlyEqual(Pt.GetC()) || Sps[rhs[2]].GetC().NearlyEqual(Pt.GetC());
-				})) {
+					})) {
 					break;
 				}
 
@@ -356,14 +408,14 @@ namespace Collision
 				if (Distance::PointTriangle(Pt.GetC(), Sps[CTri[0]].GetC(), Sps[CTri[1]].GetC(), Sps[CTri[2]].GetC()) <= 0.0f) {
 					break;
 				}
-				
+
 				Sps.emplace_back(Pt);
 
 				//!< サポートポイント側を向いている三角形を削除、削除できない場合は終了
 				{
 					const auto Range = std::ranges::remove_if(Tris, [&](const auto& i) {
 						return Distance::PointTriangle(Pt.GetC(), Sps[i[0]].GetC(), Sps[i[1]].GetC(), Sps[i[2]].GetC()) > 0.0f;
-					});
+						});
 					Tris.erase(std::begin(Range), std::end(Range));
 					if (0 == std::ranges::distance(Range)) {
 						break;
@@ -393,10 +445,10 @@ namespace Collision
 								++It->second;
 							}
 						}
-					});
+						});
 					const auto Range = std::ranges::remove_if(EdgeCounts, [](const auto& i) {
 						return i.second > 0;
-					});
+						});
 					EdgeCounts.erase(std::begin(Range), std::end(EdgeCounts));
 					if (std::empty(EdgeCounts)) {
 						break;
@@ -413,12 +465,20 @@ namespace Collision
 						}
 					});
 				}
-				
-				//!< #TODO
 			}
 
-			//!< #TODO
-			return 0.0f;
+			//!< 原点に最も近い三角形を取得
+			const auto CTri = *std::ranges::min_element(Tris, [&](const auto& lhs, const auto& rhs) {
+				return Distance::PointTriangle(Vec3::Zero(), Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC()) < Distance::PointTriangle(Vec3::Zero(), Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC());
+			});
+			//!< 最近三角形上での、原点の重心座標を取得
+			//const auto Lambda = BarycentricCoordinates(Sps[CTri[0]].GetC(), Sps[CTri[1]].GetC(), Sps[CTri[2]].GetC(), Vec3::Zero());
+			const Vec3 Lambda;
+
+			OnA = Sps[CTri[0]].GetA() * Lambda[0] + Sps[CTri[1]].GetA() * Lambda[1] + Sps[CTri[2]].GetA() * Lambda[2];
+			OnB = Sps[CTri[0]].GetB() * Lambda[0] + Sps[CTri[1]].GetB() * Lambda[1] + Sps[CTri[2]].GetB() * Lambda[2];
+
+			//return (OnB - OnA).Length();
 		}
 
 		[[nodiscard]] static bool GJK(const RigidBody* RbA, const RigidBody* RbB) {

@@ -85,7 +85,7 @@ namespace Physics
 				const auto RbB = RigidBodies[i.second];
 				if (0.0f != RbA->InvMass || 0.0f != RbB->InvMass) {
 					Contact Ct;
-					if (Collision::Intersection::RigidBodies(RbA, RbB, DeltaSec, Ct)) {
+					if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
 						//!< Õ“Ë‚ðŽûW
 						Contacts.emplace_back(Ct);
 					}
@@ -105,7 +105,7 @@ namespace Physics
 					const auto RbB = RigidBodies[j];
 					if (0.0f != RbA->InvMass || 0.0f != RbB->InvMass) {
 						Contact Ct;
-						if (Collision::Intersection::RigidBodies(RbA, RbB, DeltaSec, Ct)) {
+						if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
 							Contacts.emplace_back(Ct);
 						}
 					}

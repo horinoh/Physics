@@ -10,7 +10,7 @@
 
 #define DRAW_MESH
 
-class ConvexHullVK : public Gltf::SDK, public VK
+class GJKVK : public Gltf::SDK, public VK
 {
 public:
 	virtual void Process() override {
@@ -21,7 +21,7 @@ public:
 				case Microsoft::glTF::MeshMode::MESH_TRIANGLES:
 					break;
 				default:
-					__debugbreak(); 
+					__debugbreak();
 					break;
 				}
 
@@ -112,14 +112,14 @@ public:
 			}
 		}
 	}
-	
+
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
 #ifdef _DEBUG
 		SignedVolumeTest();
 #endif
 		Scene = new Physics::Scene();
 
-		VK::OnCreate(hWnd, hInstance, Title);		
+		VK::OnCreate(hWnd, hInstance, Title);
 	}
 	virtual void OnDestroy(HWND hWnd, HINSTANCE hInstance) override {
 		VK::OnDestroy(hWnd, hInstance);
@@ -255,12 +255,12 @@ public:
 		IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Indices));
 		VK::Scoped<StagingBuffer> StagingIndex(Device);
 		StagingIndex.Create(Device, PDMP, TotalSizeOf(Indices), data(Indices));
-		const VkDrawIndexedIndirectCommand DIIC = { 
-			.indexCount = static_cast<uint32_t>(size(Indices)), 
+		const VkDrawIndexedIndirectCommand DIIC = {
+			.indexCount = static_cast<uint32_t>(size(Indices)),
 			.instanceCount = _countof(WorldBuffer.RigidBodies),
-			.firstIndex = 0, 
-			.vertexOffset = 0, 
-			.firstInstance = 0 
+			.firstIndex = 0,
+			.vertexOffset = 0,
+			.firstInstance = 0
 		};
 		IndirectBuffers.emplace_back().Create(Device, PDMP, DIIC);
 		VK::Scoped<StagingBuffer> StagingIndirect(Device);
@@ -272,11 +272,11 @@ public:
 		IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Indices_CH));
 		VK::Scoped<StagingBuffer> StagingIndex_CH(Device);
 		StagingIndex_CH.Create(Device, PDMP, TotalSizeOf(Indices_CH), data(Indices_CH));
-		const VkDrawIndexedIndirectCommand DIIC_CH = { 
-			.indexCount = static_cast<uint32_t>(size(Indices_CH)), 
+		const VkDrawIndexedIndirectCommand DIIC_CH = {
+			.indexCount = static_cast<uint32_t>(size(Indices_CH)),
 			.instanceCount = _countof(WorldBuffer.RigidBodies),
-			.firstIndex = 0, 
-			.vertexOffset = 0, 
+			.firstIndex = 0,
+			.vertexOffset = 0,
 			.firstInstance = 0
 		};
 		IndirectBuffers.emplace_back().Create(Device, PDMP, DIIC_CH);
@@ -293,11 +293,11 @@ public:
 		VK::Scoped<StagingBuffer> StagingIndirect_CP(Device);
 		StagingIndirect_CP.Create(Device, PDMP, sizeof(DIC_CP), &DIC_CP);
 
-		constexpr VkCommandBufferBeginInfo CBBI = { 
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, 
-			.pNext = nullptr, 
+		constexpr VkCommandBufferBeginInfo CBBI = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			.pNext = nullptr,
 			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-			.pInheritanceInfo = nullptr 
+			.pInheritanceInfo = nullptr
 		};
 		VERIFY_SUCCEEDED(vkBeginCommandBuffer(CB, &CBBI)); {
 			VertexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Vertices), StagingVertex.Buffer);
@@ -335,7 +335,7 @@ public:
 		CreateDescriptorSetLayout(DescriptorSetLayouts.emplace_back(), 0, {
 			VkDescriptorSetLayoutBinding({.binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .pImmutableSamplers = nullptr }),
 			VkDescriptorSetLayoutBinding({.binding = 1, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .pImmutableSamplers = nullptr }),
-		});
+			});
 		VK::CreatePipelineLayout(PipelineLayouts.emplace_back(), { DescriptorSetLayouts[0] }, {});
 	}
 	virtual void CreateRenderPass() {
@@ -347,8 +347,8 @@ public:
 		Pipelines.emplace_back();
 
 		const std::array SMs = {
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_PN.vert.spv"),
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_PN.frag.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "GJKVK_PN.vert.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "GJKVK_PN.frag.spv"),
 		};
 		const std::array PSSCIs = {
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs[0], .pName = "main", .pSpecializationInfo = nullptr }),
@@ -377,8 +377,8 @@ public:
 		VK::CreatePipeline_VsFs_Input(Pipelines[0], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI, VK_TRUE, VIBDs, VIADs, PSSCIs);
 
 		const std::array SMs_CH = {
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CH_P.vert.spv"),
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CH_P.frag.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "GJKVK_CH_P.vert.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "GJKVK_CH_P.frag.spv"),
 		};
 		const std::array PSSCIs_CH = {
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs_CH[0], .pName = "main", .pSpecializationInfo = nullptr }),
@@ -405,8 +405,8 @@ public:
 		VK::CreatePipeline_VsFs_Input(Pipelines[1], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI_CH, VK_TRUE, VIBDs_CH, VIADs_CH, PSSCIs_CH);
 
 		const std::array SMs_CP = {
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CP_P.vert.spv"),
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CP_P.frag.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "GJKVK_CP_P.vert.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "GJKVK_CP_P.frag.spv"),
 		};
 		const std::array PSSCIs_CP = {
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs_CP[0], .pName = "main", .pSpecializationInfo = nullptr }),
@@ -449,7 +449,7 @@ public:
 
 		VK::CreateDescriptorPool(DescriptorPools.emplace_back(), 0, {
 			VkDescriptorPoolSize({.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = BackBufferCount * DescCount }),
-		});
+			});
 
 		auto DSL = DescriptorSetLayouts[0];
 		auto DP = DescriptorPools[0];
@@ -475,13 +475,13 @@ public:
 				.dstBinding = 0, .dstArrayElement = 0,
 				.descriptorCount = _countof(DescriptorUpdateInfo::DBI0), .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 				.offset = offsetof(DescriptorUpdateInfo, DBI0), .stride = sizeof(DescriptorUpdateInfo)
-			}),	
+			}),
 			VkDescriptorUpdateTemplateEntry({
 				.dstBinding = 1, .dstArrayElement = 0,
 				.descriptorCount = _countof(DescriptorUpdateInfo::DBI1), .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 				.offset = offsetof(DescriptorUpdateInfo, DBI1), .stride = sizeof(DescriptorUpdateInfo)
 			}),
-		}, DSL);
+			}, DSL);
 		for (uint32_t i = 0; i < BackBufferCount; ++i) {
 			const DescriptorUpdateInfo DUI = {
 				VkDescriptorBufferInfo({.buffer = UniformBuffers[UB0Index + i].Buffer, .offset = 0, .range = VK_WHOLE_SIZE }),
@@ -588,7 +588,7 @@ public:
 					WorldBuffer.RigidBodies[i].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
 				}
 			}
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) { 
+			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
 				WorldBuffer.RigidBodies[i].Color = { 1.0f, 1.0f, 1.0f };
 				WorldBuffer.RigidBodies[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
 			}

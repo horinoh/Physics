@@ -14,7 +14,7 @@
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
     <Filter Include="Shader Files">
-      <UniqueIdentifier>{c23def1b-44cd-4e78-9d9a-3cb44270ed17}</UniqueIdentifier>
+      <UniqueIdentifier>{d1ada784-c413-4699-b894-965407157652}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -27,28 +27,22 @@
     <ClInclude Include="Resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SphereDX.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Common.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\DX.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\GltfSDK.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Bound.h">
+    <ClInclude Include="GJKVK.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Collision.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Convex.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\GJK.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GltfSDK.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Mat.h">
@@ -75,17 +69,23 @@
     <ClInclude Include="..\Vec.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\VK.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Bound.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="SphereDX.cpp">
+    <ClCompile Include="GJKVK.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\DX.cpp">
+    <ClCompile Include="..\VK.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="SphereDX.rc">
+    <ResourceCompile Include="GJKVK.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
@@ -93,19 +93,31 @@
     <Image Include="small.ico">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="SphereDX.ico">
+    <Image Include="GJKVK.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
+    <None Include="GJKVK_CH_P.vert">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="GJKVK_CP_P.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="GJKVK_CP_P.vert">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="GJKVK_PN.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="GJKVK_PN.vert">
+      <Filter>Shader Files</Filter>
+    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="SphereDX.ps.hlsl">
+    <CustomBuild Include="GJKVK_CH_P.frag">
       <Filter>Shader Files</Filter>
-    </FxCompile>
-    <FxCompile Include="SphereDX.vs.hlsl">
-      <Filter>Shader Files</Filter>
-    </FxCompile>
+    </CustomBuild>
   </ItemGroup>
 </Project>

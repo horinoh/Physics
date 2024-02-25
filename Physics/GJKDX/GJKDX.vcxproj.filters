@@ -14,7 +14,7 @@
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
     <Filter Include="Shader Files">
-      <UniqueIdentifier>{c23def1b-44cd-4e78-9d9a-3cb44270ed17}</UniqueIdentifier>
+      <UniqueIdentifier>{c9c356f1-b3fd-4a74-aad1-62a42201c76e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -27,16 +27,7 @@
     <ClInclude Include="Resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SphereDX.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Common.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\DX.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\GltfSDK.h">
+    <ClInclude Include="GJKDX.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Bound.h">
@@ -45,10 +36,19 @@
     <ClInclude Include="..\Collision.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\Convex.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\DX.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\GJK.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GltfSDK.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Mat.h">
@@ -77,7 +77,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="SphereDX.cpp">
+    <ClCompile Include="GJKDX.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\DX.cpp">
@@ -85,7 +85,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="SphereDX.rc">
+    <ResourceCompile Include="GJKDX.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
@@ -93,19 +93,31 @@
     <Image Include="small.ico">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="SphereDX.ico">
+    <Image Include="GJKDX.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <FxCompile Include="GJKDX_CH_P.ps.hlsl">
+      <Filter>Shader Files</Filter>
+    </FxCompile>
+    <FxCompile Include="GJKDX_CH_P.vs.hlsl">
+      <Filter>Shader Files</Filter>
+    </FxCompile>
+    <FxCompile Include="GJKDX_CP_P.ps.hlsl">
+      <Filter>Shader Files</Filter>
+    </FxCompile>
+    <FxCompile Include="GJKDX_CP_P.vs.hlsl">
+      <Filter>Shader Files</Filter>
+    </FxCompile>
+    <FxCompile Include="GJKDX_PN.ps.hlsl">
+      <Filter>Shader Files</Filter>
+    </FxCompile>
+    <FxCompile Include="GJKDX_PN.vs.hlsl">
+      <Filter>Shader Files</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="SphereDX.ps.hlsl">
-      <Filter>Shader Files</Filter>
-    </FxCompile>
-    <FxCompile Include="SphereDX.vs.hlsl">
-      <Filter>Shader Files</Filter>
-    </FxCompile>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
