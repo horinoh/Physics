@@ -8,7 +8,7 @@
 #include "../GltfSDK.h"
 #include "../Physics.h"
 
-#define DRAW_MESH
+//#define USE_MESH
 
 class ConvexHullVK : public Gltf::SDK, public VK
 {
@@ -113,6 +113,50 @@ public:
 		}
 	}
 	
+	void PlaceRigidBodies(const std::vector<Vec3>& Vertices) {
+		//!< 動的オブジェクト配置
+		{
+			constexpr auto Radius = 2.0f;
+			constexpr auto Y = 10.0f;
+
+			const auto n = 3;
+			const auto n2 = n >> 1;
+			for (auto x = 0; x < n; ++x) {
+				for (auto z = 0; z < n; ++z) {
+					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
+					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+					Rb->Init(new ShapeConvex());
+					//Rb->InvMass = 0.0f;
+
+					auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
+					Points.resize(std::size(Vertices));
+					std::ranges::copy(Vertices, std::begin(Points));
+				}
+			}
+		}
+		//!< 静的オブジェクト配置
+		{
+			constexpr auto Radius = 80.0f;
+			constexpr auto Y = -Radius;
+
+			const auto n = 3;
+			const auto n2 = n >> 1;
+			for (auto x = 0; x < n; ++x) {
+				for (auto z = 0; z < n; ++z) {
+					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
+					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 0.25f, Y, static_cast<float>(z - n2) * Radius * 0.25f);
+					Rb->InvMass = 0;
+					Rb->Elasticity = 0.99f;
+					Rb->Init(new ShapeConvex());
+
+					auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
+					Points.resize(std::size(Vertices));
+					std::ranges::copy(Vertices, std::begin(Points));
+				}
+			}
+		}
+	}
+
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
 #ifdef _DEBUG
 		SignedVolumeTest();
@@ -137,58 +181,6 @@ public:
 			}
 		}
 	}
-	virtual void OnKeyDown(HWND hWnd, HINSTANCE hInstance, const WPARAM Param) override {
-		constexpr auto Speed = 0.1f;
-		constexpr auto RotSpeed = 1.0f;
-		auto X = 0.0f, Y = 0.0f, Z = 0.0f;
-		static auto RotY = 0.0f;
-		switch (Param) {
-		case 'W':
-			Y += Speed;
-			break;
-		case 'A':
-			X -= Speed;
-			break;
-		case 'S':
-			Y -= Speed;
-			break;
-		case 'D':
-			X += Speed;
-			break;
-
-		case VK_UP:
-			Z -= Speed;
-			break;
-		case VK_DOWN:
-			Z += Speed;
-			break;
-		case VK_LEFT:
-			RotY -= RotSpeed;
-			break;
-		case VK_RIGHT:
-			RotY += RotSpeed;
-			break;
-		default:
-			break;
-		}
-		while (RotY < 0.0f) { RotY += 360.0f; }
-		while (RotY > 360.0f) { RotY -= 360.0f; }
-
-		if (nullptr != Scene) {
-			if (0 < size(Scene->RigidBodies)) {
-				const auto Rb = Scene->RigidBodies[0];
-
-				Rb->Position = Vec3(
-					(std::min)((std::max)(Rb->Position.X() + X, -5.0f), 5.0f),
-					(std::min)((std::max)(Rb->Position.Y() + Y, -5.0f), 5.0f),
-					(std::min)((std::max)(Rb->Position.Z() + Z, -5.0f), 5.0f)
-				);
-				Rb->Rotation = Quat(Vec3::AxisY(), TO_RADIAN(RotY));
-			}
-		}
-
-		Win::OnKeyDown(hWnd, hInstance, Param);
-	}
 
 	virtual void DrawFrame(const UINT i) override {
 		UpdateWorldBuffer();
@@ -201,22 +193,18 @@ public:
 	}
 
 	virtual void CreateGeometry() override {
-		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
-		//Load(GLTF_PATH / "Avocado" / "glTF-Binary" / "Avocado.glb");
-		//Load(ASSET_PATH / "bunny4.glb");
-
-		//!< 凸包を構築
 		std::vector<Vec3> Vec3s;
-#if 1
+#ifdef USE_MESH
+		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
 		Vec3s.reserve(size(Vertices));
 		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
 #else
-		//!< コリジョンをダイアモンド形状へ上書き
+		//!< ダイアモンド形状
 		std::vector<Vec3> Diamond;
 		CreateVertices_Diamond(Diamond);
 		std::ranges::copy(Diamond, std::back_inserter(Vec3s));
 #endif
-
+		//!< 凸包を構築
 		std::vector<Vec3> HullVertices;
 		std::vector<TriInds> HullIndices;
 		Convex::BuildConvexHull(Vec3s, HullVertices, HullIndices);
@@ -231,21 +219,12 @@ public:
 			}
 		}
 
-		for (auto i = 0; i < _countof(WorldBuffer.RigidBodies); ++i) {
-			auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
-			Rb->Position = 0 == i ? Vec3::AxisZ() * 5.0f : Vec3::Zero();
-			Rb->Rotation = Quat::Identity();
-			Rb->InvMass = 0.0f;
-			Rb->Init(new ShapeConvex());
-
-			auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
-			Points.resize(std::size(HullVertices));
-			std::ranges::copy(HullVertices, std::begin(Points));
-		}
+		PlaceRigidBodies(HullVertices);
 
 		const auto& CB = CommandBuffers[0];
 		const auto PDMP = CurrentPhysicalDeviceMemoryProperties;
 
+#ifdef USE_MESH
 		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Vertices));
 		VK::Scoped<StagingBuffer> StagingVertex(Device);
 		StagingVertex.Create(Device, PDMP, TotalSizeOf(Vertices), data(Vertices));
@@ -265,6 +244,7 @@ public:
 		IndirectBuffers.emplace_back().Create(Device, PDMP, DIIC);
 		VK::Scoped<StagingBuffer> StagingIndirect(Device);
 		StagingIndirect.Create(Device, PDMP, sizeof(DIIC), &DIIC);
+#endif
 
 		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Vertices_CH));
 		VK::Scoped<StagingBuffer> StagingVertex_CH(Device);
@@ -283,16 +263,6 @@ public:
 		VK::Scoped<StagingBuffer> StagingIndirect_CH(Device);
 		StagingIndirect_CH.Create(Device, PDMP, sizeof(DIIC_CH), &DIIC_CH);
 
-		const VkDrawIndirectCommand DIC_CP = {
-			.vertexCount = 1,
-			.instanceCount = _countof(WorldBuffer.RigidBodies),
-			.firstVertex = 0,
-			.firstInstance = 0,
-		};
-		IndirectBuffers.emplace_back().Create(Device, PDMP, DIC_CP);
-		VK::Scoped<StagingBuffer> StagingIndirect_CP(Device);
-		StagingIndirect_CP.Create(Device, PDMP, sizeof(DIC_CP), &DIC_CP);
-
 		constexpr VkCommandBufferBeginInfo CBBI = { 
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, 
 			.pNext = nullptr, 
@@ -300,6 +270,7 @@ public:
 			.pInheritanceInfo = nullptr 
 		};
 		VERIFY_SUCCEEDED(vkBeginCommandBuffer(CB, &CBBI)); {
+#ifdef USE_MESH
 			VertexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Vertices), StagingVertex.Buffer);
 			VertexBuffers[1].PopulateCopyCommand(CB, TotalSizeOf(Normals), StagingNormal.Buffer);
 			IndexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Indices), StagingIndex.Buffer);
@@ -308,8 +279,11 @@ public:
 			VertexBuffers[2].PopulateCopyCommand(CB, TotalSizeOf(Vertices_CH), StagingVertex_CH.Buffer);
 			IndexBuffers[1].PopulateCopyCommand(CB, TotalSizeOf(Indices_CH), StagingIndex_CH.Buffer);
 			IndirectBuffers[1].PopulateCopyCommand(CB, sizeof(DIIC_CH), StagingIndirect_CH.Buffer);
-
-			IndirectBuffers[2].PopulateCopyCommand(CB, sizeof(DIC_CP), StagingIndirect_CP.Buffer);
+#else
+			VertexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Vertices_CH), StagingVertex_CH.Buffer);
+			IndexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Indices_CH), StagingIndex_CH.Buffer);
+			IndirectBuffers[0].PopulateCopyCommand(CB, sizeof(DIIC_CH), StagingIndirect_CH.Buffer); 
+#endif
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(CB));
 		VK::SubmitAndWait(GraphicsQueue, CB);
 	}
@@ -344,11 +318,10 @@ public:
 	virtual void CreatePipeline() override {
 		Pipelines.emplace_back();
 		Pipelines.emplace_back();
-		Pipelines.emplace_back();
 
 		const std::array SMs = {
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_PN.vert.spv"),
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_PN.frag.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK.vert.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK.frag.spv"),
 		};
 		const std::array PSSCIs = {
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs[0], .pName = "main", .pSpecializationInfo = nullptr }),
@@ -377,8 +350,8 @@ public:
 		VK::CreatePipeline_VsFs_Input(Pipelines[0], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI, VK_TRUE, VIBDs, VIADs, PSSCIs);
 
 		const std::array SMs_CH = {
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CH_P.vert.spv"),
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CH_P.frag.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CH.vert.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CH.frag.spv"),
 		};
 		const std::array PSSCIs_CH = {
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs_CH[0], .pName = "main", .pSpecializationInfo = nullptr }),
@@ -404,40 +377,11 @@ public:
 		};
 		VK::CreatePipeline_VsFs_Input(Pipelines[1], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI_CH, VK_TRUE, VIBDs_CH, VIADs_CH, PSSCIs_CH);
 
-		const std::array SMs_CP = {
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CP_P.vert.spv"),
-			VK::CreateShaderModule(std::filesystem::path(".") / "ConvexHullVK_CP_P.frag.spv"),
-		};
-		const std::array PSSCIs_CP = {
-			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs_CP[0], .pName = "main", .pSpecializationInfo = nullptr }),
-			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = SMs_CP[1], .pName = "main", .pSpecializationInfo = nullptr }),
-		};
-		const std::vector VIBDs_CP = {
-			VkVertexInputBindingDescription({.binding = 0, .stride = sizeof(glm::vec3), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
-		};
-		const std::vector VIADs_CP = {
-			VkVertexInputAttributeDescription({.location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = 0 }),
-		};
-		constexpr VkPipelineRasterizationStateCreateInfo PRSCI_CP = {
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-			.pNext = nullptr,
-			.flags = 0,
-			.depthClampEnable = VK_FALSE,
-			.rasterizerDiscardEnable = VK_FALSE,
-			.polygonMode = VK_POLYGON_MODE_FILL,
-			.cullMode = VK_CULL_MODE_BACK_BIT,
-			.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-			.depthBiasEnable = VK_FALSE, .depthBiasConstantFactor = 0.0f, .depthBiasClamp = 0.0f, .depthBiasSlopeFactor = 0.0f,
-			.lineWidth = 1.0f
-		};
-		VK::CreatePipeline_VsFs_Input(Pipelines[2], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_POINT_LIST, 0, PRSCI_CP, VK_TRUE, VIBDs_CP, VIADs_CP, PSSCIs_CP);
-
 		for (auto& i : Threads) { i.join(); }
 		Threads.clear();
 
 		for (auto i : SMs) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
 		for (auto i : SMs_CH) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
-		for (auto i : SMs_CP) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
 	}
 	virtual void CreateDescriptor() override {
 		const auto BackBufferCount = static_cast<uint32_t>(size(SwapchainBackBuffers));
@@ -499,7 +443,6 @@ public:
 		const auto SCB = SecondaryCommandBuffers[i];
 		const auto PL0 = Pipelines[0];
 		const auto PL1 = Pipelines[1];
-		const auto PL2 = Pipelines[2];
 		const auto PLL = PipelineLayouts[0];
 		const auto DS = DescriptorSets[i];
 
@@ -528,24 +471,27 @@ public:
 
 			const std::array Offsets = { VkDeviceSize(0) };
 
+#ifdef USE_MESH
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL0);
 			const std::array VBs = { VertexBuffers[0].Buffer };
 			const std::array NBs = { VertexBuffers[1].Buffer };
 			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs)), data(VBs), data(Offsets));
 			vkCmdBindVertexBuffers(SCB, 1, static_cast<uint32_t>(size(NBs)), data(NBs), data(Offsets));
 			vkCmdBindIndexBuffer(SCB, IndexBuffers[0].Buffer, 0, VK_INDEX_TYPE_UINT32);
-#ifdef DRAW_MESH
 			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[0].Buffer, 0, 1, 0);
-#endif
 
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
 			const std::array VBs_CH = { VertexBuffers[2].Buffer };
 			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs_CH)), data(VBs_CH), data(Offsets));
 			vkCmdBindIndexBuffer(SCB, IndexBuffers[1].Buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[1].Buffer, 0, 1, 0);
-
-			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL2);
-			vkCmdDrawIndirect(SCB, IndirectBuffers[2].Buffer, 0, 1, 0);
+#else
+			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
+			const std::array VBs_CH = { VertexBuffers[0].Buffer };
+			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs_CH)), data(VBs_CH), data(Offsets));
+			vkCmdBindIndexBuffer(SCB, IndexBuffers[0].Buffer, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[0].Buffer, 0, 1, 0);
+#endif
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(SCB));
 	}
 	virtual void PopulateCommandBuffer(const size_t i) override {
@@ -588,28 +534,10 @@ public:
 					WorldBuffer.RigidBodies[i].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
 				}
 			}
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) { 
-				WorldBuffer.RigidBodies[i].Color = { 1.0f, 1.0f, 1.0f };
-				WorldBuffer.RigidBodies[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
-			}
-			const auto RbA = Scene->RigidBodies[0];
-			const auto RbB = Scene->RigidBodies[1];
-			if (Collision::Intersection::GJK(RbA, RbB)) {
-				WorldBuffer.RigidBodies[0].Color = { 1.0f, 0.0f, 0.0f };
-				WorldBuffer.RigidBodies[1].Color = { 1.0f, 0.0f, 0.0f };
-			}
-			else {
-				Vec3 OnA, OnB;
-				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
-				WorldBuffer.RigidBodies[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
-				WorldBuffer.RigidBodies[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());
-				//LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
-				//LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
-			}
 		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
-		const auto Pos = glm::vec3(0.0f, 0.25f, 10.0f);
+		const auto Pos = glm::vec3(0.0f, 15.0f, 30.0f);
 		const auto Tag = glm::vec3(0.0f);
 		const auto Up = glm::vec3(0.0f, 1.0f, 0.0f);
 		const auto View = glm::lookAt(Pos, Tag, Up);
@@ -635,11 +563,9 @@ protected:
 
 	struct RIGID_BODY {
 		glm::mat4 World;
-		alignas(16) glm::vec3 Color;
-		alignas(16) glm::vec3 ClosestPoint;
 	};
 	struct WORLD_BUFFER {
-		RIGID_BODY RigidBodies[2];
+		RIGID_BODY RigidBodies[64];
 	};
 	WORLD_BUFFER WorldBuffer;
 	struct VIEW_PROJECTION_BUFFER {

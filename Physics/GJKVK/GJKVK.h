@@ -8,7 +8,7 @@
 #include "../GltfSDK.h"
 #include "../Physics.h"
 
-#define DRAW_MESH
+#define USE_MESH
 
 class GJKVK : public Gltf::SDK, public VK
 {
@@ -201,22 +201,21 @@ public:
 	}
 
 	virtual void CreateGeometry() override {
+		std::vector<Vec3> Vec3s;
+#ifdef USE_MESH
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
 		//Load(GLTF_PATH / "Avocado" / "glTF-Binary" / "Avocado.glb");
 		//Load(ASSET_PATH / "bunny4.glb");
-
-		//!< 凸包を構築
-		std::vector<Vec3> Vec3s;
-#if 1
 		Vec3s.reserve(size(Vertices));
 		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
 #else
-		//!< コリジョンをダイアモンド形状へ上書き
+		//!< ダイアモンド形状
 		std::vector<Vec3> Diamond;
 		CreateVertices_Diamond(Diamond);
 		std::ranges::copy(Diamond, std::back_inserter(Vec3s));
 #endif
 
+		//!< 凸包を構築
 		std::vector<Vec3> HullVertices;
 		std::vector<TriInds> HullIndices;
 		Convex::BuildConvexHull(Vec3s, HullVertices, HullIndices);
@@ -246,6 +245,7 @@ public:
 		const auto& CB = CommandBuffers[0];
 		const auto PDMP = CurrentPhysicalDeviceMemoryProperties;
 
+#ifdef USE_MESH
 		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Vertices));
 		VK::Scoped<StagingBuffer> StagingVertex(Device);
 		StagingVertex.Create(Device, PDMP, TotalSizeOf(Vertices), data(Vertices));
@@ -265,6 +265,7 @@ public:
 		IndirectBuffers.emplace_back().Create(Device, PDMP, DIIC);
 		VK::Scoped<StagingBuffer> StagingIndirect(Device);
 		StagingIndirect.Create(Device, PDMP, sizeof(DIIC), &DIIC);
+#endif
 
 		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Vertices_CH));
 		VK::Scoped<StagingBuffer> StagingVertex_CH(Device);
@@ -300,6 +301,7 @@ public:
 			.pInheritanceInfo = nullptr
 		};
 		VERIFY_SUCCEEDED(vkBeginCommandBuffer(CB, &CBBI)); {
+#ifdef USE_MESH
 			VertexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Vertices), StagingVertex.Buffer);
 			VertexBuffers[1].PopulateCopyCommand(CB, TotalSizeOf(Normals), StagingNormal.Buffer);
 			IndexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Indices), StagingIndex.Buffer);
@@ -310,6 +312,13 @@ public:
 			IndirectBuffers[1].PopulateCopyCommand(CB, sizeof(DIIC_CH), StagingIndirect_CH.Buffer);
 
 			IndirectBuffers[2].PopulateCopyCommand(CB, sizeof(DIC_CP), StagingIndirect_CP.Buffer);
+#else
+			VertexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Vertices_CH), StagingVertex_CH.Buffer);
+			IndexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Indices_CH), StagingIndex_CH.Buffer);
+			IndirectBuffers[0].PopulateCopyCommand(CB, sizeof(DIIC_CH), StagingIndirect_CH.Buffer);
+
+			IndirectBuffers[1].PopulateCopyCommand(CB, sizeof(DIC_CP), StagingIndirect_CP.Buffer);
+#endif
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(CB));
 		VK::SubmitAndWait(GraphicsQueue, CB);
 	}
@@ -528,15 +537,14 @@ public:
 
 			const std::array Offsets = { VkDeviceSize(0) };
 
+#ifdef USE_MESH
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL0);
 			const std::array VBs = { VertexBuffers[0].Buffer };
 			const std::array NBs = { VertexBuffers[1].Buffer };
 			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs)), data(VBs), data(Offsets));
 			vkCmdBindVertexBuffers(SCB, 1, static_cast<uint32_t>(size(NBs)), data(NBs), data(Offsets));
 			vkCmdBindIndexBuffer(SCB, IndexBuffers[0].Buffer, 0, VK_INDEX_TYPE_UINT32);
-#ifdef DRAW_MESH
 			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[0].Buffer, 0, 1, 0);
-#endif
 
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
 			const std::array VBs_CH = { VertexBuffers[2].Buffer };
@@ -546,6 +554,16 @@ public:
 
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL2);
 			vkCmdDrawIndirect(SCB, IndirectBuffers[2].Buffer, 0, 1, 0);
+#else
+			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
+			const std::array VBs_CH = { VertexBuffers[0].Buffer };
+			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs_CH)), data(VBs_CH), data(Offsets));
+			vkCmdBindIndexBuffer(SCB, IndexBuffers[0].Buffer, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[0].Buffer, 0, 1, 0);
+
+			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL2);
+			vkCmdDrawIndirect(SCB, IndirectBuffers[1].Buffer, 0, 1, 0);
+#endif
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(SCB));
 	}
 	virtual void PopulateCommandBuffer(const size_t i) override {

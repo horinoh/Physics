@@ -8,7 +8,7 @@
 #include "../GltfSDK.h"
 #include "../Physics.h"
 
-#define DRAW_MESH
+//#define USE_MESH
 
 class ConvexHullDX : public Gltf::SDK, public DX
 {
@@ -113,6 +113,50 @@ public:
 		}
 	}
 
+	void PlaceRigidBodies(const std::vector<Vec3>& Vertices) {
+		//!< 動的オブジェクト配置
+		{
+			constexpr auto Radius = 2.0f;
+			constexpr auto Y = 10.0f;
+
+			const auto n = 3;
+			const auto n2 = n >> 1;
+			for (auto x = 0; x < n; ++x) {
+				for (auto z = 0; z < n; ++z) {
+					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
+					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+					Rb->Init(new ShapeConvex());
+					//Rb->InvMass = 0.0f;
+
+					auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
+					Points.resize(std::size(Vertices));
+					std::ranges::copy(Vertices, std::begin(Points));
+				}
+			}
+		}
+		//!< 静的オブジェクト配置
+		{
+			constexpr auto Radius = 80.0f;
+			constexpr auto Y = -Radius;
+
+			const auto n = 3;
+			const auto n2 = n >> 1;
+			for (auto x = 0; x < n; ++x) {
+				for (auto z = 0; z < n; ++z) {
+					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
+					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 0.25f, Y, static_cast<float>(z - n2) * Radius * 0.25f);
+					Rb->InvMass = 0;
+					Rb->Elasticity = 0.99f;
+					Rb->Init(new ShapeConvex());
+
+					auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
+					Points.resize(std::size(Vertices));
+					std::ranges::copy(Vertices, std::begin(Points));
+				}
+			}
+		}
+	}
+
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
 #ifdef _DEBUG
 		SignedVolumeTest();
@@ -137,59 +181,7 @@ public:
 			}
 		}
 	}
-	virtual void OnKeyDown(HWND hWnd, HINSTANCE hInstance, const WPARAM Param) override {
-		constexpr auto Speed = 0.1f;
-		constexpr auto RotSpeed = 1.0f;
-		auto X = 0.0f, Y = 0.0f, Z = 0.0f;
-		static auto RotY = 0.0f;
-		switch (Param) {
-		case 'W':
-			Y += Speed;
-			break;
-		case 'A':
-			X -= Speed;
-			break;
-		case 'S':
-			Y -= Speed;
-			break;
-		case 'D':
-			X += Speed;
-			break;
-
-		case VK_UP:
-			Z -= Speed;
-			break;
-		case VK_DOWN:
-			Z += Speed;
-			break;
-		case VK_LEFT:
-			RotY -= RotSpeed;
-			break;
-		case VK_RIGHT:
-			RotY += RotSpeed;
-			break;
-		default:
-			break;
-		}
-		while (RotY < 0.0f) { RotY += 360.0f; }
-		while (RotY > 360.0f) { RotY -= 360.0f; }
-
-		if (nullptr != Scene) {
-			if (0 < size(Scene->RigidBodies)) {
-				const auto Rb = Scene->RigidBodies[0];
-				
-				Rb->Position = Vec3(
-					(std::min)((std::max)(Rb->Position.X() + X, -5.0f), 5.0f), 
-					(std::min)((std::max)(Rb->Position.Y() + Y, -5.0f), 5.0f), 
-					(std::min)((std::max)(Rb->Position.Z() + Z, -5.0f), 5.0f)
-				);
-				Rb->Rotation = Quat(Vec3::AxisY(), TO_RADIAN(RotY));
-			}
-		}
-
-		Win::OnKeyDown(hWnd, hInstance, Param);
-	}
-
+	
 	virtual void DrawFrame(const UINT i) override {
 		UpdateWorldBuffer();
 		CopyToUploadResource(COM_PTR_GET(ConstantBuffers[i].Resource), RoundUp256(sizeof(WorldBuffer)), &WorldBuffer);
@@ -200,22 +192,19 @@ public:
 		DX::CreateBundleCommandList(size(SwapChainBackBuffers));
 	}
 	virtual void CreateGeometry() override {
-		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
-		//Load(GLTF_PATH / "Avocado" / "glTF-Binary" / "Avocado.glb");
-		//Load(ASSET_PATH / "bunny4.glb");
-
-		//!< 凸包を構築
 		std::vector<Vec3> Vec3s;
-#if 1
+#ifdef USE_MESH
+		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
 		Vec3s.reserve(size(Vertices));
 		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
 #else
-		//!< コリジョンをダイアモンド形状へ上書き
+		//!< ダイアモンド形状
 		std::vector<Vec3> Diamond;
 		CreateVertices_Diamond(Diamond);
 		std::ranges::copy(Diamond, std::back_inserter(Vec3s));
 #endif
 
+		//!< 凸包を構築
 		std::vector<Vec3> HullVertices;
 		std::vector<TriInds> HullIndices;
 		Convex::BuildConvexHull(Vec3s, HullVertices, HullIndices);
@@ -230,22 +219,13 @@ public:
 			}
 		}
 
-		for (auto i = 0; i < _countof(WorldBuffer.RigidBodies); ++i) {
-			auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
-			Rb->Position = 0 == i ? Vec3::AxisZ() * 5.0f : Vec3::Zero();
-			Rb->Rotation = Quat::Identity();
-			Rb->InvMass = 0.0f;
-			Rb->Init(new ShapeConvex());
-
-			auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
-			Points.resize(std::size(HullVertices));
-			std::ranges::copy(HullVertices, std::begin(Points));
-		}
+		PlaceRigidBodies(HullVertices);
 
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);
 		const auto CL = COM_PTR_GET(DirectCommandLists[0]);
 		const auto CQ = COM_PTR_GET(GraphicsCommandQueue);
 
+#ifdef USE_MESH
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Vertices), sizeof(Vertices[0]));
 		UploadResource UploadVertex;
 		UploadVertex.Create(COM_PTR_GET(Device), TotalSizeOf(Vertices), data(Vertices));
@@ -265,6 +245,7 @@ public:
 		IndirectBuffers.emplace_back().Create(COM_PTR_GET(Device), DIA);
 		UploadResource UploadIndirect;
 		UploadIndirect.Create(COM_PTR_GET(Device), sizeof(DIA), &DIA);
+#endif
 
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Vertices_CH), sizeof(Vertices_CH[0]));
 		UploadResource UploadVertex_CH;
@@ -283,17 +264,8 @@ public:
 		UploadResource UploadIndirect_CH;
 		UploadIndirect_CH.Create(COM_PTR_GET(Device), sizeof(DIA_CH), &DIA_CH);
 
-		const D3D12_DRAW_ARGUMENTS DA_CP = {
-			.VertexCountPerInstance = 1,
-			.InstanceCount = _countof(WorldBuffer.RigidBodies),
-			.StartVertexLocation = 0,
-			.StartInstanceLocation = 0,
-		};
-		IndirectBuffers.emplace_back().Create(COM_PTR_GET(Device), DA_CP);
-		UploadResource UploadIndirect_CP;
-		UploadIndirect_CP.Create(COM_PTR_GET(Device), sizeof(DA_CP), &DA_CP);
-
 		VERIFY_SUCCEEDED(CL->Reset(CA, nullptr)); {
+#ifdef USE_MESH
 			VertexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Vertices), COM_PTR_GET(UploadVertex.Resource));
 			VertexBuffers[1].PopulateCopyCommand(CL, TotalSizeOf(Normals), COM_PTR_GET(UploadNormal.Resource));
 			IndexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Indices), COM_PTR_GET(UploadIndex.Resource));
@@ -302,8 +274,11 @@ public:
 			VertexBuffers[2].PopulateCopyCommand(CL, TotalSizeOf(Vertices_CH), COM_PTR_GET(UploadVertex_CH.Resource));
 			IndexBuffers[1].PopulateCopyCommand(CL, TotalSizeOf(Indices_CH), COM_PTR_GET(UploadIndex_CH.Resource));
 			IndirectBuffers[1].PopulateCopyCommand(CL, sizeof(DIA_CH), COM_PTR_GET(UploadIndirect_CH.Resource));
-
-			IndirectBuffers[2].PopulateCopyCommand(CL, sizeof(DA_CP), COM_PTR_GET(UploadIndirect_CP.Resource));
+#else
+			VertexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Vertices_CH), COM_PTR_GET(UploadVertex_CH.Resource));
+			IndexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Indices_CH), COM_PTR_GET(UploadIndex_CH.Resource));
+			IndirectBuffers[0].PopulateCopyCommand(CL, sizeof(DIA_CH), COM_PTR_GET(UploadIndirect_CH.Resource));
+#endif
 		} VERIFY_SUCCEEDED(CL->Close());
 		DX::ExecuteAndWait(CQ, CL, COM_PTR_GET(GraphicsFence));
 	}
@@ -351,11 +326,10 @@ public:
 	virtual void CreatePipelineState() override {
 		PipelineStates.emplace_back();
 		PipelineStates.emplace_back();
-		PipelineStates.emplace_back();
 
 		std::vector<COM_PTR<ID3DBlob>> SBs;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_PN.vs.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_PN.ps.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX.vs.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX.ps.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
 		const std::array SBCs = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs[0]->GetBufferPointer(), .BytecodeLength = SBs[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs[1]->GetBufferPointer(), .BytecodeLength = SBs[1]->GetBufferSize() }),
@@ -375,8 +349,8 @@ public:
 		DX::CreatePipelineState_VsPs_Input(PipelineStates[0], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, RD, TRUE, IEDs, SBCs);
 
 		std::vector<COM_PTR<ID3DBlob>> SBs_CH;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CH_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CH_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CH.vs.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CH.ps.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
 		const std::array SBCs_CH = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CH[0]->GetBufferPointer(), .BytecodeLength = SBs_CH[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CH[1]->GetBufferPointer(), .BytecodeLength = SBs_CH[1]->GetBufferSize() }),
@@ -393,26 +367,6 @@ public:
 			.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
 		};
 		DX::CreatePipelineState_VsPs_Input(PipelineStates[1], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, RD_CH, TRUE, IEDs_CH, SBCs_CH);
-
-		std::vector<COM_PTR<ID3DBlob>> SBs_CP;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CP_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CP.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConvexHullDX_CP_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CP.emplace_back())));
-		const std::array SBCs_CP = {
-			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CP[0]->GetBufferPointer(), .BytecodeLength = SBs_CP[0]->GetBufferSize() }),
-			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CP[1]->GetBufferPointer(), .BytecodeLength = SBs_CP[1]->GetBufferSize() }),
-		};
-		const std::vector IEDs_CP = {
-			D3D12_INPUT_ELEMENT_DESC({.SemanticName = "POSITION", .SemanticIndex = 0, .Format = DXGI_FORMAT_R32G32B32_FLOAT, .InputSlot = 0, .AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT, .InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, .InstanceDataStepRate = 0 }),
-		};
-		constexpr D3D12_RASTERIZER_DESC RD_CP = {
-			.FillMode = D3D12_FILL_MODE_SOLID,
-			.CullMode = D3D12_CULL_MODE_BACK, .FrontCounterClockwise = TRUE,
-			.DepthBias = D3D12_DEFAULT_DEPTH_BIAS, .DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP, .SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
-			.DepthClipEnable = TRUE,
-			.MultisampleEnable = FALSE, .AntialiasedLineEnable = FALSE, .ForcedSampleCount = 0,
-			.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
-		};
-		DX::CreatePipelineState_VsPs_Input(PipelineStates[2], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT, RD_CP, TRUE, IEDs_CP, SBCs_CP);
 
 		for (auto& i : Threads) { i.join(); }
 		Threads.clear();
@@ -486,7 +440,6 @@ public:
 	virtual void PopulateBundleCommandList(const size_t i) override {
 		const auto PS0 = COM_PTR_GET(PipelineStates[0]);
 		const auto PS1 = COM_PTR_GET(PipelineStates[1]);
-		const auto PS2 = COM_PTR_GET(PipelineStates[2]);
 		const auto BCL = COM_PTR_GET(BundleCommandLists[i]);
 		const auto BCA = COM_PTR_GET(BundleCommandAllocators[0]);
 
@@ -494,22 +447,25 @@ public:
 		{
 			BCL->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+#ifdef USE_MESH
 			BCL->SetPipelineState(PS0);
 			const std::array VBVs = { VertexBuffers[0].View, VertexBuffers[1].View };
 			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs)), data(VBVs));
 			BCL->IASetIndexBuffer(&IndexBuffers[0].View);
-#ifdef DRAW_MESH
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
-#endif
 
 			BCL->SetPipelineState(PS1);
 			const std::array VBVs_CH = { VertexBuffers[2].View };
 			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs_CH)), data(VBVs_CH));
 			BCL->IASetIndexBuffer(&IndexBuffers[1].View);
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[1].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[1].Resource), 0, nullptr, 0);
-
-			BCL->SetPipelineState(PS2);
-			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[2].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[2].Resource), 0, nullptr, 0);
+#else
+			BCL->SetPipelineState(PS1);
+			const std::array VBVs_CH = { VertexBuffers[0].View };
+			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs_CH)), data(VBVs_CH));
+			BCL->IASetIndexBuffer(&IndexBuffers[0].View);
+			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
+#endif
 		}
 		VERIFY_SUCCEEDED(BCL->Close());
 	}
@@ -566,28 +522,10 @@ public:
 					DirectX::XMStoreFloat4x4(&WorldBuffer.RigidBodies[i].World, DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 				}
 			}
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-				WorldBuffer.RigidBodies[i].Color = { 1.0f, 1.0f, 1.0f };
-				WorldBuffer.RigidBodies[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
-			}
-			const auto RbA = Scene->RigidBodies[0];
-			const auto RbB = Scene->RigidBodies[1];
-			if (Collision::Intersection::GJK(RbA, RbB)) {
-				WorldBuffer.RigidBodies[0].Color = { 1.0f, 0.0f, 0.0f };
-				WorldBuffer.RigidBodies[1].Color = { 1.0f, 0.0f, 0.0f };
-			} 
-			else {
-				Vec3 OnA, OnB;
-				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
-				DirectX::XMStoreFloat3(&WorldBuffer.RigidBodies[0].ClosestPoint, DirectX::XMVectorSet(OnA.X(), OnA.Y(), OnA.Z(), 0.0f));
-				DirectX::XMStoreFloat3(&WorldBuffer.RigidBodies[1].ClosestPoint, DirectX::XMVectorSet(OnB.X(), OnB.Y(), OnB.Z(), 0.0f));
-				//LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
-				//LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
-			}
 		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
-		const auto Pos = DirectX::XMVectorSet(0.0f, 0.25f, 10.0f, 1.0f);
+		const auto Pos = DirectX::XMVectorSet(0.0f, 15.0f, 30.0f, 1.0f);
 		const auto Tag = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 		const auto Up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 		const auto View = DirectX::XMMatrixLookAtRH(Pos, Tag, Up);
@@ -613,11 +551,9 @@ protected:
 
 	struct RIGID_BODY {
 		DirectX::XMFLOAT4X4 World;
-		alignas(16) DirectX::XMFLOAT3 Color;
-		alignas(16) DirectX::XMFLOAT3 ClosestPoint;
 	};
 	struct WORLD_BUFFER {
-		RIGID_BODY RigidBodies[2];
+		RIGID_BODY RigidBodies[64];
 	};
 	WORLD_BUFFER WorldBuffer; 
 	struct VIEW_PROJECTION_BUFFER {

@@ -8,7 +8,7 @@
 #include "../GltfSDK.h"
 #include "../Physics.h"
 
-#define DRAW_MESH
+#define USE_MESH
 
 class GJKDX : public Gltf::SDK, public DX
 {
@@ -200,22 +200,21 @@ public:
 		DX::CreateBundleCommandList(size(SwapChainBackBuffers));
 	}
 	virtual void CreateGeometry() override {
+		std::vector<Vec3> Vec3s;
+#ifdef USE_MESH
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
 		//Load(GLTF_PATH / "Avocado" / "glTF-Binary" / "Avocado.glb");
 		//Load(ASSET_PATH / "bunny4.glb");
-
-		//!< 凸包を構築
-		std::vector<Vec3> Vec3s;
-#if 1
 		Vec3s.reserve(size(Vertices));
 		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
 #else
-		//!< コリジョンをダイアモンド形状へ上書き
+		//!< ダイアモンド形状
 		std::vector<Vec3> Diamond;
 		CreateVertices_Diamond(Diamond);
 		std::ranges::copy(Diamond, std::back_inserter(Vec3s));
 #endif
 
+		//!< 凸包を構築
 		std::vector<Vec3> HullVertices;
 		std::vector<TriInds> HullIndices;
 		Convex::BuildConvexHull(Vec3s, HullVertices, HullIndices);
@@ -246,6 +245,7 @@ public:
 		const auto CL = COM_PTR_GET(DirectCommandLists[0]);
 		const auto CQ = COM_PTR_GET(GraphicsCommandQueue);
 
+#ifdef USE_MESH
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Vertices), sizeof(Vertices[0]));
 		UploadResource UploadVertex;
 		UploadVertex.Create(COM_PTR_GET(Device), TotalSizeOf(Vertices), data(Vertices));
@@ -265,6 +265,7 @@ public:
 		IndirectBuffers.emplace_back().Create(COM_PTR_GET(Device), DIA);
 		UploadResource UploadIndirect;
 		UploadIndirect.Create(COM_PTR_GET(Device), sizeof(DIA), &DIA);
+#endif
 
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Vertices_CH), sizeof(Vertices_CH[0]));
 		UploadResource UploadVertex_CH;
@@ -294,6 +295,7 @@ public:
 		UploadIndirect_CP.Create(COM_PTR_GET(Device), sizeof(DA_CP), &DA_CP);
 
 		VERIFY_SUCCEEDED(CL->Reset(CA, nullptr)); {
+#ifdef USE_MESH
 			VertexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Vertices), COM_PTR_GET(UploadVertex.Resource));
 			VertexBuffers[1].PopulateCopyCommand(CL, TotalSizeOf(Normals), COM_PTR_GET(UploadNormal.Resource));
 			IndexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Indices), COM_PTR_GET(UploadIndex.Resource));
@@ -304,6 +306,13 @@ public:
 			IndirectBuffers[1].PopulateCopyCommand(CL, sizeof(DIA_CH), COM_PTR_GET(UploadIndirect_CH.Resource));
 
 			IndirectBuffers[2].PopulateCopyCommand(CL, sizeof(DA_CP), COM_PTR_GET(UploadIndirect_CP.Resource));
+#else
+			VertexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Vertices_CH), COM_PTR_GET(UploadVertex_CH.Resource));
+			IndexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Indices_CH), COM_PTR_GET(UploadIndex_CH.Resource));
+			IndirectBuffers[0].PopulateCopyCommand(CL, sizeof(DIA_CH), COM_PTR_GET(UploadIndirect_CH.Resource));
+
+			IndirectBuffers[1].PopulateCopyCommand(CL, sizeof(DA_CP), COM_PTR_GET(UploadIndirect_CP.Resource));
+#endif
 		} VERIFY_SUCCEEDED(CL->Close());
 		DX::ExecuteAndWait(CQ, CL, COM_PTR_GET(GraphicsFence));
 	}
@@ -494,13 +503,12 @@ public:
 		{
 			BCL->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+#ifdef USE_MESH
 			BCL->SetPipelineState(PS0);
 			const std::array VBVs = { VertexBuffers[0].View, VertexBuffers[1].View };
 			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs)), data(VBVs));
 			BCL->IASetIndexBuffer(&IndexBuffers[0].View);
-#ifdef DRAW_MESH
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
-#endif
 
 			BCL->SetPipelineState(PS1);
 			const std::array VBVs_CH = { VertexBuffers[2].View };
@@ -510,6 +518,16 @@ public:
 
 			BCL->SetPipelineState(PS2);
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[2].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[2].Resource), 0, nullptr, 0);
+#else
+			BCL->SetPipelineState(PS1);
+			const std::array VBVs_CH = { VertexBuffers[0].View };
+			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs_CH)), data(VBVs_CH));
+			BCL->IASetIndexBuffer(&IndexBuffers[0].View);
+			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
+
+			BCL->SetPipelineState(PS2);
+			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[1].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[1].Resource), 0, nullptr, 0);
+#endif
 		}
 		VERIFY_SUCCEEDED(BCL->Close());
 	}

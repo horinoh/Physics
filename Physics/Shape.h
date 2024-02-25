@@ -217,7 +217,6 @@ namespace Physics
 	};
 }
 
-#ifdef _DEBUG
 void CreateVertices_Diamond(std::vector<Vec3>& Dst) {
 	Dst.reserve(7 * 8);
 
@@ -229,7 +228,7 @@ void CreateVertices_Diamond(std::vector<Vec3>& Dst) {
 	Pts.emplace_back(Vec3(1.0f, 0.0f, 0.1f));
 	Pts.emplace_back(Vec3(0.4f, 0.0f, 0.4f));
 
-	constexpr auto Rad = 2.0f * std::numbers::pi_v<float> *0.125f;
+	constexpr auto Rad = 2.0f * std::numbers::pi_v<float> * 0.125f;
 	const auto QuatHalf = Quat(Vec3(0.0f, 0.0f, 1.0f), Rad * 0.5f);
 	Pts.emplace_back(QuatHalf.Rotate(Vec3(0.8f, 0.0f, 0.3f)));
 	Pts.emplace_back(QuatHalf.Rotate(Pts[1]));
@@ -246,4 +245,3 @@ void CreateVertices_Diamond(std::vector<Vec3>& Dst) {
 		}
 	}
 }
-#endif

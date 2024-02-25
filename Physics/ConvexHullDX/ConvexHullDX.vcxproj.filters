@@ -101,22 +101,16 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="ConvexHullDX_PN.ps.hlsl">
+    <FxCompile Include="..\..\..\_Physics\Physics\ConvexHullDX\ConvexHullDX.ps.hlsl">
       <Filter>Shader Files</Filter>
     </FxCompile>
-    <FxCompile Include="ConvexHullDX_PN.vs.hlsl">
+    <FxCompile Include="..\..\..\_Physics\Physics\ConvexHullDX\ConvexHullDX.vs.hlsl">
       <Filter>Shader Files</Filter>
     </FxCompile>
-    <FxCompile Include="ConvexHullDX_CH_P.ps.hlsl">
+    <FxCompile Include="ConvexHullDX_CH.ps.hlsl">
       <Filter>Shader Files</Filter>
     </FxCompile>
-    <FxCompile Include="ConvexHullDX_CH_P.vs.hlsl">
-      <Filter>Shader Files</Filter>
-    </FxCompile>
-    <FxCompile Include="ConvexHullDX_CP_P.ps.hlsl">
-      <Filter>Shader Files</Filter>
-    </FxCompile>
-    <FxCompile Include="ConvexHullDX_CP_P.vs.hlsl">
+    <FxCompile Include="ConvexHullDX_CH.vs.hlsl">
       <Filter>Shader Files</Filter>
     </FxCompile>
   </ItemGroup>

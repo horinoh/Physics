@@ -111,7 +111,7 @@ public:
 		}
 	}
 
-	void PutSpheres() {
+	void PlaceRigidBodies() {
 		//!< 動的オブジェクト配置
 		{
 			constexpr auto Radius = 0.5f;
@@ -151,7 +151,7 @@ public:
 		VK::OnCreate(hWnd, hInstance, Title);
 
 		Scene = new Physics::Scene();
-		PutSpheres();
+		PlaceRigidBodies();
 	}
 	virtual void OnDestroy(HWND hWnd, HINSTANCE hInstance) override {
 		VK::OnDestroy(hWnd, hInstance);
@@ -199,7 +199,7 @@ public:
 
 		const VkDrawIndexedIndirectCommand DIIC = {
 			.indexCount = static_cast<uint32_t>(size(Indices)), 
-			.instanceCount = _countof(WorldBuffer.World),
+			.instanceCount = _countof(WorldBuffer.RigidBodies),
 			.firstIndex = 0, 
 			.vertexOffset = 0, 
 			.firstInstance = 0
@@ -416,14 +416,14 @@ public:
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-				if (i < _countof(WorldBuffer.World)) {
+				if (i < _countof(WorldBuffer.RigidBodies)) {
 					const auto Rb = Scene->RigidBodies[i];
 					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::SPHERE) {
 						const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 						const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
 						const auto Scl = static_cast<ShapeSphere*>(Rb->Shape)->Radius;
 
-						WorldBuffer.World[i] = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
+						WorldBuffer.RigidBodies[i].World = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
 					}
 				}
 			}
@@ -451,8 +451,11 @@ protected:
 
 	Physics::Scene* Scene = nullptr;
 
+	struct RIGID_BODY {
+		glm::mat4 World;
+	};
 	struct WORLD_BUFFER {
-		glm::mat4 World[64];
+		RIGID_BODY RigidBodies[64];
 	};
 	WORLD_BUFFER WorldBuffer;
 	struct VIEW_PROJECTION_BUFFER {

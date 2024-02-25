@@ -7,13 +7,12 @@ layout (location = 0) in vec3 InPosition;
 struct RIGID_BODY
 {
 	mat4 World;
-	vec3 Color;
-	vec3 ClosestPoint;
 };
 layout (set = 0, binding = 0) uniform WORLD_BUFFER
 {
-	RIGID_BODY RigidBodies[2];
+	RIGID_BODY RigidBodies[64];
 } WB;
+
 layout (set = 0, binding = 1) uniform VIEW_PROJECTION_BUFFER
 {
 	mat4 ViewProjection;
@@ -21,6 +20,7 @@ layout (set = 0, binding = 1) uniform VIEW_PROJECTION_BUFFER
 
 void main()
 {
-	gl_Position = VPB.ViewProjection * vec4(WB.RigidBodies[gl_InstanceIndex].ClosestPoint, 1.0f);
-	gl_PointSize = 5.0f;
+	const mat4 PVW = VPB.ViewProjection * WB.RigidBodies[gl_InstanceIndex].World;
+
+	gl_Position = PVW * vec4(InPosition, 1.0f);
 }

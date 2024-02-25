@@ -5,7 +5,6 @@
 layout (early_fragment_tests) in;
 
 layout (location = 0) in vec3 InNormal;
-layout (location = 1) in vec3 InColor;
 
 layout (location = 0) out vec4 OutColor;
 
@@ -31,6 +30,7 @@ const vec3 LightDirection = vec3(0.0f, 1.0f, 1.0f);
 void main()
 {
 	const vec3 N = normalize(InNormal);
+	//const vec3 V = normalize(InViewDirection);
 	const vec3 L = normalize(LightDirection);
 	const float LN = dot(L, N);
 	const vec3 Ambient = vec3(0.1f, 0.1f, 0.1f);
@@ -38,7 +38,7 @@ void main()
 	const vec4 LightColor = vec4(1.0f, 1.0f, 1.0f, 8.0f);
 	const float Attenuate = 1.0;
 	const float Spot = 1.0;
-	const vec3 Color = (Ambient + (Diffuse(MaterialColor, LightColor.rgb, LN)) * Attenuate) * Spot;
+	const vec3 Color = (Ambient + (Diffuse(MaterialColor, LightColor.rgb, LN) /*+ Specular(MaterialColor, LightColor, LN, L, N, V)*/) * Attenuate) * Spot;
 
-	OutColor = vec4(Color * InColor, 1.0f);
+	OutColor = vec4(Color, 1.0f);
 }
