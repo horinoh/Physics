@@ -24,7 +24,7 @@ namespace Convex
 		P[3] = *Distance::Farthest(Pts, P[0], P[1], P[2]);
 
 		//!< CCW になるように調整
-		if (Distance::PointTriangle(P[0], P[1], P[2], P[3]) > 0.0f) {
+		if (Distance::IsFront(P[0], P[1], P[2], P[3])) {
 			std::swap(P[0], P[1]);
 		}
 
@@ -46,7 +46,7 @@ namespace Convex
 	{
 		//!< 全ての三角形に対し、負の側にあれば内部点
 		return std::ranges::all_of(Indices, [&](const auto rhs) {
-			return Distance::PointTriangle(Pt, Vertices[rhs[0]], Vertices[rhs[1]], Vertices[rhs[2]]) <= 0.0f;
+			return !Distance::IsFront(Pt, Vertices[rhs[0]], Vertices[rhs[1]], Vertices[rhs[2]]);
 		});
 	}
 	//!< 凸包の内部点を削除
@@ -57,7 +57,7 @@ namespace Convex
 			const auto Range = std::ranges::remove_if(Pts, [&](const auto& Pt) {
 				return IsInternal(Pt, Vertices, Indices);
 			});
-			Pts.erase(std::begin(Range), std::end(Range));
+			Pts.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
 		}
 
 		//!< 既存と同一とみなせる点は除外
@@ -68,9 +68,39 @@ namespace Convex
 					return rhs.NearlyEqual(Pt);
 				});
 			});
-			Pts.erase(std::begin(Range), std::end(Range));
+			Pts.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
 		}
 	}
+	static void CollectUniqueEdges(std::vector<TriInds>::const_iterator Begin, std::vector<TriInds>::const_iterator End, std::vector<EdgeIndsCount>& EdgeCounts)
+	{
+		std::for_each(Begin, End, [&](const auto& i) {
+			const std::array Edges = {
+				EdgeInds({ i[0], i[1] }),
+				EdgeInds({ i[1], i[2] }),
+				EdgeInds({ i[2], i[0] }),
+			};
+			for (auto& j : Edges) {
+				//!< 既出の辺かどうかを調べる (真逆も既出として扱う)
+				const auto It = std::ranges::find_if(EdgeCounts, [&](const auto& k) {
+					return (k.first[0] == j[0] && k.first[1] == j[1]) || (k.first[0] == j[1] && k.first[1] == j[0]);
+				});
+				if (std::cend(EdgeCounts) == It) {
+					//!< 新規の辺なのでカウンタゼロとして追加
+					EdgeCounts.emplace_back(EdgeIndsCount({ j, 0 }));
+				}
+				else {
+					//!< (追加済みの辺が) 既出の辺となったらカウンタをインクリメントして情報を更新しておく
+					++It->second;
+				}
+			}
+		});
+
+		//!< ユニークでない辺 (カウンタが 0 より大きい) を削除
+		const auto Range = std::ranges::remove_if(EdgeCounts, [](const auto& i) { return i.second > 0; });
+		EdgeCounts.erase(std::ranges::cbegin(Range), std::ranges::cend(EdgeCounts));
+	}
+	static void CollectUniqueEdges(const std::vector<TriInds>& Indices, std::vector<EdgeIndsCount>& EdgeCounts) { CollectUniqueEdges(std::ranges::cbegin(Indices), std::ranges::cend(Indices), EdgeCounts); }
+	
 	//!< ハイポリを食わせるとかなり時間がかかる上に結局ハイポリの凸包ができるだけなのでコリジョンとして現実的ではない、ローポリを食わせること
 	//!< 検証済
 	static void BuildConvexHull(const std::vector<Vec3>& Pts, std::vector<Vec3>& Vertices, std::vector<TriInds>& Indices)
@@ -91,50 +121,27 @@ namespace Convex
 			//!< 最遠点を見つける
 			const auto ExFarIt = Distance::Farthest(External, External[0]);
 
-			//!< 最遠店を向いている三角形 (A とする) と、向いていない三角形 (B とする) の境界となる辺を収集します
 			std::vector<EdgeIndsCount> EdgeCounts;
 			{
-				//!< B を前方、A を後方に分割する
+				//!< 最遠点を向いていない三角形 (A) と、向いている三角形 (B) に分割
+				//!< partition は以下のように返す
+				//!<	A ラムダ式が true	: [begin(Indices), begin(Range)]
+				//!<	B ラムダ式が false	: [begin(Range), end(Range)]
 				const auto Range = std::ranges::partition(Indices, [&](const auto& i) {
-					return Distance::PointTriangle(*ExFarIt, Vertices[i[0]], Vertices[i[1]], Vertices[i[2]]) <= 0.0f;
+					return !Distance::IsFront(*ExFarIt, Vertices[i[0]], Vertices[i[1]], Vertices[i[2]]);
 				});
 
-				//!< A と B の境界となる辺を収集する (A の中から他の三角形と辺を共有しないユニークな辺のみを収集すれば良い)
-				std::for_each(std::begin(Range), std::end(Indices), [&](const auto& i) {
-					const std::array Edges = {
-						EdgeInds({ i[0], i[1] }),
-						EdgeInds({ i[1], i[2] }),
-						EdgeInds({ i[2], i[0] }),
-					};
-					for (auto& j : Edges) {
-						//!< 既出の辺かどうかを調べる (真逆も既出として扱う)
-						const auto It = std::ranges::find_if(EdgeCounts, [&](const auto& rhs) {
-							return (rhs.first[0] == j[0] && rhs.first[1] == j[1]) || (rhs.first[0] == j[1] && rhs.first[1] == j[0]);
-						});
-						if (std::end(EdgeCounts) == It) {
-							//!< 新規の辺なのでカウンタゼロとして追加
-							EdgeCounts.emplace_back(EdgeIndsCount({ j, 0 }));
-						}
-						else {
-							//!< (追加済みの辺が) 既出の辺となったらカウンタをインクリメントして情報を更新しておく
-							++It->second;
-						}
-					}
-				});
-				//!< (辺は収集済みなので) ここまで来たら A は削除してよい  
-				Indices.erase(std::begin(Range), std::end(Indices));
+				//!< A, B の境界となるような辺を収集する (B の中から他の三角形と辺を共有しないユニークな辺のみを収集すれば良い)
+				CollectUniqueEdges(std::ranges::cbegin(Range), std::ranges::cend(Range), EdgeCounts);
+
+				//!< (辺は収集済) ここまで来たら B は削除してよい  
+				Indices.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
 			}
 
 			//!< 凸包の更新
 			{
 				//!< 最遠点を頂点として追加する
 				Vertices.emplace_back(*ExFarIt);
-
-				//!< ユニークでない辺 (カウンタが 0 より大きい) を削除
-				const auto Range = std::ranges::remove_if(EdgeCounts, [](const auto& i) { 
-					return i.second > 0; 
-				});
-				EdgeCounts.erase(std::begin(Range), std::end(EdgeCounts));
 
 				//!< 最遠点のインデックス
 				const auto FarIndex = static_cast<uint32_t>(std::size(Vertices) - 1);

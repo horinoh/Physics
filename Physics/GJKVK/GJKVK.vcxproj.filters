@@ -104,10 +104,20 @@
     <CustomBuild Include="GJKVK_CH_P.frag">
       <Filter>Shader Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="GJKVK_CH_P.vert" />
-    <CustomBuild Include="GJKVK_CP_P.frag" />
-    <CustomBuild Include="GJKVK_CP_P.vert" />
-    <CustomBuild Include="GJKVK_PN.frag" />
-    <CustomBuild Include="GJKVK_PN.vert" />
+    <CustomBuild Include="GJKVK_CH_P.vert">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="GJKVK_CP_P.frag">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="GJKVK_CP_P.vert">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="GJKVK_PN.frag">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="GJKVK_PN.vert">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

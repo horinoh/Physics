@@ -136,12 +136,6 @@ public:
 		}
 		//!< 静的オブジェクト配置
 		{
-			//constexpr auto Radius = 40.0f;
-			//auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
-			//Rb->Position = Vec3::AxisY() * -10.0f;
-			//Rb->InvMass = 0.0f;
-			//Rb->Elasticity = 0.99f;
-			//Rb->Init(new ShapeBox(Radius));			
 		}
 	}
 

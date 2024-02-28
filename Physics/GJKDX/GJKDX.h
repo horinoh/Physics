@@ -590,18 +590,18 @@ public:
 			}
 			const auto RbA = Scene->RigidBodies[0];
 			const auto RbB = Scene->RigidBodies[1];
-			if (Collision::Intersection::GJK(RbA, RbB)) {
-				WorldBuffer.RigidBodies[0].Color = { 1.0f, 0.0f, 0.0f };
-				WorldBuffer.RigidBodies[1].Color = { 1.0f, 0.0f, 0.0f };
+			Vec3 OnA, OnB;
+			if (Collision::Intersection::GJK_EPA(RbA, RbB, 0.01f, OnA, OnB)) {
+				WorldBuffer.RigidBodies[0].Color = { 1.0f, 1.0f, 0.0f };
+				WorldBuffer.RigidBodies[1].Color = { 1.0f, 1.0f, 0.0f };
 			}
 			else {
-				Vec3 OnA, OnB;
 				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
-				DirectX::XMStoreFloat3(&WorldBuffer.RigidBodies[0].ClosestPoint, DirectX::XMVectorSet(OnA.X(), OnA.Y(), OnA.Z(), 0.0f));
-				DirectX::XMStoreFloat3(&WorldBuffer.RigidBodies[1].ClosestPoint, DirectX::XMVectorSet(OnB.X(), OnB.Y(), OnB.Z(), 0.0f));
-				//LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
-				//LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
 			}
+			DirectX::XMStoreFloat3(&WorldBuffer.RigidBodies[0].ClosestPoint, DirectX::XMVectorSet(OnA.X(), OnA.Y(), OnA.Z(), 0.0f));
+			DirectX::XMStoreFloat3(&WorldBuffer.RigidBodies[1].ClosestPoint, DirectX::XMVectorSet(OnB.X(), OnB.Y(), OnB.Z(), 0.0f));
+			//LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
+			//LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
 		}
 	}
 	virtual void UpdateViewProjectionBuffer() {

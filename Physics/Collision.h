@@ -42,10 +42,10 @@ namespace Collision
 		[[nodiscard]] static float PointRay(const Vec3& Pt, const Vec3& RayPos, const Vec3& RayDir) {
 			return sqrtf(PointRaySq(Pt, RayPos, RayDir));
 		}
-
 		[[nodiscard]] static float PointTriangle(const Vec3& Pt, const Vec3& A, const Vec3& B, const Vec3& C) {
 			return (Pt - A).Dot(Vec3::UnitNormal(A, B, C));
 		}
+		[[nodiscard]] static bool IsFront(const Vec3& Pt, const Vec3& A, const Vec3& B, const Vec3& C) { return PointTriangle(Pt, A, B, C) >= 0.0f; }
 
 		//!< 指定の方向に一番遠い点のイテレータを返す 
 		[[nodiscard]] static auto Farthest(const std::vector<Vec3>& Pts, const Vec3& Dir) {
