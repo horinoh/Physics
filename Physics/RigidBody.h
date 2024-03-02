@@ -15,23 +15,16 @@ namespace Physics
 	class RigidBody
 	{
 	public:
-		virtual ~RigidBody() {
-			if (nullptr != Shape) {
-				delete Shape;
-			}
-		}
-
-		void Init(Shape* Sh) {
+		void Init(const Shape* Sh) {
 			Shape = Sh;
-			InvInertiaTensor = GetInertiaTensor().Inverse() * InvMass;
+			//!< InvMass を加味したもの (加味しないものはシェイプから取得すること)
+			InvInertiaTensor = Shape->GetInvInertiaTensor() * InvMass;
 		}
 
 		[[nodiscard]] Vec3 GetCenterOfMass() const { return Shape->GetCenterOfMass(); };
 		[[nodiscard]] Vec3 GetWorldSpaceCenterOfMass() const { return Position + Rotation.Rotate(GetCenterOfMass()); }
 
-		[[nodiscard]] Mat3 GetInertiaTensor() const { return Shape->GetInertiaTensor(); }
-		[[nodiscard]] Mat3 GetInverseInertiaTensor() const { return InvInertiaTensor; }
-		[[nodiscard]] Mat3 GetWorldSpaceInverseInertiaTensor() const { return ToWorld(GetInverseInertiaTensor()); }
+		[[nodiscard]] Mat3 GetWorldSpaceInverseInertiaTensor() const { return ToWorld(InvInertiaTensor); }
 
 		[[nodiscard]] Vec3 ToLocal(const Vec3& rhs) const {
 			return Rotation.Inverse().Rotate(rhs - GetWorldSpaceCenterOfMass());
@@ -93,8 +86,7 @@ namespace Physics
 				//!< (角速度による) 位置、回転の更新
 				{
 					//!< 角加速度 AngAccel = Inv(I) * (w x (I ・ w))
-					const auto WorldInertia = ToWorld(GetInertiaTensor());
-					const auto AngAccel = WorldInertia.Inverse() * (AngularVelocity.Cross(WorldInertia * AngularVelocity));
+					const auto AngAccel = ToWorld(Shape->GetInvInertiaTensor()) * (AngularVelocity.Cross(ToWorld(Shape->GetInertiaTensor()) * AngularVelocity));
 					//!< 角速度
 					AngularVelocity += AngAccel * DeltaSec;
 
@@ -124,6 +116,6 @@ namespace Physics
 
 		inline static const Vec3 Graivity = Vec3(0.0f, -9.8f, 0.0f);
 
-		Shape* Shape = nullptr;
+		const Shape* Shape = nullptr;
 	};
 }

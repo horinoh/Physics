@@ -119,6 +119,11 @@ public:
 			constexpr auto Radius = 2.0f;
 			constexpr auto Y = 10.0f;
 
+			Scene->Shapes.emplace_back(new ShapeConvex())->Init(/*Vec3s*/);
+			auto& Vert = const_cast<ShapeConvex*>(static_cast<const ShapeConvex*>(Scene->Shapes.back()))->Vertices;
+			Vert.resize(std::size(Vertices));
+			std::ranges::copy(Vertices, std::begin(Vert));
+
 			const auto n = 3;
 			const auto n2 = n >> 1;
 			for (auto x = 0; x < n; ++x) {
@@ -126,11 +131,7 @@ public:
 					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
 					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
 					Rb->Rotation = Quat(Vec3::AxisX(), TO_RADIAN(90.0f));
-					Rb->Init(new ShapeConvex());
-
-					auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
-					Points.resize(std::size(Vertices));
-					std::ranges::copy(Vertices, std::begin(Points));
+					Rb->Init(Scene->Shapes.back());
 				}
 			}
 		}

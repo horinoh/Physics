@@ -164,16 +164,19 @@ namespace Convex
 
 	//!< #TODO 要検証
 	[[nodiscard]] static Vec3 CalcCenterOfMass(const AABB& Aabb, const std::vector<Vec3>& Vertices, const std::vector<TriInds>& Indices) {
+		//!< 各軸にサンプリングする個数
 		constexpr auto SampleCount = 100;
 
-		auto Sampled = 0;
 		auto CenterOfMass = Vec3::Zero();
-		const Vec3 d = Aabb.GetExtent() / static_cast<float>(SampleCount);
+		auto Sampled = 0;
+		const auto Delta = Aabb.GetExtent() / static_cast<float>(SampleCount);
 		for (auto x = 0; x < SampleCount; ++x) {
 			for (auto y = 0; y < SampleCount; ++y) {
 				for (auto z = 0; z < SampleCount; ++z) {
-					const auto Pt = Vec3(Aabb.Min.X() + d.X() * x, Aabb.Min.Y() + d.Y() * y, Aabb.Min.Z() + d.Z() * z);
+					//!< AABB 内のサンプル点
+					const auto Pt = Aabb.Min + Vec3(Delta.X() * x, Delta.Y() * y, Delta.Z() * z);
 					if (IsInternal(Pt, Vertices, Indices)) {
+						//!< 内部点なら収集
 						CenterOfMass += Pt;
 						++Sampled;
 					}
@@ -184,16 +187,20 @@ namespace Convex
 	}
 	//!< #TODO 要検証
 	[[nodiscard]] static Mat3 CalcInertiaTensor(const AABB& Aabb, const std::vector<Vec3>& Vertices, const std::vector<TriInds>& Indices, const Vec3& CenterOfMass) {
+		//!< 各軸にサンプリングする個数
 		constexpr auto SampleCount = 100;
 
-		auto Sampled = 0;
 		auto InertiaTensor = Mat3::Zero();
-		const Vec3 d = Aabb.GetExtent() / static_cast<float>(SampleCount);
+		auto Sampled = 0;
+		const auto Delta = Aabb.GetExtent() / static_cast<float>(SampleCount);
 		for (auto x = 0; x < SampleCount; ++x) {
 			for (auto y = 0; y < SampleCount; ++y) {
 				for (auto z = 0; z < SampleCount; ++z) {
-					const auto Pt = Vec3(Aabb.Min.X() + d.Z() * x, Aabb.Min.Y() + d.Y() * y, Aabb.Min.Z() + d.Z() * z) - CenterOfMass;
+					//!< AABB 内のサンプル点 (重心からの相対)
+					const auto Pt = Aabb.Min + Vec3(Delta.X() * x, Delta.Y() * y, Delta.Z() * z) - CenterOfMass;
 					if (IsInternal(Pt, Vertices, Indices)) {
+						//!< 内部点なら収集する
+#if 0
 						InertiaTensor[0][0] += Pt.Y() * Pt.Y() + Pt.Z() * Pt.Z();
 						InertiaTensor[1][1] += Pt.Z() * Pt.Z() + Pt.X() * Pt.X();
 						InertiaTensor[2][2] += Pt.X() * Pt.X() + Pt.Y() * Pt.Y();
@@ -205,7 +212,13 @@ namespace Convex
 						InertiaTensor[1][0] += -Pt.X() * Pt.Y();
 						InertiaTensor[2][0] += -Pt.X() * Pt.Z();
 						InertiaTensor[2][1] += -Pt.Y() * Pt.Z();
-
+#else
+						InertiaTensor += {
+							{ Pt.Y() * Pt.Y() + Pt.Z() * Pt.Z(), -Pt.X() * Pt.Y(), -Pt.X() * Pt.Z() },
+							{ -Pt.X() * Pt.Y(), Pt.Z() * Pt.Z() + Pt.X() * Pt.X(), -Pt.Y() * Pt.Z() },
+							{ -Pt.X() * Pt.Z(), -Pt.Y() * Pt.Z(), Pt.X() * Pt.X() + Pt.Y() * Pt.Y() },
+						};
+#endif
 						++Sampled;
 					}
 				}
@@ -213,7 +226,7 @@ namespace Convex
 		}
 		return InertiaTensor / static_cast<float>(Sampled);
 	}
-	[[nodiscard]] static Mat3 CalcInertiaTensor(const AABB& Aabb, const std::vector<Vec3>& Vertices, const std::vector<TriInds>& Indices) {
-		return CalcInertiaTensor(Aabb, Vertices, Indices, CalcCenterOfMass(Aabb, Vertices, Indices));
-	}
+	//[[nodiscard]] static Mat3 CalcInertiaTensor(const AABB& Aabb, const std::vector<Vec3>& Vertices, const std::vector<TriInds>& Indices) {
+	//	return CalcInertiaTensor(Aabb, Vertices, Indices, CalcCenterOfMass(Aabb, Vertices, Indices));
+	//}
 }

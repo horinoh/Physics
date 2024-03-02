@@ -117,13 +117,15 @@ public:
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
+			Scene->Shapes.emplace_back(new ShapeSphere(Radius))->Init();
+
 			const auto n = 6;
 			const auto n2 = n >> 1;
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
 					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
 					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
-					Rb->Init(new ShapeSphere(Radius));
+					Rb->Init(Scene->Shapes.back());
 				}
 			}
 		}
@@ -415,7 +417,7 @@ public:
 					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::SPHERE) {
 						const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 						const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
-						const auto Scl = static_cast<ShapeSphere*>(Rb->Shape)->Radius;
+						const auto Scl = static_cast<const ShapeSphere*>(Rb->Shape)->Radius;
 
 						DirectX::XMStoreFloat4x4(&WorldBuffer.RigidBodies[i].World, DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 					}

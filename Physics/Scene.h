@@ -6,6 +6,8 @@
 #include "RigidBody.h"
 #include "Collision.h"
 
+//#define USE_BRUTE_FORCE
+
 using namespace Math;
 using namespace Collision;
 
@@ -17,6 +19,11 @@ namespace Physics
 		using CollidablePair = std::pair<int, int>;
 
 		virtual ~Scene() {
+			for (auto i : Shapes) {
+				if (nullptr != i) {
+					delete i;
+				}
+			}
 			for (auto i : RigidBodies) {
 				if (nullptr != i) {
 					delete i;
@@ -24,7 +31,29 @@ namespace Physics
 			}
 		}
 
-		virtual void BroadPhase(std::vector<CollidablePair>& CollidablePairs, const float DeltaSec)
+#ifdef USE_BRUTE_FORCE
+		virtual void BruteForce(const float DeltaSec, std::vector<Contact>& Contacts)
+		{
+			const auto RbCount = size(RigidBodies);
+			Contacts.reserve(RbCount * RbCount);
+			Contacts.clear();
+			for (auto i = 0; i < RbCount; ++i) {
+				for (auto j = i + 1; j < RbCount; ++j) {
+					const auto RbA = RigidBodies[i];
+					const auto RbB = RigidBodies[j];
+					if (0.0f != RbA->InvMass || 0.0f != RbB->InvMass) {
+						Contact Ct;
+						if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
+							Contacts.emplace_back(Ct);
+						}
+					}
+				}
+			}
+			std::ranges::sort(Contacts, std::ranges::less{}, &Contact::TimeOfImpact);
+		}
+#else
+		//!< SAP (Sweep And Prune)
+		virtual void BroadPhase(const float DeltaSec, std::vector<CollidablePair>& CollidablePairs)
 		{
 			std::vector<BoundEdge> BoundEdges;
 			{
@@ -74,7 +103,7 @@ namespace Physics
 				}
 			}
 		}
-		virtual void NarrowPhase(std::vector<Contact>& Contacts, const std::vector<CollidablePair>& CollidablePairs, const float DeltaSec)
+		virtual void NarrowPhase(const float DeltaSec, const std::vector<CollidablePair>& CollidablePairs, std::vector<Contact>& Contacts)
 		{
 			Contacts.reserve(std::size(CollidablePairs));
 			Contacts.clear();
@@ -94,25 +123,7 @@ namespace Physics
 			//!< TOI でソート
 			std::ranges::sort(Contacts, std::ranges::less{}, &Contact::TimeOfImpact);
 		}
-		virtual void BruteForce(std::vector<Contact>& Contacts, const float DeltaSec)
-		{
-			const auto RbCount = size(RigidBodies);
-			Contacts.reserve(RbCount * RbCount);
-			Contacts.clear();
-			for (auto i = 0; i < RbCount; ++i) {
-				for (auto j = i + 1; j < RbCount; ++j) {
-					const auto RbA = RigidBodies[i];
-					const auto RbB = RigidBodies[j];
-					if (0.0f != RbA->InvMass || 0.0f != RbB->InvMass) {
-						Contact Ct;
-						if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
-							Contacts.emplace_back(Ct);
-						}
-					}
-				}
-			}
-			std::ranges::sort(Contacts, std::ranges::less{}, &Contact::TimeOfImpact);
-		}
+#endif
 		virtual void Update(const float DeltaSec)
 		{
 			//!< 重力
@@ -122,14 +133,14 @@ namespace Physics
 
 			//!< 衝突 Contacts を収集
 			std::vector<Contact> Contacts;
-#if true
+#ifdef USE_BRUTE_FORCE
+			BruteForce(DeltaSec, Contacts);
+#else
 			{
 				std::vector<CollidablePair> CollidablePairs;
-				BroadPhase(CollidablePairs, DeltaSec);
-				NarrowPhase(Contacts, CollidablePairs, DeltaSec);
+				BroadPhase(DeltaSec, CollidablePairs);
+				NarrowPhase(DeltaSec, CollidablePairs, Contacts);
 			}
-#else
-			BruteForce(Contacts, DeltaSec);
 #endif
 
 			//!< TOI 毎に時間をスライスして、シミュレーションを進める
@@ -158,6 +169,7 @@ namespace Physics
 			}
 		}
 
-		std::vector<RigidBody *> RigidBodies;
+		std::vector<Shape*> Shapes;
+		std::vector<RigidBody*> RigidBodies;
 	};
 }

@@ -8,10 +8,15 @@ using namespace Collision;
 
 namespace Physics
 {
-	class Shape 
+	class Shape
 	{
 	public:
 		virtual ~Shape() {}
+		virtual void Init() {
+			CenterOfMass = CalcCenterOfMass();
+			InertiaTensor = CalcInertiaTensor();
+			InvInertiaTensor = InertiaTensor.Inverse();
+		}
 
 		enum class SHAPE
 		{
@@ -21,9 +26,8 @@ namespace Physics
 		};
 		[[nodiscard]] virtual SHAPE GetShapeTyoe() const = 0;
 
-		[[nodiscard]] virtual Vec3 GetCenterOfMass() const { return CenterOfMass; }
-		[[nodiscard]] virtual Mat3 GetInertiaTensor() const = 0;
-
+		[[nodiscard]] virtual Vec3 CalcCenterOfMass() const = 0;
+		[[nodiscard]] virtual Mat3 CalcInertiaTensor() const = 0;
 		[[nodiscard]] virtual AABB GetAABB(const Vec3& Pos, const Quat& Rot) const = 0;
 
 #pragma region GJK
@@ -33,13 +37,19 @@ namespace Physics
 		[[nodiscard]] virtual float GetFastestPointSpeed(const Vec3& AngVel, const Vec3& Dir) const { return 0.0f; }
 #pragma endregion
 
+		[[nodiscard]] const Vec3& GetCenterOfMass() const { return CenterOfMass; }
+		[[nodiscard]] const Mat3& GetInertiaTensor() const { return InertiaTensor; }
+		[[nodiscard]] const Mat3& GetInvInertiaTensor() const { return InvInertiaTensor; }
+
 	public:
 		Vec3 CenterOfMass = Vec3::Zero();
-		AABB Aabb;
+		Mat3 InertiaTensor = Mat3::Identity();
+		Mat3 InvInertiaTensor = Mat3::Identity();
+		//AABB Aabb;
 	};
 
 	//!< 検証済み
-	class ShapeSphere : public Shape 
+	class ShapeSphere : public Shape
 	{
 	private:
 		using Super = Shape;
@@ -50,7 +60,8 @@ namespace Physics
 
 		virtual SHAPE GetShapeTyoe() const override { return SHAPE::SPHERE; }
 
-		virtual Mat3 GetInertiaTensor() const override { 
+		virtual Vec3 CalcCenterOfMass() const override { return Vec3::Zero(); }
+		virtual Mat3 CalcInertiaTensor() const override {
 			//!< 球の慣性テンソル R^2 * 2 / 5  * Identity
 			return Radius * Radius * 2.0f / 5.0f * Mat3::Identity();
 		}
@@ -78,8 +89,9 @@ namespace Physics
 		virtual ~ShapeBox() {}
 
 		virtual SHAPE GetShapeTyoe() const override { return SHAPE::BOX; }
-
-		virtual Mat3 GetInertiaTensor() const override {
+		
+		virtual Vec3 CalcCenterOfMass() const override { return Vec3::Zero(); }
+		virtual Mat3 CalcInertiaTensor() const override {
 			//!< ボックスの慣性テンソル 1 / 12 * (H^2+D^2,       0,       0)
 			//!<							  (      0, w^2+D^2,       0)
 			//!<							  (      0,       0, W^2+H^2)
@@ -100,7 +112,7 @@ namespace Physics
 				Vec3(-Extent.X(), Extent.Y(), Extent.Z()),
 				Vec3(-Extent.X(), Extent.Y(), -Extent.Z()),
 				Vec3(-Extent.X(), -Extent.Y(), Extent.Z()),
-				-Extent 
+				-Extent
 			};
 
 			AABB Ab;
@@ -112,15 +124,15 @@ namespace Physics
 		}
 
 		virtual Vec3 GetSupportPoint(const Vec3& Pos, const Quat& Rot, const Vec3& NDir, const float Bias) const override {
-			const std::array Points = { 
+			const std::array Points = {
 				Extent,
 				Vec3(Extent.X(), Extent.Y(), -Extent.Z()),
-				Vec3(Extent.X(), -Extent.Y(), Extent.Z()), 
+				Vec3(Extent.X(), -Extent.Y(), Extent.Z()),
 				Vec3(Extent.X(), -Extent.Y(), -Extent.Z()),
-				Vec3(-Extent.X(), Extent.Y(), Extent.Z()), 
-				Vec3(-Extent.X(), Extent.Y(), -Extent.Z()), 
+				Vec3(-Extent.X(), Extent.Y(), Extent.Z()),
+				Vec3(-Extent.X(), Extent.Y(), -Extent.Z()),
 				Vec3(-Extent.X(), -Extent.Y(), Extent.Z()),
-				-Extent 
+				-Extent
 			};
 			Vec3 MaxPt = Rot.Rotate(Points[0]) + Pos;
 			auto MaxDist = NDir.Dot(MaxPt);
@@ -143,7 +155,7 @@ namespace Physics
 				Vec3(-Extent.X(), Extent.Y(), Extent.Z()),
 				Vec3(-Extent.X(), Extent.Y(), -Extent.Z()),
 				Vec3(-Extent.X(), -Extent.Y(), Extent.Z()),
-				-Extent 
+				-Extent
 			};
 			auto MaxSpeed = 0.0f;
 			for (auto& i : Points) {
@@ -167,18 +179,26 @@ namespace Physics
 	public:
 		ShapeConvex() {}
 		virtual ~ShapeConvex() {}
+		virtual void Init(const std::vector<Vec3>& Vert) {
+			Super::Init();
+			//Convex::BuildConvexHull(Vert, Vertices, Indices);
+
+			//CenterOfMass = ;
+		}
 
 		virtual SHAPE GetShapeTyoe() const override { return SHAPE::CONVEX; }
 
-		virtual Vec3 GetCenterOfMass() const override { return Super::GetCenterOfMass(); }
-		virtual Mat3 GetInertiaTensor() const override {
+		virtual Vec3 CalcCenterOfMass() const {
+			return Vec3::Zero();
+		}
+		virtual Mat3 CalcInertiaTensor() const override {
 			//!< #TODO
 			return Mat3::Identity();
 		}
 
 		virtual AABB GetAABB(const Vec3& Pos, const Quat& Rot) const override {
 			AABB Ab;
-			for (auto& i : Points) {
+			for (auto& i : Vertices) {
 				Ab.Expand(Rot.Rotate(i) + Pos);
 			}
 			return Ab;
@@ -190,10 +210,10 @@ namespace Physics
 				return NDir.Dot(Rot.Rotate(lhs) + Pos) < NDir.Dot(Rot.Rotate(rhs) + Pos); 
 			}) + NDir * Bias;
 #else
-			Vec3 MaxPt = Rot.Rotate(Points[0]) + Pos;
+			Vec3 MaxPt = Rot.Rotate(Vertices[0]) + Pos;
 			auto MaxDist = NDir.Dot(MaxPt);
-			for (auto i = 1; i < std::size(Points); ++i) {
-				const auto Pt = Rot.Rotate(Points[i]) + Pos;
+			for (auto i = 1; i < std::size(Vertices); ++i) {
+				const auto Pt = Rot.Rotate(Vertices[i]) + Pos;
 				const auto Dist = NDir.Dot(Pt);
 				if (Dist > MaxDist) {
 					MaxDist = Dist;
@@ -205,7 +225,7 @@ namespace Physics
 		}
 		virtual float GetFastestPointSpeed(const Vec3& AngVel, const Vec3& Dir) const override {
 			auto MaxSpeed = 0.0f;
-			for (auto& i : Points) {
+			for (auto& i : Vertices) {
 				const auto Speed = Dir.Dot(AngVel.Cross(i - GetCenterOfMass()));
 				if (Speed > MaxSpeed) {
 					MaxSpeed = Speed;
@@ -215,7 +235,10 @@ namespace Physics
 		}
 
 	public:
-		std::vector<Vec3> Points;
+		std::vector<Vec3> Vertices;
+
+		//!< インデックスは描画しない場合不要だが、一応持っておく
+		std::vector<TriInds> Indices;
 	};
 }
 

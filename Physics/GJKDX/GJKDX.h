@@ -229,16 +229,17 @@ public:
 			}
 		}
 
+		Scene->Shapes.emplace_back(new ShapeConvex())->Init(/*Vec3s*/);
+		auto& Vert = const_cast<ShapeConvex*>(static_cast<const ShapeConvex*>(Scene->Shapes.back()))->Vertices;
+		Vert.resize(std::size(HullVertices));
+		std::ranges::copy(HullVertices, std::begin(Vert));
+
 		for (auto i = 0; i < _countof(WorldBuffer.RigidBodies); ++i) {
 			auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
 			Rb->Position = 0 == i ? Vec3::AxisZ() * 5.0f : Vec3::Zero();
 			Rb->Rotation = Quat::Identity();
 			Rb->InvMass = 0.0f;
 			Rb->Init(new ShapeConvex());
-
-			auto& Points = static_cast<ShapeConvex*>(Rb->Shape)->Points;
-			Points.resize(std::size(HullVertices));
-			std::ranges::copy(HullVertices, std::begin(Points));
 		}
 
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);

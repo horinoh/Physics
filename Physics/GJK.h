@@ -386,13 +386,12 @@ namespace Collision
 
 			while (true) {
 				//!< 原点に最も近い三角形を取得
-				const auto CTriIt = std::ranges::min_element(Tris, [&](const auto& lhs, const auto& rhs) {
+				const auto& CTri = *std::ranges::min_element(Tris, [&](const auto& lhs, const auto& rhs) {
 					return Distance::PointTriangle(Vec3::Zero(), Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC()) < Distance::PointTriangle(Vec3::Zero(), Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC());
 				});
-				const auto& CTri = *CTriIt;
-
+				const auto A = CTri[0], B = CTri[1], C = CTri[2];
 				//!< 三角形の法線
-				const auto N = Vec3::UnitNormal(Sps[CTri[0]].GetC(), Sps[CTri[1]].GetC(), Sps[CTri[2]].GetC());
+				const auto N = Vec3::UnitNormal(Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC());
 
 				//!< 法線方向のサポートポイントを取得
 				const auto Pt = SupportPoint::GetPoints(RbA, RbB, N, Bias);
@@ -406,7 +405,7 @@ namespace Collision
 				}
 
 				//!< サポートポイントと三角形の距離が 0 以下の場合は、これ以上拡張できない
-				if (Distance::PointTriangle(Pt.GetC(), Sps[CTri[0]].GetC(), Sps[CTri[1]].GetC(), Sps[CTri[2]].GetC()) <= 0.0f) {
+				if (Distance::PointTriangle(Pt.GetC(), Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC()) <= 0.0f) {
 						break;
 				}
 
@@ -414,8 +413,8 @@ namespace Collision
 
 				//!< サポートポイント側を向いている三角形を削除、削除できない場合は終了
 				{
-					const auto Range = std::ranges::remove_if(Tris, [&](const auto& i) {
-						return Distance::IsFront(Pt.GetC(), Sps[i[0]].GetC(), Sps[i[1]].GetC(), Sps[i[2]].GetC());
+					const auto Range = std::ranges::remove_if(Tris, [&](const auto& i) { 
+						return Distance::IsFront(Pt.GetC(), Sps[i[0]].GetC(), Sps[i[1]].GetC(), Sps[i[2]].GetC()); 
 					});
 					Tris.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
 					if (std::ranges::cbegin(Range) == std::ranges::cend(Range)) {
@@ -425,18 +424,18 @@ namespace Collision
 
 				//!< ユニークな辺を探す、無ければ終了
 				{
-					std::vector<EdgeIndsCount> EdgeCounts;
-					Convex::CollectUniqueEdges(Tris, EdgeCounts);
-					if (std::empty(EdgeCounts)) {
+					std::vector<EdgeIndsCount> DanglingEdges;
+					Convex::CollectUniqueEdges(Tris, DanglingEdges);
+					if (std::empty(DanglingEdges)) {
 						break;
 					}
 
 					//!< サポートポイントとユニーク辺からなる三角形群を追加
 					const auto A = static_cast<uint32_t>(std::size(Sps)) - 1;
-					std::ranges::transform(EdgeCounts, std::back_inserter(Tris), [&](const auto& i) {
+					std::ranges::transform(DanglingEdges, std::back_inserter(Tris), [&](const auto& i) {
 						const auto B = i.first[0], C = i.first[1];
 						if (Distance::IsFront(Center, Sps[A].GetC(), Sps[C].GetC(), Sps[B].GetC())) {
-								return TriInds({ A, B, C });
+							return TriInds({ A, B, C });
 						}
 						else {
 							return TriInds({ A, C, B });
@@ -445,14 +444,17 @@ namespace Collision
 				}
 			}
 
-			//!< 原点に最も近い三角形を取得
-			const auto CTri = *std::ranges::min_element(Tris, [&](const auto& lhs, const auto& rhs) {
-				return Distance::PointTriangle(Vec3::Zero(), Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC()) > Distance::PointTriangle(Vec3::Zero(), Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC());
-			});
-			//!< 最近三角形上での、原点の重心座標を取得
-			const auto Lambda = Barycentric(Sps[CTri[0]].GetC(), Sps[CTri[1]].GetC(), Sps[CTri[2]].GetC(), Vec3::Zero());
-			OnA = Sps[CTri[0]].GetA() * Lambda[0] + Sps[CTri[1]].GetA() * Lambda[1] + Sps[CTri[2]].GetA() * Lambda[2];
-			OnB = Sps[CTri[0]].GetB() * Lambda[0] + Sps[CTri[1]].GetB() * Lambda[1] + Sps[CTri[2]].GetB() * Lambda[2];
+			{
+				//!< 原点に最も近い三角形を取得
+				const auto CTri = *std::ranges::min_element(Tris, [&](const auto& lhs, const auto& rhs) {
+					return Distance::PointTriangle(Vec3::Zero(), Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC()) > Distance::PointTriangle(Vec3::Zero(), Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC());
+				});
+				const auto A = CTri[0], B = CTri[1], C = CTri[2];
+				//!< 最近三角形上での、原点の重心座標を取得
+				const auto Lambda = Barycentric(Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC(), Vec3::Zero());
+				OnA = Sps[A].GetA() * Lambda[0] + Sps[B].GetA() * Lambda[1] + Sps[C].GetA() * Lambda[2];
+				OnB = Sps[A].GetB() * Lambda[0] + Sps[B].GetB() * Lambda[1] + Sps[C].GetB() * Lambda[2];
+			}
 		}
 
 		[[nodiscard]] static bool GJK(const RigidBody* RbA, const RigidBody* RbB) {
