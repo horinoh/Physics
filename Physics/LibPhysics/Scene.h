@@ -2,34 +2,22 @@
 
 #include <vector>
 
-//#include "Shape.h"
-//#include "Collision.h"
+#include "Collision.h"
 
 //#define USE_BRUTE_FORCE
 
-class Physics::Shape;
-class Physics::RigidBody;
-
 namespace Physics
 {
+	class Shape;
+	class RigidBody;
+
 	class Scene 
 	{
 	public:
 		using CollidablePair = std::pair<int, int>;
 
-		virtual ~Scene() {
-			for (auto i : Shapes) {
-				if (nullptr != i) {
-					delete i;
-				}
-			}
-			for (auto i : RigidBodies) {
-				if (nullptr != i) {
-					delete i;
-				}
-			}
-		}
-
+		virtual ~Scene();
+		
 #ifdef USE_BRUTE_FORCE
 		virtual void BruteForce(const float DeltaSec, std::vector<Contact>& Contacts);
 #else

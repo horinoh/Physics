@@ -2,14 +2,19 @@
 
 #include <algorithm>
 
-#include "Math.h"
-//#include "Shape.h"
+#include "PhysicsMath.h"
 //#include "RigidBody.h"
 
-class Physics::RigidBody;
-
+namespace Physics 
+{
+	class RigidBody;
+}
 namespace Collision
 {
+	using TriInds = std::array<uint32_t, 3>;
+	using EdgeInds = std::array<uint32_t, 2>;
+	using EdgeIndsCount = std::pair<EdgeInds, uint32_t>;
+
 	struct BoundEdge
 	{
 		int Index;
@@ -75,15 +80,15 @@ namespace Collision
 	}
 	namespace Intersection {
 		//!< ƒŒƒC vs ‹…
-		[[nodiscard]] static bool RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad, float& T0, float& T1);
+		[[nodiscard]] bool RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad, float& T0, float& T1);
 		//!< ‹… vs ‹…
-		[[nodiscard]] static bool SphereShpere(const Physics::ShapeSphere* SpA, const Physics::ShapeSphere* SpB,
+		[[nodiscard]] bool SphereShpere(const float RadA, const float RadB,
 			const Math::Vec3& PosA, const Math::Vec3& PosB,
 			const Math::Vec3& VelA, const Math::Vec3& VelB,
 			const float DeltaSec, float& T);
-		[[nodiscard]] static bool RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct);
+		[[nodiscard]] bool RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct);
 	}
 
 	//!< Õ“ËŽž‚Ì—ÍÏ‚Ì“K—p
-	static void Resolve(const Contact& Ct);
+	void Resolve(const Contact& Ct);
 }

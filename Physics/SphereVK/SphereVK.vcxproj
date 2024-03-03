@@ -67,11 +67,13 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\Prop\VK.props" />
     <Import Project="..\Prop\GLTF.props" />
+    <Import Project="..\Prop\PHYSICS.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\Prop\VK.props" />
     <Import Project="..\Prop\GLTF.props" />
+    <Import Project="..\Prop\PHYSICS.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -133,20 +135,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\Bound.h" />
-    <ClInclude Include="..\Collision.h" />
     <ClInclude Include="..\Common.h" />
-    <ClInclude Include="..\Convex.h" />
-    <ClInclude Include="..\GJK.h" />
     <ClInclude Include="..\GltfSDK.h" />
-    <ClInclude Include="..\Mat.h" />
-    <ClInclude Include="..\Math.h" />
-    <ClInclude Include="..\Physics.h" />
-    <ClInclude Include="..\Quat.h" />
-    <ClInclude Include="..\RigidBody.h" />
-    <ClInclude Include="..\Scene.h" />
-    <ClInclude Include="..\Shape.h" />
-    <ClInclude Include="..\Vec.h" />
     <ClInclude Include="..\VK.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Resource.h" />

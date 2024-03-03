@@ -1,7 +1,10 @@
 #pragma once
 
-#include "Math.h"
+#include <numbers>
+
+#include "PhysicsMath.h"
 #include "Bound.h"
+#include "Physics.h"
 
 using namespace Math;
 using namespace Collision;
@@ -242,7 +245,7 @@ namespace Physics
 	};
 }
 
-void CreateVertices_Diamond(std::vector<Vec3>& Dst) {
+static void CreateVertices_Diamond(std::vector<Vec3>& Dst) {
 	Dst.reserve(7 * 8);
 
 	std::vector<Vec3> Pts;

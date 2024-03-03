@@ -5,6 +5,8 @@
 #include "framework.h"
 #include "SphereVK.h"
 
+#pragma comment(lib, "LibPhysics.lib")
+
 SphereVK* Inst = nullptr;
 
 #define MAX_LOADSTRING 100

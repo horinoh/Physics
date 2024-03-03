@@ -1,8 +1,11 @@
 // BoxDX.cpp : Defines the entry point for the application.
 //
 
+#define NOMINMAX
 #include "framework.h"
 #include "BoxDX.h"
+
+BoxDX* Inst = nullptr;
 
 #define MAX_LOADSTRING 100
 
@@ -142,15 +145,42 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+    case WM_CREATE:
+        if (nullptr == Inst) {
+            Inst = new BoxDX();
+            Inst->OnCreate(hWnd, hInst, TEXT("BoxDX"));
+        }
+        break;
+    case WM_KEYDOWN:
+        Inst->OnKeyDown(hWnd, hInst, wParam);
+        break;
+    case WM_EXITSIZEMOVE:
+        if (nullptr != Inst) {
+            Inst->OnExitSizeMove(hWnd, hInst);
+        }
+        break;
+    case WM_TIMER:
+        if (nullptr != Inst) {
+            Inst->OnTimer(hWnd, hInst);
+        }
+        break;
     case WM_PAINT:
         {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
             // TODO: Add any drawing code that uses hdc here...
+            if (nullptr != Inst) {
+                Inst->OnPaint(hWnd, hInst);
+            }
             EndPaint(hWnd, &ps);
         }
         break;
     case WM_DESTROY:
+        if (nullptr != Inst) {
+            Inst->OnPreDestroy();
+            Inst->OnDestroy(hWnd, hInst);
+            delete Inst;
+        }
         PostQuitMessage(0);
         break;
     default:

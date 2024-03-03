@@ -5,8 +5,8 @@
 #include <iostream>
 #endif
 
-#include "Math.h"
-using namespace Math;
+#include "PhysicsMath.h"
+//using namespace Math;
 
 #include "Shape.h"
 

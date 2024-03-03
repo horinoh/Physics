@@ -1,14 +1,16 @@
 #pragma once
 
-#include "Math.h"
-using namespace Math;
-
 #include <algorithm>
 #include <functional>
 
-#include "Shape.h"
+//#include "Math.h"
+//using namespace Math;
+//
+//#include "Shape.h"
+//using namespace Physics;
+
 #include "RigidBody.h"
-using namespace Physics;
+#include "Convex.h"
 
 namespace Collision
 {
@@ -217,7 +219,7 @@ namespace Collision
 		private:
 			std::array<Vec3, 3> SPs;
 		};
-		static [[nodiscard]] Points GetPoints(const RigidBody* RbA, const RigidBody* RbB, const Vec3& NDir, const float Bias) {
+		static [[nodiscard]] Points GetPoints(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Vec3& NDir, const float Bias) {
 			return Points(RbA->Shape->GetSupportPoint(RbA->Position, RbA->Rotation, NDir, Bias), RbB->Shape->GetSupportPoint(RbB->Position, RbB->Rotation, -NDir, Bias));
 		}
 		static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<Points>& Sps, Vec3& Dir, Vec4& OutLambda)
@@ -248,7 +250,7 @@ namespace Collision
 		}
 
 		//!< サポートポイントが四面体をなしていない場合、四面体を形成する
-		void ToTetrahedron(const RigidBody* RbA, const RigidBody* RbB, std::vector<SupportPoint::Points>& Sps) {
+		void ToTetrahedron(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, std::vector<SupportPoint::Points>& Sps) {
 			if (1 == std::size(Sps)) {
 				Sps.emplace_back(GetPoints(RbA, RbB, -Sps[0].GetC().Normalize(), 0.0f));
 			}
@@ -287,7 +289,7 @@ namespace Collision
 		//!<	1, 2, 3, 4 がなす四面体が原点を含めば衝突、終了
 		//!<	一番近い三角形 (例えば 1, 2, 4) から、原点を向く法線方向の次のサポートポイント 5 を見つける
 		//!<	四面体 (1, 2, 4, 5) が原点を含むか、サポートポイントが無くなるまで続ける
-		[[nodiscard]] static bool GJK(const RigidBody* RbA, const RigidBody* RbB, std::function<void(const RigidBody*, const RigidBody*, const std::vector<SupportPoint::Points>&, const float, Vec3&, Vec3&)> OnIntersect, const float Bias, Vec3& OnA, Vec3& OnB)
+		[[nodiscard]] static bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, std::function<void(const Physics::RigidBody*, const Physics::RigidBody*, const std::vector<SupportPoint::Points>&, const float, Vec3&, Vec3&)> OnIntersect, const float Bias, Vec3& OnA, Vec3& OnB)
 		{
 			std::vector<SupportPoint::Points> Sps;
 			Sps.reserve(4); //!< 4 枠
@@ -353,7 +355,7 @@ namespace Collision
 		}
 
 		//!< EPA (Expanding Polytope Algorithm)
-		[[nodiscard]] void EPA(const RigidBody* RbA, const RigidBody* RbB, const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, Vec3& OnA, Vec3& OnB) {
+		[[nodiscard]] void EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, Vec3& OnA, Vec3& OnB) {
 			//!< 作業用サポートポイント
 			std::vector<SupportPoint::Points> Sps;
 			Sps.assign(std::cbegin(SupportPoints), std::cend(SupportPoints));
@@ -367,7 +369,7 @@ namespace Collision
 			}
 
 			//!< 頂点から三角形のインデックスリストを生成
-			std::vector<TriInds> Tris;
+			std::vector<Physics::TriInds> Tris;
 			for (uint32_t i = 0; i < 4; ++i) {
 				const auto j = (i + 1) % 4;
 				const auto k = (i + 2) % 4;
@@ -375,10 +377,10 @@ namespace Collision
 				const auto l = (i + 3) % 4;
 
 				if (Distance::IsFront(Sps[l].GetC(), Sps[i].GetC(), Sps[j].GetC(), Sps[k].GetC())) {
-					Tris.emplace_back(TriInds({ j, i, k }));
+					Tris.emplace_back(Physics::TriInds({ j, i, k }));
 				}
 				else {
-					Tris.emplace_back(TriInds({ i, j, k }));
+					Tris.emplace_back(Physics::TriInds({ i, j, k }));
 				}
 			}
 
@@ -424,7 +426,7 @@ namespace Collision
 
 				//!< ユニークな辺を探す、無ければ終了
 				{
-					std::vector<EdgeIndsCount> DanglingEdges;
+					std::vector<Physics::EdgeIndsCount> DanglingEdges;
 					Convex::CollectUniqueEdges(Tris, DanglingEdges);
 					if (std::empty(DanglingEdges)) {
 						break;
@@ -435,10 +437,10 @@ namespace Collision
 					std::ranges::transform(DanglingEdges, std::back_inserter(Tris), [&](const auto& i) {
 						const auto B = i.first[0], C = i.first[1];
 						if (Distance::IsFront(Center, Sps[A].GetC(), Sps[C].GetC(), Sps[B].GetC())) {
-							return TriInds({ A, B, C });
+							return Physics::TriInds({ A, B, C });
 						}
 						else {
-							return TriInds({ A, C, B });
+							return Physics::TriInds({ A, C, B });
 						}
 					});
 				}
@@ -457,17 +459,17 @@ namespace Collision
 			}
 		}
 
-		[[nodiscard]] static bool GJK(const RigidBody* RbA, const RigidBody* RbB) {
+		[[nodiscard]] static bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB) {
 			Vec3 OnA, OnB;
-			return GJK(RbA, RbB, [](const RigidBody*, const RigidBody*, const std::vector<SupportPoint::Points>&, const float, Vec3&, Vec3&) {}, 0.001f, OnA, OnB);
+			return GJK(RbA, RbB, [](const Physics::RigidBody*, const Physics::RigidBody*, const std::vector<SupportPoint::Points>&, const float, Vec3&, Vec3&) {}, 0.001f, OnA, OnB);
 		}
-		[[nodiscard]] static bool GJK_EPA(const RigidBody* RbA, const RigidBody* RbB, const float Bias, Vec3& OnA, Vec3& OnB) {
+		[[nodiscard]] static bool GJK_EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float Bias, Vec3& OnA, Vec3& OnB) {
 			return GJK(RbA, RbB, EPA, Bias, OnA, OnB);
 		}
 	}
 	namespace Closest {
 		//!< 非衝突が確定であること
-		static void GJK(const RigidBody* RbA, const RigidBody* RbB, Vec3& OnA, Vec3& OnB) {
+		static void GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, Vec3& OnA, Vec3& OnB) {
 			std::vector<SupportPoint::Points> Sps;
 			Sps.reserve(4);
 
