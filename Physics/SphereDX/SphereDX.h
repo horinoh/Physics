@@ -6,7 +6,7 @@
 
 #include "../DX.h"
 #include "../GltfSDK.h"
-#include "../Physics.h"
+#include "Physics.h"
 
 class SphereDX : public Gltf::SDK, public DX
 {
@@ -117,14 +117,14 @@ public:
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(new ShapeSphere(Radius))->Init();
+			Scene->Shapes.emplace_back(new Physics::ShapeSphere(Radius))->Init();
 
 			const auto n = 6;
 			const auto n2 = n >> 1;
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
-					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
-					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+					auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
 					Rb->Init(Scene->Shapes.back());
 				}
 			}
@@ -135,14 +135,14 @@ public:
 			constexpr auto Radius = 80.0f;
 			constexpr auto Y = -Radius;
 
-			Scene->Shapes.emplace_back(new ShapeSphere(Radius))->Init();
+			Scene->Shapes.emplace_back(new Physics::ShapeSphere(Radius))->Init();
 
 			const auto n = 3;
 			const auto n2 = n >> 1;
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
-					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
-					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 0.25f, Y, static_cast<float>(z - n2) * Radius * 0.25f);
+					auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Radius * 0.25f, Y, static_cast<float>(z - n2) * Radius * 0.25f);
 					Rb->InvMass = 0;
 					Rb->Elasticity = 0.99f;
 					Rb->Init(Scene->Shapes.back());
@@ -419,7 +419,7 @@ public:
 					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::SPHERE) {
 						const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 						const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
-						const auto Scl = static_cast<const ShapeSphere*>(Rb->Shape)->Radius;
+						const auto Scl = static_cast<const Physics::ShapeSphere*>(Rb->Shape)->Radius;
 
 						DirectX::XMStoreFloat4x4(&WorldBuffer.RigidBodies[i].World, DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 					}

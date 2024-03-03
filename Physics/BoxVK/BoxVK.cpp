@@ -5,6 +5,8 @@
 #include "framework.h"
 #include "BoxVK.h"
 
+#pragma comment(lib, "LibPhysics.lib")
+
 BoxVK* Inst = nullptr;
 
 #define MAX_LOADSTRING 100

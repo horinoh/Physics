@@ -5,6 +5,8 @@
 #include "framework.h"
 #include "BoxDX.h"
 
+#pragma comment(lib, "LibPhysics.lib")
+
 BoxDX* Inst = nullptr;
 
 #define MAX_LOADSTRING 100

@@ -30,49 +30,13 @@
     <ClInclude Include="GJKDX.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Bound.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Collision.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\Common.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Convex.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\DX.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\GJK.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\GltfSDK.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Mat.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Math.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Physics.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Quat.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\RigidBody.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Scene.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Shape.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Vec.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

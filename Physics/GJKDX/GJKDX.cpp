@@ -5,6 +5,8 @@
 #include "framework.h"
 #include "GJKDX.h"
 
+#pragma comment(lib, "LibPhysics.lib")
+
 GJKDX* Inst = nullptr;
 
 #define MAX_LOADSTRING 100

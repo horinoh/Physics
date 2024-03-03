@@ -5,6 +5,8 @@
 #include "framework.h"
 #include "ConvexHullVK.h"
 
+#pragma comment(lib, "LibPhysics.lib")
+
 ConvexHullVK* Inst = nullptr;
 
 #define MAX_LOADSTRING 100

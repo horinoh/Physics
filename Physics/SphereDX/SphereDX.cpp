@@ -5,6 +5,8 @@
 #include "framework.h"
 #include "SphereDX.h"
 
+#pragma comment(lib, "LibPhysics.lib")
+
 SphereDX* Inst = nullptr;
 
 #define MAX_LOADSTRING 100

@@ -6,7 +6,7 @@
 
 #include "../VK.h"
 #include "../GltfSDK.h"
-#include "../Physics.h"
+#include "Physics.h"
 
 class BoxVK : public Gltf::SDK, public VK
 {

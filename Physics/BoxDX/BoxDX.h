@@ -6,7 +6,7 @@
 
 #include "../DX.h"
 #include "../GltfSDK.h"
-#include "../Physics.h"
+#include "Physics.h"
 
 class BoxDX : public Gltf::SDK, public DX
 {
