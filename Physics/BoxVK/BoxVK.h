@@ -117,14 +117,14 @@ public:
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(new ShapeBox(Radius))->Init();
+			Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius))->Init();
 
 			const auto n = 4;
 			const auto n2 = n >> 1;
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
-					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
-					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+					auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
 					Rb->Init(Scene->Shapes.back());
 				}
 			}
@@ -135,10 +135,10 @@ public:
 			constexpr auto Radius = 20.0f;
 			constexpr auto Y = -Radius;
 
-			Scene->Shapes.emplace_back(new ShapeBox(Radius))->Init();
+			Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius))->Init();
 
-			auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
-			Rb->Position = Vec3::AxisY() * Y;
+			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+			Rb->Position = Math::Vec3::AxisY() * Y;
 			Rb->InvMass = 0;
 			Rb->Elasticity = 0.99f;
 			Rb->Init(Scene->Shapes.back());
@@ -419,7 +419,7 @@ public:
 					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::BOX) {
 						const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 						const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
-						const auto Scl = static_cast<const ShapeBox*>(Rb->Shape)->Extent.X();
+						const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->Extent.X();
 
 						WorldBuffer.RigidBodies[i].World = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
 					}

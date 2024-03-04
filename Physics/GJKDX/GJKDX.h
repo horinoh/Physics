@@ -178,12 +178,12 @@ public:
 			if (0 < size(Scene->RigidBodies)) {
 				const auto Rb = Scene->RigidBodies[0];
 
-				Rb->Position = Vec3(
+				Rb->Position = Math::Vec3(
 					(std::min)((std::max)(Rb->Position.X() + X, -5.0f), 5.0f),
 					(std::min)((std::max)(Rb->Position.Y() + Y, -5.0f), 5.0f),
 					(std::min)((std::max)(Rb->Position.Z() + Z, -5.0f), 5.0f)
 				);
-				Rb->Rotation = Quat(Vec3::AxisY(), TO_RADIAN(RotY));
+				Rb->Rotation = Math::Quat(Math::Vec3::AxisY(), TO_RADIAN(RotY));
 			}
 		}
 
@@ -200,13 +200,13 @@ public:
 		DX::CreateBundleCommandList(size(SwapChainBackBuffers));
 	}
 	virtual void CreateGeometry() override {
-		std::vector<Vec3> Vec3s;
+		std::vector<Math::Vec3> Vec3s;
 #ifdef USE_MESH
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
 		//Load(GLTF_PATH / "Avocado" / "glTF-Binary" / "Avocado.glb");
 		//Load(ASSET_PATH / "bunny4.glb");
 		Vec3s.reserve(size(Vertices));
-		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
+		for (auto& i : Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
 		std::vector<Vec3> Diamond;
@@ -215,8 +215,8 @@ public:
 #endif
 
 		//!< 凸包を構築
-		std::vector<Vec3> HullVertices;
-		std::vector<TriInds> HullIndices;
+		std::vector<Math::Vec3> HullVertices;
+		std::vector<Collision::TriInds> HullIndices;
 		Convex::BuildConvexHull(Vec3s, HullVertices, HullIndices);
 		{
 			for (auto& i : HullVertices) {
@@ -229,17 +229,17 @@ public:
 			}
 		}
 
-		Scene->Shapes.emplace_back(new ShapeConvex())->Init(/*Vec3s*/);
-		auto& Vert = const_cast<ShapeConvex*>(static_cast<const ShapeConvex*>(Scene->Shapes.back()))->Vertices;
+		Scene->Shapes.emplace_back(new Physics::ShapeConvex())->Init(/*Vec3s*/);
+		auto& Vert = const_cast<Physics::ShapeConvex*>(static_cast<const Physics::ShapeConvex*>(Scene->Shapes.back()))->Vertices;
 		Vert.resize(std::size(HullVertices));
 		std::ranges::copy(HullVertices, std::begin(Vert));
 
 		for (auto i = 0; i < _countof(WorldBuffer.RigidBodies); ++i) {
-			auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
-			Rb->Position = 0 == i ? Vec3::AxisZ() * 5.0f : Vec3::Zero();
-			Rb->Rotation = Quat::Identity();
+			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+			Rb->Position = 0 == i ? Math::Vec3::AxisZ() * 5.0f : Math::Vec3::Zero();
+			Rb->Rotation = Math::Quat::Identity();
 			Rb->InvMass = 0.0f;
-			Rb->Init(new ShapeConvex());
+			Rb->Init(new Physics::ShapeConvex());
 		}
 
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);
@@ -591,7 +591,7 @@ public:
 			}
 			const auto RbA = Scene->RigidBodies[0];
 			const auto RbB = Scene->RigidBodies[1];
-			Vec3 OnA, OnB;
+			Math::Vec3 OnA, OnB;
 			if (Collision::Intersection::GJK_EPA(RbA, RbB, 0.01f, OnA, OnB)) {
 				WorldBuffer.RigidBodies[0].Color = { 1.0f, 1.0f, 0.0f };
 				WorldBuffer.RigidBodies[1].Color = { 1.0f, 1.0f, 0.0f };

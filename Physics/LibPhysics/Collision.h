@@ -3,7 +3,6 @@
 #include <algorithm>
 
 #include "PhysicsMath.h"
-//#include "RigidBody.h"
 
 namespace Physics 
 {
@@ -14,6 +13,46 @@ namespace Collision
 	using TriInds = std::array<uint32_t, 3>;
 	using EdgeInds = std::array<uint32_t, 2>;
 	using EdgeIndsCount = std::pair<EdgeInds, uint32_t>;
+
+	class AABB
+	{
+	public:
+		AABB() { Clear(); }
+		AABB(const Math::Vec3& minVal, const Math::Vec3& maxVal) : Min(minVal), Max(maxVal) {}
+		AABB(const AABB& rhs) : Min(rhs.Min), Max(rhs.Max) {}
+		AABB& operator=(const AABB& rhs) { Min = rhs.Min; Max = rhs.Max; return *this; }
+
+		AABB& Clear() {
+			Min = Math::Vec3::Max();
+			Max = Math::Vec3::Min();
+			return *this;
+		}
+		AABB& Expand(const Math::Vec3& rhs) {
+			Min = { (std::min)(Min.X(), rhs.X()), (std::min)(Min.Y(), rhs.Y()), (std::min)(Min.Z(), rhs.Z()) };
+			Max = { (std::max)(Max.X(), rhs.X()), (std::max)(Max.Y(), rhs.Y()), (std::max)(Max.Z(), rhs.Z()) };
+			return *this;
+		}
+		AABB& Expand(const AABB& rhs) {
+			Expand(rhs.Min);
+			Expand(rhs.Max);
+			return *this;
+		}
+
+		[[nodiscard]] bool Intersect(const AABB& rhs) const {
+			if (Max.X() < rhs.Min.X() || rhs.Max.X() < Min.X() ||
+				Max.Y() < rhs.Min.Y() || rhs.Max.Y() < Min.Y() ||
+				Max.Z() < rhs.Min.Z() || rhs.Max.Z() < Min.Z()) {
+				return false;
+			}
+			return true;
+		}
+
+		[[nodiscard]] Math::Vec3 GetCenter() const { return (Min + Max) * 0.5f; }
+		[[nodiscard]] Math::Vec3 GetExtent() const { return Max - Min; }
+
+		Math::Vec3 Min = Math::Vec3::Max();
+		Math::Vec3 Max = Math::Vec3::Min();
+	};
 
 	struct BoundEdge
 	{

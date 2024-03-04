@@ -113,14 +113,14 @@ public:
 		}
 	}
 	
-	void PlaceRigidBodies(const std::vector<Vec3>& Vertices) {
+	void PlaceRigidBodies(const std::vector<Math::Vec3>& Vertices) {
 		//!< 動的オブジェクト配置
 		{
 			constexpr auto Radius = 2.0f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(new ShapeConvex())->Init(/*Vec3s*/);
-			auto& Vert = const_cast<ShapeConvex*>(static_cast<const ShapeConvex*>(Scene->Shapes.back()))->Vertices;
+			Scene->Shapes.emplace_back(new Physics::ShapeConvex())->Init(/*Vec3s*/);
+			auto& Vert = const_cast<Physics::ShapeConvex*>(static_cast<const Physics::ShapeConvex*>(Scene->Shapes.back()))->Vertices;
 			Vert.resize(std::size(Vertices));
 			std::ranges::copy(Vertices, std::begin(Vert));
 
@@ -128,9 +128,9 @@ public:
 			const auto n2 = n >> 1;
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
-					auto Rb = Scene->RigidBodies.emplace_back(new RigidBody());
-					Rb->Position = Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
-					Rb->Rotation = Quat(Vec3::AxisX(), TO_RADIAN(90.0f));
+					auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+					Rb->Rotation = Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(90.0f));
 					Rb->Init(Scene->Shapes.back());
 				}
 			}
@@ -176,20 +176,20 @@ public:
 	}
 
 	virtual void CreateGeometry() override {
-		std::vector<Vec3> Vec3s;
+		std::vector<Math::Vec3> Vec3s;
 #ifdef USE_MESH
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
 		Vec3s.reserve(size(Vertices));
 		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
-		std::vector<Vec3> Diamond;
-		CreateVertices_Diamond(Diamond);
+		std::vector<Math::Vec3> Diamond;
+		Physics::CreateVertices_Diamond(Diamond);
 		std::ranges::copy(Diamond, std::back_inserter(Vec3s));
 #endif
 		//!< 凸包を構築
-		std::vector<Vec3> HullVertices;
-		std::vector<TriInds> HullIndices;
+		std::vector<Math::Vec3> HullVertices;
+		std::vector<Collision::TriInds> HullIndices;
 		Convex::BuildConvexHull(Vec3s, HullVertices, HullIndices);
 		{
 			for (auto& i : HullVertices) {
