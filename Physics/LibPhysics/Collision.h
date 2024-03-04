@@ -17,9 +17,10 @@ namespace Collision
 	class AABB
 	{
 	public:
-		AABB() { Clear(); }
-		AABB(const Math::Vec3& minVal, const Math::Vec3& maxVal) : Min(minVal), Max(maxVal) {}
+		AABB() {}
+		AABB(const Math::Vec3& MinVal, const Math::Vec3& MaxVal) : Min(MinVal), Max(MaxVal) {}
 		AABB(const AABB& rhs) : Min(rhs.Min), Max(rhs.Max) {}
+		AABB(const std::vector<Math::Vec3>& Vertices) { Expand(Vertices); }
 		AABB& operator=(const AABB& rhs) { Min = rhs.Min; Max = rhs.Max; return *this; }
 
 		AABB& Clear() {
@@ -32,20 +33,14 @@ namespace Collision
 			Max = { (std::max)(Max.X(), rhs.X()), (std::max)(Max.Y(), rhs.Y()), (std::max)(Max.Z(), rhs.Z()) };
 			return *this;
 		}
+		AABB& Expand(const std::vector<Math::Vec3>& Vertices) { for (auto& i : Vertices) { Expand(i); } return *this; }
 		AABB& Expand(const AABB& rhs) {
 			Expand(rhs.Min);
 			Expand(rhs.Max);
 			return *this;
 		}
 
-		[[nodiscard]] bool Intersect(const AABB& rhs) const {
-			if (Max.X() < rhs.Min.X() || rhs.Max.X() < Min.X() ||
-				Max.Y() < rhs.Min.Y() || rhs.Max.Y() < Min.Y() ||
-				Max.Z() < rhs.Min.Z() || rhs.Max.Z() < Min.Z()) {
-				return false;
-			}
-			return true;
-		}
+		//[[nodiscard]] bool Intersect(const AABB& rhs) const { return Collision::Intersection::AABBAABB(*this, rhs); }
 
 		[[nodiscard]] Math::Vec3 GetCenter() const { return (Min + Max) * 0.5f; }
 		[[nodiscard]] Math::Vec3 GetExtent() const { return Max - Min; }
@@ -118,6 +113,15 @@ namespace Collision
 		}
 	}
 	namespace Intersection {
+		//!< AABB vs AABB
+		[[nodiscard]] static bool AABBAABB(const AABB& lhs, const AABB& rhs) {
+			if (lhs.Max.X() < rhs.Min.X() || rhs.Max.X() < lhs.Min.X() ||
+				lhs.Max.Y() < rhs.Min.Y() || rhs.Max.Y() < lhs.Min.Y() ||
+				lhs.Max.Z() < rhs.Min.Z() || rhs.Max.Z() < lhs.Min.Z()) {
+				return false;
+			}
+			return true;
+		}
 		//!< ƒŒƒC vs ‹…
 		[[nodiscard]] bool RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad, float& T0, float& T1);
 		//!< ‹… vs ‹…

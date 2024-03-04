@@ -117,7 +117,7 @@ public:
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius))->Init();
+			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
 
 			const auto n = 4;
 			const auto n2 = n >> 1;
@@ -135,7 +135,7 @@ public:
 			constexpr auto Radius = 20.0f;
 			constexpr auto Y = -Radius;
 
-			Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius))->Init();
+			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
 
 			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 			Rb->Position = Math::Vec3::AxisY() * Y;

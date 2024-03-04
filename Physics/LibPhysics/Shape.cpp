@@ -1,4 +1,15 @@
 #include "Shape.h"
+#include "Convex.h"
+
+void Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& MeshVert) 
+{
+	Convex::BuildConvexHull(MeshVert, Vertices, Indices);
+
+	const auto Aabb = Collision::AABB(Vertices);
+	CenterOfMass = Convex::CalcCenterOfMass(Aabb, Vertices, Indices);
+	InertiaTensor = Convex::CalcInertiaTensor(Aabb, Vertices, Indices, CenterOfMass);
+	InvInertiaTensor = InertiaTensor.Inverse();
+}
 
 void Physics::CreateVertices_Diamond(std::vector<Math::Vec3>& Dst)
 {
@@ -12,7 +23,7 @@ void Physics::CreateVertices_Diamond(std::vector<Math::Vec3>& Dst)
 	Pts.emplace_back(Math::Vec3(1.0f, 0.0f, 0.1f));
 	Pts.emplace_back(Math::Vec3(0.4f, 0.0f, 0.4f));
 
-	constexpr auto Rad = 2.0f * std::numbers::pi_v<float> *0.125f;
+	constexpr auto Rad = 2.0f * std::numbers::pi_v<float> * 0.125f;
 	const auto QuatHalf = Math::Quat(Math::Vec3(0.0f, 0.0f, 1.0f), Rad * 0.5f);
 	Pts.emplace_back(QuatHalf.Rotate(Math::Vec3(0.8f, 0.0f, 0.3f)));
 	Pts.emplace_back(QuatHalf.Rotate(Pts[1]));

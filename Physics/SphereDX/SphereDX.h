@@ -117,7 +117,7 @@ public:
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(new Physics::ShapeSphere(Radius))->Init();
+			static_cast<Physics::ShapeSphere*>(Scene->Shapes.emplace_back(new Physics::ShapeSphere(Radius)))->Init();
 
 			const auto n = 6;
 			const auto n2 = n >> 1;
@@ -135,7 +135,7 @@ public:
 			constexpr auto Radius = 80.0f;
 			constexpr auto Y = -Radius;
 
-			Scene->Shapes.emplace_back(new Physics::ShapeSphere(Radius))->Init();
+			static_cast<Physics::ShapeSphere*>(Scene->Shapes.emplace_back(new Physics::ShapeSphere(Radius)))->Init();
 
 			const auto n = 3;
 			const auto n2 = n >> 1;

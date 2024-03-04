@@ -8,7 +8,7 @@
 #include "../GltfSDK.h"
 #include "Physics.h"
 
-#define USE_MESH
+//#define USE_MESH
 
 class GJKDX : public Gltf::SDK, public DX
 {
@@ -115,7 +115,7 @@ public:
 
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
 #ifdef _DEBUG
-		SignedVolumeTest();
+		Collision::SignedVolumeTest();
 #endif
 		Scene = new Physics::Scene();
 
@@ -209,37 +209,30 @@ public:
 		for (auto& i : Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
-		std::vector<Vec3> Diamond;
-		CreateVertices_Diamond(Diamond);
+		std::vector<Math::Vec3> Diamond;
+		Physics::CreateVertices_Diamond(Diamond);
 		std::ranges::copy(Diamond, std::back_inserter(Vec3s));
 #endif
 
+		auto Convex = static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(new Physics::ShapeConvex()));
 		//!< 凸包を構築
-		std::vector<Math::Vec3> HullVertices;
-		std::vector<Collision::TriInds> HullIndices;
-		Convex::BuildConvexHull(Vec3s, HullVertices, HullIndices);
-		{
-			for (auto& i : HullVertices) {
-				Vertices_CH.emplace_back(DirectX::XMFLOAT3(i.X(), i.Y(), i.Z()));
-			}
-			for (auto i : HullIndices) {
-				Indices_CH.emplace_back(i[0]);
-				Indices_CH.emplace_back(i[1]);
-				Indices_CH.emplace_back(i[2]);
-			}
+		Convex->Init(Vec3s);
+		//!< 描画用の頂点、インデックスを構築
+		for (auto& i : Convex->Vertices) {
+			Vertices_CH.emplace_back(DirectX::XMFLOAT3(i.X(), i.Y(), i.Z()));
 		}
-
-		Scene->Shapes.emplace_back(new Physics::ShapeConvex())->Init(/*Vec3s*/);
-		auto& Vert = const_cast<Physics::ShapeConvex*>(static_cast<const Physics::ShapeConvex*>(Scene->Shapes.back()))->Vertices;
-		Vert.resize(std::size(HullVertices));
-		std::ranges::copy(HullVertices, std::begin(Vert));
+		for (auto i : Convex->Indices) {
+			Indices_CH.emplace_back(i[0]);
+			Indices_CH.emplace_back(i[1]);
+			Indices_CH.emplace_back(i[2]);
+		}
 
 		for (auto i = 0; i < _countof(WorldBuffer.RigidBodies); ++i) {
 			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 			Rb->Position = 0 == i ? Math::Vec3::AxisZ() * 5.0f : Math::Vec3::Zero();
 			Rb->Rotation = Math::Quat::Identity();
 			Rb->InvMass = 0.0f;
-			Rb->Init(new Physics::ShapeConvex());
+			Rb->Init(Scene->Shapes.back());
 		}
 
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);

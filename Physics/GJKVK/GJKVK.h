@@ -115,7 +115,7 @@ public:
 
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
 #ifdef _DEBUG
-		SignedVolumeTest();
+		Collision::SignedVolumeTest();
 #endif
 		Scene = new Physics::Scene();
 
@@ -207,7 +207,7 @@ public:
 		//Load(GLTF_PATH / "Avocado" / "glTF-Binary" / "Avocado.glb");
 		//Load(ASSET_PATH / "bunny4.glb");
 		Vec3s.reserve(size(Vertices));
-		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
+		for (auto& i : Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
 		std::vector<Math::Vec3> Diamond;
@@ -215,25 +215,18 @@ public:
 		std::ranges::copy(Diamond, std::back_inserter(Vec3s));
 #endif
 
+		auto Convex = static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(new Physics::ShapeConvex()));
 		//!< 凸包を構築
-		std::vector<Math::Vec3> HullVertices;
-		std::vector<Collision::TriInds> HullIndices;
-		Convex::BuildConvexHull(Vec3s, HullVertices, HullIndices);
-		{
-			for (auto& i : HullVertices) {
-				Vertices_CH.emplace_back(glm::vec3(i.X(), i.Y(), i.Z()));
-			}
-			for (auto i : HullIndices) {
-				Indices_CH.emplace_back(i[0]);
-				Indices_CH.emplace_back(i[1]);
-				Indices_CH.emplace_back(i[2]);
-			}
+		Convex->Init(Vec3s);
+		//!< 描画用の頂点、インデックスを構築
+		for (auto& i : Convex->Vertices) {
+			Vertices_CH.emplace_back(glm::vec3(i.X(), i.Y(), i.Z()));
 		}
-
-		Scene->Shapes.emplace_back(new Physics::ShapeConvex())->Init(/*Vec3s*/);
-		auto& Vert = const_cast<Physics::ShapeConvex*>(static_cast<const Physics::ShapeConvex*>(Scene->Shapes.back()))->Vertices;
-		Vert.resize(std::size(HullVertices));
-		std::ranges::copy(HullVertices, std::begin(Vert));
+		for (auto i : Convex->Indices) {
+			Indices_CH.emplace_back(i[0]);
+			Indices_CH.emplace_back(i[1]);
+			Indices_CH.emplace_back(i[2]);
+		}
 
 		for (auto i = 0; i < _countof(WorldBuffer.RigidBodies); ++i) {
 			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());

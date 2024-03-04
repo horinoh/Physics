@@ -11,11 +11,6 @@ namespace Physics
 	{
 	public:
 		virtual ~Shape() {}
-		virtual void Init() {
-			CenterOfMass = CalcCenterOfMass();
-			InertiaTensor = CalcInertiaTensor();
-			InvInertiaTensor = InertiaTensor.Inverse();
-		}
 
 		enum class SHAPE
 		{
@@ -25,8 +20,6 @@ namespace Physics
 		};
 		[[nodiscard]] virtual SHAPE GetShapeTyoe() const = 0;
 
-		[[nodiscard]] virtual Math::Vec3 CalcCenterOfMass() const = 0;
-		[[nodiscard]] virtual Math::Mat3 CalcInertiaTensor() const = 0;
 		[[nodiscard]] virtual Collision::AABB GetAABB(const Math::Vec3& Pos, const Math::Quat& Rot) const = 0;
 
 #pragma region GJK
@@ -44,7 +37,6 @@ namespace Physics
 		Math::Vec3 CenterOfMass = Math::Vec3::Zero();
 		Math::Mat3 InertiaTensor = Math::Mat3::Identity();
 		Math::Mat3 InvInertiaTensor = Math::Mat3::Identity();
-		//AABB Aabb;
 	};
 
 	//!< 検証済み
@@ -57,13 +49,16 @@ namespace Physics
 		ShapeSphere(const float R) : Radius(R) {}
 		virtual ~ShapeSphere() {}
 
+		void Init() {
+			//CenterOfMass = Math::Vec3::Zero();
+			InertiaTensor = CalcInertiaTensor();
+			InvInertiaTensor = InertiaTensor.Inverse();
+		}
+
 		virtual SHAPE GetShapeTyoe() const override { return SHAPE::SPHERE; }
 
-		virtual Math::Vec3 CalcCenterOfMass() const override { return Math::Vec3::Zero(); }
-		virtual Math::Mat3 CalcInertiaTensor() const override {
-			//!< 球の慣性テンソル R^2 * 2 / 5  * Identity
-			return Radius * Radius * 2.0f / 5.0f * Math::Mat3::Identity();
-		}
+		//!< 球の慣性テンソル R^2 * 2 / 5  * Identity
+		Math::Mat3 CalcInertiaTensor() const { return Radius * Radius * 2.0f / 5.0f * Math::Mat3::Identity(); }
 
 		virtual Collision::AABB GetAABB(const Math::Vec3& Pos, [[maybe_unused]] const Math::Quat& Rot) const override {
 			return { Pos - Math::Vec3(Radius), Pos + Math::Vec3(Radius) };
@@ -87,13 +82,18 @@ namespace Physics
 		ShapeBox(const float R) : Extent(Math::Vec3(R)) {}
 		virtual ~ShapeBox() {}
 
+		void Init() {
+			//CenterOfMass = Math::Vec3::Zero();
+			InertiaTensor = CalcInertiaTensor();
+			InvInertiaTensor = InertiaTensor.Inverse();
+		}
+
 		virtual SHAPE GetShapeTyoe() const override { return SHAPE::BOX; }
 		
-		virtual Math::Vec3 CalcCenterOfMass() const override { return Math::Vec3::Zero(); }
-		virtual Math::Mat3 CalcInertiaTensor() const override {
-			//!< ボックスの慣性テンソル 1 / 12 * (H^2+D^2,       0,       0)
-			//!<							  (      0, w^2+D^2,       0)
-			//!<							  (      0,       0, W^2+H^2)
+		//!< ボックスの慣性テンソル 1 / 12 * (H^2+D^2,       0,       0)
+		//!<							  (      0, w^2+D^2,       0)
+		//!<							  (      0,       0, W^2+H^2)
+		Math::Mat3 CalcInertiaTensor() const {
 			const auto W2 = Extent.X() * Extent.X(), H2 = Extent.Y() * Extent.Y(), D2 = Extent.Z() * Extent.Z();
 			return {
 				{ (H2 + D2) / 12.0f, 0.0f, 0.0f },
@@ -168,9 +168,9 @@ namespace Physics
 
 	public:
 		Math::Vec3 Extent = Math::Vec3::One();
+		std::array<Math::Vec3, 8> Vertices;
 	};
 
-	//!< #TODO
 	class ShapeConvex : public Shape
 	{
 	private:
@@ -178,23 +178,10 @@ namespace Physics
 	public:
 		ShapeConvex() {}
 		virtual ~ShapeConvex() {}
-		virtual void Init(const std::vector<Math::Vec3>& Vert) {
-			Super::Init();
-			//Convex::BuildConvexHull(Vert, Vertices, Indices);
 
-			//CenterOfMass = ;
-		}
+		virtual void Init(const std::vector<Math::Vec3>& Vert);
 
 		virtual SHAPE GetShapeTyoe() const override { return SHAPE::CONVEX; }
-
-		virtual Math::Vec3 CalcCenterOfMass() const {
-			//!< #TODO
-			return Math::Vec3::Zero();
-		}
-		virtual Math::Mat3 CalcInertiaTensor() const override {
-			//!< #TODO
-			return Math::Mat3::Identity();
-		}
 
 		virtual Collision::AABB GetAABB(const Math::Vec3& Pos, const Math::Quat& Rot) const override {
 			Collision::AABB Ab;
@@ -204,23 +191,23 @@ namespace Physics
 			return Ab;
 		}
 
-		virtual Math::Vec3 GetSupportPoint(const Math::Vec3& Pos, const Math::Quat& Rot, const Math::Vec3& NDir, const float Bias) const override {
+		virtual Math::Vec3 GetSupportPoint(const Math::Vec3& Pos, const Math::Quat& Rot, const Math::Vec3& UDir, const float Bias) const override {
 #if 0
 			return *std::ranges::max_element(Points, [&](const auto lhs, const auto rhs) { 
-				return NDir.Dot(Rot.Rotate(lhs) + Pos) < NDir.Dot(Rot.Rotate(rhs) + Pos); 
-			}) + NDir * Bias;
+				return UDir.Dot(Rot.Rotate(lhs) + Pos) < UDir.Dot(Rot.Rotate(rhs) + Pos);
+			}) + UDir * Bias;
 #else
 			Math::Vec3 MaxPt = Rot.Rotate(Vertices[0]) + Pos;
-			auto MaxDist = NDir.Dot(MaxPt);
+			auto MaxDist = UDir.Dot(MaxPt);
 			for (auto i = 1; i < std::size(Vertices); ++i) {
 				const auto Pt = Rot.Rotate(Vertices[i]) + Pos;
-				const auto Dist = NDir.Dot(Pt);
+				const auto Dist = UDir.Dot(Pt);
 				if (Dist > MaxDist) {
 					MaxDist = Dist;
 					MaxPt = Pt;
 				}
 			}
-			return MaxPt + NDir * Bias;
+			return MaxPt + UDir * Bias;
 #endif
 		}
 		virtual float GetFastestPointSpeed(const Math::Vec3& AngVel, const Math::Vec3& Dir) const override {
@@ -238,7 +225,7 @@ namespace Physics
 		std::vector<Math::Vec3> Vertices;
 
 		//!< インデックスは描画しない場合不要だが、一応持っておく
-		//std::vector<Collition::TriInds> Indices;
+		std::vector<Collision::TriInds> Indices;
 	};
 
 	void CreateVertices_Diamond(std::vector<Math::Vec3>& Dst);

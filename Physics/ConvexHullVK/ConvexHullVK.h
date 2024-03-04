@@ -119,11 +119,8 @@ public:
 			constexpr auto Radius = 2.0f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(new Physics::ShapeConvex())->Init(/*Vec3s*/);
-			auto& Vert = const_cast<Physics::ShapeConvex*>(static_cast<const Physics::ShapeConvex*>(Scene->Shapes.back()))->Vertices;
-			Vert.resize(std::size(Vertices));
-			std::ranges::copy(Vertices, std::begin(Vert));
-
+			static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(new Physics::ShapeConvex()))->Init(Vertices);
+			
 			const auto n = 3;
 			const auto n2 = n >> 1;
 			for (auto x = 0; x < n; ++x) {
@@ -142,7 +139,7 @@ public:
 
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
 #ifdef _DEBUG
-		SignedVolumeTest();
+		Collision::SignedVolumeTest();
 #endif
 		Scene = new Physics::Scene();
 
@@ -188,21 +185,32 @@ public:
 		std::ranges::copy(Diamond, std::back_inserter(Vec3s));
 #endif
 		//!< “Ê•ï‚ð\’z
-		std::vector<Math::Vec3> HullVertices;
-		std::vector<Collision::TriInds> HullIndices;
-		Convex::BuildConvexHull(Vec3s, HullVertices, HullIndices);
-		{
-			for (auto& i : HullVertices) {
+		//std::vector<Math::Vec3> HullVertices;
+		//std::vector<Collision::TriInds> HullIndices;
+		//Convex::BuildConvexHull(Vec3s, HullVertices, HullIndices);
+		//{
+		//	for (auto& i : HullVertices) {
+		//		Vertices_CH.emplace_back(glm::vec3(i.X(), i.Y(), i.Z()));
+		//	}
+		//	for (auto i : HullIndices) {
+		//		Indices_CH.emplace_back(i[0]);
+		//		Indices_CH.emplace_back(i[1]);
+		//		Indices_CH.emplace_back(i[2]);
+		//	}
+		//}
+
+		PlaceRigidBodies(Vec3s);
+		const auto Convex = static_cast<const Physics::ShapeConvex*>(Scene->Shapes.back());
+		if (nullptr != Convex) {
+			for (auto& i : Convex->Vertices) {
 				Vertices_CH.emplace_back(glm::vec3(i.X(), i.Y(), i.Z()));
 			}
-			for (auto i : HullIndices) {
+			for (auto i : Convex->Indices) {
 				Indices_CH.emplace_back(i[0]);
 				Indices_CH.emplace_back(i[1]);
 				Indices_CH.emplace_back(i[2]);
 			}
 		}
-
-		PlaceRigidBodies(HullVertices);
 
 		const auto& CB = CommandBuffers[0];
 		const auto PDMP = CurrentPhysicalDeviceMemoryProperties;

@@ -218,6 +218,18 @@ void Collision::SupportPoint::Expand(const float Bias, std::vector<Collision::Su
 		});
 }
 
+//!< #TODO 要検証			
+//!< ミンコフスキー差の凸包を生成する代わりに原点を含むようなシンプレックス (単体) を生成する事で代用する
+//!< A, B のミンコフスキー差 C が原点を含めば衝突となる
+//!< A, B のサポートポイントの差が C のサポートポイントとなる
+//!<	最初のサポートポイント 1 を見つける
+//!<	原点方向の次のサポートポイント 2 を見つける
+//!<	1, 2 の線分から原点方向の次のサポートポイント 3 を見つける
+//!<	1, 2, 3 がなす三角形が原点を含めば衝突、終了
+//!<	原点を向く法線方向の次のサポートポイント 4 を見つける
+//!<	1, 2, 3, 4 がなす四面体が原点を含めば衝突、終了
+//!<	一番近い三角形 (例えば 1, 2, 4) から、原点を向く法線方向の次のサポートポイント 5 を見つける
+//!<	四面体 (1, 2, 4, 5) が原点を含むか、サポートポイントが無くなるまで続ける
 bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, std::function<void(const Physics::RigidBody*, const Physics::RigidBody*, const std::vector<SupportPoint::Points>&, const float, Math::Vec3&, Math::Vec3&)> OnIntersect, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
 {
 	std::vector<Collision::SupportPoint::Points> Sps;
