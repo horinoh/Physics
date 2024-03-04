@@ -79,7 +79,18 @@ namespace Physics
 		using Super = Shape;
 	public:
 		ShapeBox() {}
-		ShapeBox(const float R) : Extent(Math::Vec3(R)) {}
+		ShapeBox(const float R) { 
+			Vertices = {
+				Math::Vec3(R),
+				Math::Vec3(R, R, -R),
+				Math::Vec3(R, -R, R),
+				Math::Vec3(R, -R, -R),
+				Math::Vec3(-R, R, R),
+				Math::Vec3(-R, R, -R),
+				Math::Vec3(-R, -R, R),
+				Math::Vec3(-R)
+			};
+		}
 		virtual ~ShapeBox() {}
 
 		void Init() {
@@ -94,7 +105,8 @@ namespace Physics
 		//!<							  (      0, w^2+D^2,       0)
 		//!<							  (      0,       0, W^2+H^2)
 		Math::Mat3 CalcInertiaTensor() const {
-			const auto W2 = Extent.X() * Extent.X(), H2 = Extent.Y() * Extent.Y(), D2 = Extent.Z() * Extent.Z();
+			const auto& V = Vertices[0];
+			const auto W2 = V.X() * V.X(), H2 = V.Y() * V.Y(), D2 = V.Z() * V.Z();
 			return {
 				{ (H2 + D2) / 12.0f, 0.0f, 0.0f },
 				{ 0.0f, (W2 + D2) / 12.0f, 0.0f },
@@ -103,40 +115,18 @@ namespace Physics
 		}
 
 		virtual Collision::AABB GetAABB(const Math::Vec3& Pos, const Math::Quat& Rot) const override {
-			const std::array Points = {
-				Extent,
-				Math::Vec3(Extent.X(), Extent.Y(), -Extent.Z()),
-				Math::Vec3(Extent.X(), -Extent.Y(), Extent.Z()),
-				Math::Vec3(Extent.X(), -Extent.Y(), -Extent.Z()),
-				Math::Vec3(-Extent.X(), Extent.Y(), Extent.Z()),
-				Math::Vec3(-Extent.X(), Extent.Y(), -Extent.Z()),
-				Math::Vec3(-Extent.X(), -Extent.Y(), Extent.Z()),
-				-Extent
-			};
-
 			Collision::AABB Ab;
-			for (auto& i : Points) {
+			for (auto& i : Vertices) {
 				Ab.Expand(Rot.Rotate(i) + Pos);
 			}
-
 			return Ab;
 		}
 
 		virtual Math::Vec3 GetSupportPoint(const Math::Vec3& Pos, const Math::Quat& Rot, const Math::Vec3& UDir, const float Bias) const override {
-			const std::array Points = {
-				Extent,
-				Math::Vec3(Extent.X(), Extent.Y(), -Extent.Z()),
-				Math::Vec3(Extent.X(), -Extent.Y(), Extent.Z()),
-				Math::Vec3(Extent.X(), -Extent.Y(), -Extent.Z()),
-				Math::Vec3(-Extent.X(), Extent.Y(), Extent.Z()),
-				Math::Vec3(-Extent.X(), Extent.Y(), -Extent.Z()),
-				Math::Vec3(-Extent.X(), -Extent.Y(), Extent.Z()),
-				-Extent
-			};
-			Math::Vec3 MaxPt = Rot.Rotate(Points[0]) + Pos;
+			Math::Vec3 MaxPt = Rot.Rotate(Vertices[0]) + Pos;
 			auto MaxDist = UDir.Dot(MaxPt);
-			for (auto i = 1; i < std::size(Points); ++i) {
-				const auto Pt = Rot.Rotate(Points[i]) + Pos;
+			for (auto i = 1; i < std::size(Vertices); ++i) {
+				const auto Pt = Rot.Rotate(Vertices[i]) + Pos;
 				const auto Dist = UDir.Dot(Pt);
 				if (Dist > MaxDist) {
 					MaxDist = Dist;
@@ -146,18 +136,8 @@ namespace Physics
 			return MaxPt + UDir * Bias;
 		}
 		virtual float GetFastestPointSpeed(const Math::Vec3& AngVel, const Math::Vec3& Dir) const override {
-			const std::array Points = {
-				Extent,
-				Math::Vec3(Extent.X(), Extent.Y(), -Extent.Z()),
-				Math::Vec3(Extent.X(), -Extent.Y(), Extent.Z()),
-				Math::Vec3(Extent.X(), -Extent.Y(), -Extent.Z()),
-				Math::Vec3(-Extent.X(), Extent.Y(), Extent.Z()),
-				Math::Vec3(-Extent.X(), Extent.Y(), -Extent.Z()),
-				Math::Vec3(-Extent.X(), -Extent.Y(), Extent.Z()),
-				-Extent
-			};
 			auto MaxSpeed = 0.0f;
-			for (auto& i : Points) {
+			for (auto& i : Vertices) {
 				const auto Speed = Dir.Dot(AngVel.Cross(i - GetCenterOfMass()));
 				if (Speed > MaxSpeed) {
 					MaxSpeed = Speed;
@@ -167,8 +147,16 @@ namespace Physics
 		}
 
 	public:
-		Math::Vec3 Extent = Math::Vec3::One();
-		std::array<Math::Vec3, 8> Vertices;
+		std::array<Math::Vec3, 8> Vertices = { 
+			Math::Vec3(0.5f),
+			Math::Vec3(0.5f, 0.5f, -0.5f),
+			Math::Vec3(0.5f, -0.5f, 0.5f),
+			Math::Vec3(0.5f, -0.5f, -0.5f),
+			Math::Vec3(-0.5f, 0.5f, 0.5f),
+			Math::Vec3(-0.5f, 0.5f, -0.5f),
+			Math::Vec3(-0.5f, -0.5f, 0.5f),
+			Math::Vec3(-0.5f),
+		};
 	};
 
 	class ShapeConvex : public Shape

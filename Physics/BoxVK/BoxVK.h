@@ -419,7 +419,7 @@ public:
 					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::BOX) {
 						const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 						const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
-						const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->Extent.X();
+						const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->Vertices[0].X();
 
 						WorldBuffer.RigidBodies[i].World = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
 					}
