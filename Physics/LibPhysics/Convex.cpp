@@ -1,3 +1,5 @@
+#include <random>
+
 #include "Convex.h"
 
 //!< 頂点を「なるべく」包含するような四面体を作成
@@ -142,11 +144,10 @@ void Convex::BuildConvexHull(const std::vector<Math::Vec3>& Pts, std::vector<Mat
 	}
 }
 
-Math::Vec3 Convex::CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices) 
+Math::Vec3 Convex::Uniform::CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
 {
 	//!< 各軸にサンプリングする個数 (計算に時間がかかる)
-	//constexpr auto SampleCount = 100;
-	constexpr auto SampleCount = 10;
+	constexpr auto SampleCount = 100;
 
 	auto CenterOfMass = Math::Vec3::Zero();
 	auto Sampled = 0;
@@ -167,11 +168,10 @@ Math::Vec3 Convex::CalcCenterOfMass(const Collision::AABB& Aabb, const std::vect
 	return CenterOfMass / static_cast<float>(Sampled);
 }
 
-Math::Mat3 Convex::CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
+Math::Mat3 Convex::Uniform::CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
 {
 	//!< 各軸にサンプリングする個数 (計算に時間がかかる)
-	//constexpr auto SampleCount = 100;
-	constexpr auto SampleCount = 10;
+	constexpr auto SampleCount = 100;
 
 	auto InertiaTensor = Math::Mat3::Zero();
 	auto Sampled = 0;
@@ -205,6 +205,63 @@ Math::Mat3 Convex::CalcInertiaTensor(const Collision::AABB& Aabb, const std::vec
 					++Sampled;
 				}
 			}
+		}
+	}
+	return InertiaTensor / static_cast<float>(Sampled);
+}
+
+Math::Vec3 Convex::MonteCarlo::CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
+{
+	//!< 真乱数でシードを生成する
+	std::random_device SeedGen;
+	//!< 疑似乱数 (メルセンヌツイスター) (シードを与えないと毎回同じ)
+	//std::mt19937 MersenneTwister;
+	std::mt19937 MersenneTwister(SeedGen());
+	//!< 分布
+	std::uniform_real_distribution<float> Distribution(0.0f, 1.0f);
+
+	//!< サンプリングする個数
+	constexpr auto SampleCount = 10000;
+
+	auto CenterOfMass = Math::Vec3::Zero();
+	auto Sampled = 0;
+	const auto Ext = Aabb.GetExtent();
+	for (auto i = 0; i < SampleCount; ++i) {
+		//!< AABB 内のサンプル点
+		const auto Pt = Aabb.Min + Math::Vec3(Ext.X() * Distribution(MersenneTwister), Ext.Y() * Distribution(MersenneTwister), Ext.Z() * Distribution(MersenneTwister));
+		if (IsInternal(Pt, Vertices, Indices)) {
+			//!< 内部点なら収集
+			CenterOfMass += Pt;
+			++Sampled;
+		}
+	}
+	return CenterOfMass / static_cast<float>(Sampled);
+}
+
+Math::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
+{
+	std::random_device SeedGen;
+	//std::mt19937 MersenneTwister;
+	std::mt19937 MersenneTwister(SeedGen());
+	std::uniform_real_distribution<float> Distribution(0.0f, 1.0f);
+
+	//!< サンプリングする個数
+	constexpr auto SampleCount = 10000;
+
+	auto InertiaTensor = Math::Mat3::Zero();
+	auto Sampled = 0;
+	const auto Ext = Aabb.GetExtent();
+	for (auto i = 0; i < SampleCount; ++i) {
+		//!< AABB 内のサンプル点 (重心からの相対)
+		const auto Pt = Aabb.Min + Math::Vec3(Ext.X() * Distribution(MersenneTwister), Ext.Y() * Distribution(MersenneTwister), Ext.Z() * Distribution(MersenneTwister)) - CenterOfMass;
+		if (IsInternal(Pt, Vertices, Indices)) {
+			//!< 内部点なら収集する
+			InertiaTensor += {
+				{ Pt.Y()* Pt.Y() + Pt.Z() * Pt.Z(), -Pt.X() * Pt.Y(), -Pt.X() * Pt.Z() },
+				{ -Pt.X() * Pt.Y(), Pt.Z() * Pt.Z() + Pt.X() * Pt.X(), -Pt.Y() * Pt.Z() },
+				{ -Pt.X() * Pt.Z(), -Pt.Y() * Pt.Z(), Pt.X() * Pt.X() + Pt.Y() * Pt.Y() },
+			};
+			++Sampled;
 		}
 	}
 	return InertiaTensor / static_cast<float>(Sampled);

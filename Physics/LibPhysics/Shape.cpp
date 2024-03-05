@@ -6,8 +6,8 @@ void Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& MeshVert)
 	Convex::BuildConvexHull(MeshVert, Vertices, Indices);
 
 	const auto Aabb = Collision::AABB(Vertices);
-	CenterOfMass = Convex::CalcCenterOfMass(Aabb, Vertices, Indices);
-	InertiaTensor = Convex::CalcInertiaTensor(Aabb, Vertices, Indices, CenterOfMass);
+	CenterOfMass = Convex::MonteCarlo::CalcCenterOfMass(Aabb, Vertices, Indices);
+	InertiaTensor = Convex::MonteCarlo::CalcInertiaTensor(Aabb, Vertices, Indices, CenterOfMass);
 	InvInertiaTensor = InertiaTensor.Inverse();
 }
 
