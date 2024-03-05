@@ -74,7 +74,8 @@ namespace Collision
 		}
 	};
 
-	namespace Distance {
+	namespace Distance 
+	{
 		[[nodiscard]] static float PointRaySq(const Math::Vec3& Pt, const Math::Vec3& RayPos, const Math::Vec3& RayDir) {
 			const auto ToPt = Pt - RayPos;
 			return ((RayDir * ToPt.Dot(RayDir)) - ToPt).LengthSq();
@@ -112,7 +113,9 @@ namespace Collision
 			return std::ranges::min_element(Pts, [&](const auto& lhs, const auto& rhs) { return PointTriangle(lhs, A, B, C) < PointTriangle(rhs, A, B, C); });
 		}
 	}
-	namespace Intersection {
+
+	namespace Intersection 
+	{
 		//!< AABB vs AABB
 		[[nodiscard]] static bool AABBAABB(const AABB& lhs, const AABB& rhs) {
 			if (lhs.Max.X() < rhs.Min.X() || rhs.Max.X() < lhs.Min.X() ||
@@ -130,6 +133,17 @@ namespace Collision
 			const Math::Vec3& VelA, const Math::Vec3& VelB,
 			const float DeltaSec, float& T);
 		[[nodiscard]] bool RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct);
+	}
+
+	namespace Volume
+	{
+		[[nodiscard]] static float Tetrahedron(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D)
+		{
+			const auto AD = D - A;
+			const auto BD = D - B;
+			const auto CD = D - C;
+			return fabs(AD.Dot(BD.Cross(CD)) / 6.0f);
+		}
 	}
 
 	//!< Õ“ËŽž‚Ì—ÍÏ‚Ì“K—p

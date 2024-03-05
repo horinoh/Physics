@@ -31,16 +31,18 @@ namespace Convex
 	namespace Uniform {
 		//!< #TODO 要検証
 		[[nodiscard]] Math::Vec3 CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices);
-
 		//!< #TODO 要検証
 		[[nodiscard]] Math::Mat3 CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass);
 	}
 	namespace MonteCarlo
 	{
-		//!< #TODO 要検証
 		[[nodiscard]] Math::Vec3 CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices);
-
-		//!< #TODO 要検証
 		[[nodiscard]] Math::Mat3 CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass);
+	}
+	namespace Tetrahedron 
+	{
+		[[nodiscard]] Math::Vec3 CalcCenterOfMass(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices);
+		[[nodiscard]] Math::Mat3 CalcInertiaTensor(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D);
+		[[nodiscard]] Math::Mat3 CalcInertiaTensor(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass);
 	}
 }

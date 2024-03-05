@@ -266,3 +266,70 @@ Math::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Aabb, co
 	}
 	return InertiaTensor / static_cast<float>(Sampled);
 }
+
+Math::Vec3 Convex::Tetrahedron::CalcCenterOfMass(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
+{
+	const auto MeshCenter = std::accumulate(std::begin(Vertices), std::end(Vertices), Math::Vec3::Zero()) / static_cast<float>(std::size(Vertices));
+	auto CenterOfMass = Math::Vec3::Zero();
+	auto TotalVolume = 0.0f;
+	std::ranges::for_each(Indices, [&](const auto& i) {
+		const auto& A = MeshCenter;
+		const auto& B = Vertices[i[0]];
+		const auto& C = Vertices[i[1]];
+		const auto& D = Vertices[i[2]];
+
+		const auto TetraCenter = (A + B + C + D) * 0.25f;
+		const auto Volume = Collision::Volume::Tetrahedron(A, B, C, D);
+
+		CenterOfMass += TetraCenter * Volume;
+		TotalVolume += Volume;
+	});
+	return CenterOfMass / TotalVolume;
+}
+Math::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D)
+{
+	//!< Žl–Ê‘Ì‚Ì 4 ’¸“_‚©‚ç‚È‚és—ñ
+	const auto M = Math::Mat3(
+		Math::Vec3(B.X() - A.X(), C.X() - A.X(), D.X() - A.X()),
+		Math::Vec3(B.Y() - A.Y(), C.Y() - A.Y(), D.Y() - A.Y()),
+		Math::Vec3(B.Z() - A.Z(), C.Z() - A.Z(), D.Z() - A.Z()));
+	const auto Det = M.Determinant();
+
+	auto XX = 0.0f, YY = 0.0f, ZZ = 0.0f, XY = 0.0f, XZ = 0.0f, YZ = 0.0f;
+	const std::array Pts = { A, B, C, D };
+	for (auto i = 0; i < std::size(Pts); ++i) {
+		for (auto j = i; j < std::size(Pts); ++j) {
+			//!< ‘ÎŠpü
+			XX += Pts[i].X() * Pts[j].X();
+			YY += Pts[i].Y() * Pts[j].Y();
+			ZZ += Pts[i].Z() * Pts[j].Z();
+
+			XY += Pts[i].X() * Pts[j].Y() + Pts[j].X() * Pts[i].Y();
+			XZ += Pts[i].X() * Pts[j].Z() + Pts[j].X() * Pts[i].Z();
+			YZ += Pts[i].Y() * Pts[j].Z() + Pts[j].Y() * Pts[i].Z();
+		}
+	}
+
+	const auto APrime = Det * YZ / 120.0f;
+	const auto BPrime = Det * XZ / 120.0f;
+	const auto CPrime = Det * XY / 120.0f;
+
+	return Math::Mat3(
+		Math::Vec3(Det * (YY + ZZ) / 60.0f, -CPrime, -BPrime),
+		Math::Vec3(-CPrime, Det * (XX + ZZ) / 60.0f, -APrime),
+		Math::Vec3(-BPrime, -APrime, Det * (XX + YY) / 60.0f));
+}
+Math::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
+{
+	auto TotalInertiaTensor = Math::Mat3::Zero();
+	auto TotalVolume = 0.0f;
+	std::ranges::for_each(Indices, [&](const auto& i) {
+		const auto A = Math::Vec3::Zero();
+		const auto& B = Vertices[i[0]] - CenterOfMass;
+		const auto& C = Vertices[i[1]] - CenterOfMass;
+		const auto& D = Vertices[i[2]] - CenterOfMass;
+		TotalInertiaTensor += CalcInertiaTensor(A, B, C, D);
+		TotalVolume += Collision::Volume::Tetrahedron(A, B, C, D);
+	});
+	return TotalInertiaTensor / TotalVolume;
+}
