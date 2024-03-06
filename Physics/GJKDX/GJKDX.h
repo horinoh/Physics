@@ -589,9 +589,9 @@ public:
 				WorldBuffer.RigidBodies[0].Color = { 1.0f, 1.0f, 0.0f };
 				WorldBuffer.RigidBodies[1].Color = { 1.0f, 1.0f, 0.0f };
 			}
-			else {
-				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
-			}
+			//else {
+			//	Collision::Closest::GJK(RbA, RbB, OnA, OnB);
+			//}
 			DirectX::XMStoreFloat3(&WorldBuffer.RigidBodies[0].ClosestPoint, DirectX::XMVectorSet(OnA.X(), OnA.Y(), OnA.Z(), 0.0f));
 			DirectX::XMStoreFloat3(&WorldBuffer.RigidBodies[1].ClosestPoint, DirectX::XMVectorSet(OnB.X(), OnB.Y(), OnB.Z(), 0.0f));
 			//LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));

@@ -44,7 +44,7 @@ Math::Vec3 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B, con
 	const auto N = (B - A).Cross(C - A);
 	const auto P = N * A.Dot(N) / N.LengthSq(); //!< 平方根を省けるので正規化しない方が良い
 
-	//!<  XY, YZ, ZX 平面の内、射影面積が最大のものを見つける
+	//!< XY, YZ, ZX 平面の内、射影面積が最大のものを見つける
 	auto Index = 0;
 	auto MaxVal = 0.0f;
 	for (auto i = 0; i < 3; ++i) {
@@ -57,7 +57,6 @@ Math::Vec3 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B, con
 		const auto AB = b - a;
 		const auto AC = c - a;
 		const auto Area = Math::Mat2(AB, AC).Determinant();
-		//const auto Area = AB.X() * AC.Y() - AB.Y() * AC.X();
 
 		if (std::abs(Area) > std::abs(MaxVal)) {
 			MaxVal = Area;
@@ -146,7 +145,7 @@ Math::Vec3 Collision::Barycentric(const Math::Vec3& A, const Math::Vec3& B, cons
 	const auto N = Math::Vec3::Normal(PA, PB, PC);
 	const auto P = N * A.Dot(N) / N.LengthSq();
 
-	//!<  XY, YZ, ZX 平面の内、射影面積が最大のものを見つける
+	//!< XY, YZ, ZX 平面の内、射影面積が最大のものを見つける
 	auto Index = 0;
 	auto MaxVal = 0.0f;
 	for (auto i = 0; i < 3; ++i) {
@@ -212,9 +211,9 @@ void Collision::SupportPoint::ToTetrahedron(const Physics::RigidBody* RbA, const
 void Collision::SupportPoint::Expand(const float Bias, std::vector<Collision::SupportPoint::Points>& Sps)
 {
 	const auto Center = (Sps[0].GetC() + Sps[1].GetC() + Sps[2].GetC() + Sps[3].GetC()) * 0.25f;
-	std::ranges::transform(Sps, std::begin(Sps), [&](const auto& rhs) {
-		const auto Dir = (rhs.GetC() - Center).Normalize() * Bias;
-		return Collision::SupportPoint::Points(rhs.GetA() + Dir, rhs.GetB() - Dir);
+	std::ranges::transform(Sps, std::begin(Sps), [&](const auto& i) {
+		const auto Dir = (i.GetC() - Center).Normalize() * Bias;
+		return Collision::SupportPoint::Points(i.GetA() + Dir, i.GetB() - Dir);
 		});
 }
 
@@ -241,26 +240,20 @@ bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::
 	auto ClosestDist = (std::numeric_limits<float>::max)();
 	auto Dir = -Sps.back().GetC();
 	auto ContainOrigin = false;
+	Math::Vec4 Lambda;
 	do {
 		const auto Pt = Collision::SupportPoint::GetPoints(RbA, RbB, Dir.ToNormalized(), 0.0f);
 		Dir *= -1.0f;
 
 		//!< 既存の点ということはもうこれ以上拡張できない -> 衝突無し
-		if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& rhs) { return Pt.GetC().NearlyEqual(rhs.GetC()); })) {
+		if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& i) { return Pt.GetC().NearlyEqual(i.GetC()); })) {
 			break;
 		}
 
 		Sps.emplace_back(Pt);
 
-		//!< これはいらない気がする…
-		//!< 新しい点が原点を超えていない場合、原点が内部に含まれない -> 衝突無し
-		//if (Dir.Dot(Pt.GetC()) < 0.0f) {
-		//	break;
-		//}
-
 		//!< シンプレックスが原点を含む -> 衝突
 		//!< (Dir を更新、Lambda を返す)
-		Math::Vec4 Lambda;
 		if ((ContainOrigin = Collision::SupportPoint::SimplexSignedVolumes(Sps, Dir, Lambda))) {
 			break;
 		}
@@ -275,24 +268,32 @@ bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::
 		}
 
 		//!< 有効 (Lambda[n] が 非 0) な Sps だけを残す
-		const auto Range = std::ranges::remove_if(Sps, [&](const auto& rhs) {
-			return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, rhs))];
+		const auto Range = std::ranges::remove_if(Sps, [&](const auto& i) {
+			return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, i))];
 			});
 		Sps.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
 
-		//!< シンプレックスが四面体でここまで来たら原点を含む
+		//!< シンプレックスが四面体の状態でここまで来たら原点を含む
 		ContainOrigin = (4 == size(Sps));
 	} while (!ContainOrigin); //!< 原点を含まずここまで来たらループ
 
-	//!< 原点を含まずループを抜けた場合 -> 衝突無し
-	if (!ContainOrigin) {
+	if (ContainOrigin) {
+		//!< 衝突確定 (EPA 等)
+		OnIntersect(RbA, RbB, Sps, Bias, OnA, OnB);
+		return true;
+	}
+	else {
+		//!< 値が有効 (非ゼロ) なものだけ、前詰めにする (返り値は破棄)
+		const auto Discard = std::ranges::remove_if(static_cast<Math::Component4&>(Lambda), [](const auto i) { return i == 0.0f; });
+		//!< 衝突が無い場合は、最近接点を求める
+		OnA.ToZero();
+		OnB.ToZero();
+		for (auto i = 0; i < std::size(Sps); ++i) {
+			OnA += Sps[i].GetA() * Lambda[i];
+			OnB += Sps[i].GetB() * Lambda[i];
+		}
 		return false;
 	}
-
-	//!< 衝突確定時に呼び出す関数 (EPA 等)
-	OnIntersect(RbA, RbB, Sps, Bias, OnA, OnB);
-
-	return true;
 }
 
 void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
@@ -340,9 +341,9 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 		const auto Pt = Collision::SupportPoint::GetPoints(RbA, RbB, N, Bias);
 
 		//!< サポートポイントが既出の場合は、これ以上拡張できない
-		if (std::ranges::any_of(Tris, [&](const auto rhs) {
+		if (std::ranges::any_of(Tris, [&](const auto i) {
 			constexpr auto Eps = 0.01f;
-			return Sps[rhs[0]].GetC().NearlyEqual(Pt.GetC(), Eps) || Sps[rhs[1]].GetC().NearlyEqual(Pt.GetC(), Eps) || Sps[rhs[2]].GetC().NearlyEqual(Pt.GetC(), Eps);
+			return Sps[i[0]].GetC().NearlyEqual(Pt.GetC(), Eps) || Sps[i[1]].GetC().NearlyEqual(Pt.GetC(), Eps) || Sps[i[2]].GetC().NearlyEqual(Pt.GetC(), Eps);
 			})) {
 			break;
 		}
@@ -400,52 +401,52 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 	}
 }
 
-void Collision::Closest::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, Math::Vec3& OnA, Math::Vec3& OnB)
-{
-	std::vector<Collision::SupportPoint::Points> Sps;
-	Sps.reserve(4);
-
-	Sps.emplace_back(Collision::SupportPoint::GetPoints(RbA, RbB, Math::Vec3::One().Normalize(), 0.0f));
-
-	auto ClosestDist = (std::numeric_limits<float>::max)();
-	auto Dir = -Sps.back().GetC();
-	Math::Vec4 Lambda = Math::Vec4::AxisX();
-	do {
-		const auto Pt = Collision::SupportPoint::GetPoints(RbA, RbB, Dir.ToNormalized(), 0.0f);
-		Dir *= -1.0f;
-
-		if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& rhs) { return Pt.GetC().NearlyEqual(rhs.GetC()); })) {
-			break;
-		}
-
-		Sps.emplace_back(Pt);
-
-		SupportPoint::SimplexSignedVolumes(Sps, Dir, Lambda);
-
-		//!< Lambda 値が有効 (非ゼロ) なものだけ、前詰めにする
-		const auto Range = std::ranges::remove_if(Sps, [&](const auto& i) {
-			return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, i))];
-			});
-		Sps.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
-		//!< 値が有効 (非ゼロ) なものだけ、前詰めにする
-		const auto Discard = std::ranges::remove_if(Lambda.Comps, [](const auto i) { return i == 0.0f; });
-
-		const auto Dist = Dir.LengthSq();
-		if (Dist < ClosestDist) {
-			ClosestDist = Dist;
-		}
-		else {
-			break;
-		}
-	} while (std::size(Sps) < 4);
-
-	OnA.ToZero();
-	OnB.ToZero();
-	for (auto i = 0; i < std::size(Sps); ++i) {
-		OnA += Sps[i].GetA() * Lambda[i];
-		OnB += Sps[i].GetB() * Lambda[i];
-	}
-}
+//void Collision::Closest::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, Math::Vec3& OnA, Math::Vec3& OnB)
+//{
+//	std::vector<Collision::SupportPoint::Points> Sps;
+//	Sps.reserve(4);
+//
+//	Sps.emplace_back(Collision::SupportPoint::GetPoints(RbA, RbB, Math::Vec3::One().Normalize(), 0.0f));
+//
+//	auto ClosestDist = (std::numeric_limits<float>::max)();
+//	auto Dir = -Sps.back().GetC();
+//	Math::Vec4 Lambda = Math::Vec4::AxisX();
+//	do {
+//		const auto Pt = Collision::SupportPoint::GetPoints(RbA, RbB, Dir.ToNormalized(), 0.0f);
+//		Dir *= -1.0f;
+//
+//		if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& i) { return Pt.GetC().NearlyEqual(i.GetC()); })) {
+//			break;
+//		}
+//
+//		Sps.emplace_back(Pt);
+//
+//		SupportPoint::SimplexSignedVolumes(Sps, Dir, Lambda);
+//
+//		//!< Lambda 値が有効 (非ゼロ) なものだけ、前詰めにする
+//		const auto Range = std::ranges::remove_if(Sps, [&](const auto& i) {
+//			return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, i))];
+//			});
+//		Sps.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
+//		//!< 値が有効 (非ゼロ) なものだけ、前詰めにする
+//		const auto Discard = std::ranges::remove_if(Lambda.Comps, [](const auto i) { return i == 0.0f; });
+//
+//		const auto Dist = Dir.LengthSq();
+//		if (Dist < ClosestDist) {
+//			ClosestDist = Dist;
+//		}
+//		else {
+//			break;
+//		}
+//	} while (std::size(Sps) < 4);
+//
+//	OnA.ToZero();
+//	OnB.ToZero();
+//	for (auto i = 0; i < std::size(Sps); ++i) {
+//		OnA += Sps[i].GetA() * Lambda[i];
+//		OnB += Sps[i].GetB() * Lambda[i];
+//	}
+//}
 
 #ifdef _DEBUG
 void Collision::SignedVolumeTest()

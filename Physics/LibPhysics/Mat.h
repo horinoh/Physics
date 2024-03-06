@@ -1,5 +1,7 @@
 #pragma once
 
+#include <format>
+
 namespace Math 
 {
 	class Mat2 
@@ -88,6 +90,8 @@ namespace Math
 
 		inline Mat2& ToZero() { return (*this = Zero()); }
 		inline Mat2& ToIdentity() { return (*this = Identity()); }
+
+		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f})\n", Rows[0].X(), Rows[0].Y(), Rows[1].X(), Rows[1].Y()); }
 
 	private:
 		std::array<Vec2, 2> Rows = { Vec2(1.0f, 0.0f), Vec2(0.0f, 1.0f) };
@@ -216,6 +220,8 @@ namespace Math
 
 		inline Mat3& ToZero() { return (*this = Zero()); }
 		inline Mat3& ToIdentity() { return (*this = Identity()); }
+
+		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f})\n", Rows[0].X(), Rows[0].Y(), Rows[0].Z(), Rows[1].X(), Rows[1].Y(), Rows[1].Z(), Rows[2].X(), Rows[2].Y(), Rows[2].Z()); }
 
 	private:
 		std::array<Vec3, 3> Rows = { Vec3(1.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f), Vec3(0.0f, 0.0f, 1.0f) };
@@ -356,6 +362,8 @@ namespace Math
 
 		inline Mat4& ToZero() { return (*this = Zero()); }
 		inline Mat4& ToIdentity() { return (*this = Identity()); }
+
+		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n({}, {}, {}, {})\n", Rows[0].X(), Rows[0].Y(), Rows[0].Z(), Rows[0].W(), Rows[1].X(), Rows[1].Y(), Rows[1].Z(), Rows[1].W(), Rows[2].X(), Rows[2].Y(), Rows[2].Z(), Rows[2].W(), Rows[3].X(), Rows[3].Y(), Rows[3].Z(), Rows[3].W()); }
 
 	private:
 		std::array<Vec4, 4> Rows = { Vec4(1.0f, 0.0f, 0.0f, 0.0f), Vec4(0.0f, 1.0f, 0.0f, 0.0f), Vec4(0.0f, 0.0f, 1.0f, 0.0f), Vec4(0.0f, 0.0f, 0.0f, 1.0f) };

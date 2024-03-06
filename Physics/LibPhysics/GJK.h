@@ -96,11 +96,11 @@ namespace Collision
 			return GJK(RbA, RbB, EPA, Bias, OnA, OnB);
 		}
 	}
-	namespace Closest 
-	{
-		//!< ”ñÕ“Ë‚ªŠm’è‚Å‚ ‚é‚±‚Æ
-		void GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, Math::Vec3& OnA, Math::Vec3& OnB);
-	}
+	//namespace Closest 
+	//{
+	//	//!< ”ñÕ“Ë‚ªŠm’è‚Å‚ ‚é‚±‚Æ
+	//	void GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, Math::Vec3& OnA, Math::Vec3& OnB);
+	//}
 
 #ifdef _DEBUG
 	void SignedVolumeTest();

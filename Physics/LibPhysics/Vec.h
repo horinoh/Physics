@@ -5,6 +5,7 @@
 #include <array>
 #include <algorithm>
 #include <functional>
+#include <format>
 
 namespace Math 
 {
@@ -88,12 +89,16 @@ namespace Math
 		}
 		inline float& operator[](const int i) { return Comps[i]; }
 		inline operator float* () { return data(Comps); }
+		inline operator const Component2& () const { return Comps; }
+		inline operator Component2& () { return Comps; }
 
 		inline Vec2& ToZero() { return (*this = Zero()); }
 		inline Vec2& ToNormalize() { return (*this = Normalize()); }
 		
+		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f})\n", X(), Y()); }
+
 	private:
-		std::array<float, 2> Comps = { 0.0f, 0.0f };
+		Component2 Comps = { 0.0f, 0.0f };
 	};
 
 	class Vec3
@@ -191,12 +196,16 @@ namespace Math
 		}
 		inline float& operator[](const int i) { return Comps[i]; }
 		inline operator float* () { return data(Comps); }
+		inline operator const Component3& () const { return Comps; }
+		inline operator Component3& () { return Comps; }
 
 		inline Vec3& ToZero() { return (*this = Zero()); }
 		inline Vec3& ToNormalized() { return (*this = Normalize()); }
 
+		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f})\n", X(), Y(), Z()); }
+	
 	private:
-		std::array<float, 3> Comps = { 0.0f, 0.0f, 0.0f };
+		Component3 Comps = { 0.0f, 0.0f, 0.0f };
 	};
 
 	class Vec4
@@ -291,12 +300,16 @@ namespace Math
 		}
 		inline float& operator[](const int i) { return Comps[i]; }
 		inline operator float* () { return data(Comps); }
+		inline operator const Component4& () const { return Comps; }
+		inline operator Component4& () { return Comps; }
 
 		inline Vec4& ToZero() { return (*this = Zero()); }
 		inline Vec4& ToNormalized() { return (*this = Normalize()); }
 
-	//private:
-		std::array<float, 4> Comps = { 0.0f, 0.0f, 0.0f, 0.0f };
+		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n", X(), Y(), Z(), W()); }
+
+	private:
+		Component4 Comps = { 0.0f, 0.0f, 0.0f, 0.0f };
 	};
 
 	template<size_t N>

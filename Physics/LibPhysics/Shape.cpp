@@ -1,13 +1,29 @@
 #include "Shape.h"
 #include "Convex.h"
+#include "Log.h"
 
 void Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& MeshVert) 
 {
 	Convex::BuildConvexHull(MeshVert, Vertices, Indices);
 
+#if false
 	const auto Aabb = Collision::AABB(Vertices);
+	CenterOfMass = Convex::Uniform::CalcCenterOfMass(Aabb, Vertices, Indices);
+	InertiaTensor = Convex::Uniform::CalcInertiaTensor(Aabb, Vertices, Indices, CenterOfMass);
+#elif false
 	CenterOfMass = Convex::MonteCarlo::CalcCenterOfMass(Aabb, Vertices, Indices);
 	InertiaTensor = Convex::MonteCarlo::CalcInertiaTensor(Aabb, Vertices, Indices, CenterOfMass);
+#else
+	CenterOfMass = Convex::Tetrahedron::CalcCenterOfMass(Vertices, Indices);
+	InertiaTensor = Convex::Tetrahedron::CalcInertiaTensor(Vertices, Indices, CenterOfMass);
+#endif
+
+	LOG(data(std::string("CenterOfMass = \n")));
+	LOG(data(CenterOfMass.ToString()));
+
+	LOG(data(std::string("InertiaTensor = \n")));
+	LOG(data(InertiaTensor.ToString()));
+
 	InvInertiaTensor = InertiaTensor.Inverse();
 }
 

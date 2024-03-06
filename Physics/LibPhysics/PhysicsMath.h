@@ -2,6 +2,13 @@
 
 #include <iostream>
 
+namespace Math 
+{
+	using Component2 = std::array<float, 2>;
+	using Component3 = std::array<float, 3>;
+	using Component4 = std::array<float, 4>;
+}
+
 #include "Vec.h"
 #include "Mat.h"
 #include "Quat.h"

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <format>
+
 namespace Math 
 {
 	class Quat 
@@ -93,12 +95,16 @@ namespace Math
 		}
 		inline float& operator[](const int i) { return Comps[i]; }
 		inline operator float* () { return data(Comps); }
+		inline operator const Component4& () const { return Comps; }
+		inline operator Component4& () { return Comps; }
 
 		inline Quat& ToIdentity() { return (*this = Identity()); }
 		inline Quat& ToNormalized() { return (*this = Normalize()); }
 		
+		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n", X(), Y(), Z(), W()); }
+
 	private:
-		std::array<float, 4> Comps = { 0.0f, 0.0f, 0.0f, 1.0f };
+		Component4 Comps = { 0.0f, 0.0f, 0.0f, 1.0f };
 	};
 }
 

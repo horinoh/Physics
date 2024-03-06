@@ -145,6 +145,7 @@
     <ClInclude Include="Convex.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GJK.h" />
+    <ClInclude Include="Log.h" />
     <ClInclude Include="Mat.h" />
     <ClInclude Include="Physics.h" />
     <ClInclude Include="PhysicsMath.h" />
