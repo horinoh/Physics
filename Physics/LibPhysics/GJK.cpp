@@ -136,7 +136,7 @@ Math::Vec4 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B, con
 	return Lambda;
 }
 
-Math::Vec3 Collision::Barycentric(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& Pt)
+Math::Vec3 Collision::Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C)
 {
 	const auto PA = A - Pt;
 	const auto PB = B - Pt;
@@ -168,7 +168,7 @@ Math::Vec3 Collision::Barycentric(const Math::Vec3& A, const Math::Vec3& B, cons
 	//!< 「P と三角形」を選択した平面に射影 (X が選択された場合 Index1, Index2 はそれぞれ Y, Z といった具合になる)
 	const auto X = (Index + 1) % 3;
 	const auto Y = (Index + 2) % 3;
-	const std::array PrjABC = { Math::Vec2(A[X], A[Y]), Math::Vec2(B[X], B[Y]), Math::Vec2(C[X], C[Y]) };
+	const std::array PrjABC = { Math::Vec2(PA[X], PA[Y]), Math::Vec2(PB[X], PB[Y]), Math::Vec2(PC[X], PC[Y]) };
 	const auto PrjP = Math::Vec2(P[X], P[Y]);
 
 	//!< 射影点と辺からなるサブ三角形の面積
@@ -229,7 +229,7 @@ void Collision::SupportPoint::Expand(const float Bias, std::vector<Collision::Su
 //!<	1, 2, 3, 4 がなす四面体が原点を含めば衝突、終了
 //!<	一番近い三角形 (例えば 1, 2, 4) から、原点を向く法線方向の次のサポートポイント 5 を見つける
 //!<	四面体 (1, 2, 4, 5) が原点を含むか、サポートポイントが無くなるまで続ける
-bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, std::function<void(const Physics::RigidBody*, const Physics::RigidBody*, const std::vector<SupportPoint::Points>&, const float, Math::Vec3&, Math::Vec3&)> OnIntersect, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
+bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, OnIntersectGJK OnIntersect, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
 {
 	std::vector<Collision::SupportPoint::Points> Sps;
 	Sps.reserve(4); //!< 4 枠
@@ -246,7 +246,7 @@ bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::
 		Dir *= -1.0f;
 
 		//!< 既存の点ということはもうこれ以上拡張できない -> 衝突無し
-		if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& i) { return Pt.GetC().NearlyEqual(i.GetC()); })) {
+		if (std::ranges::any_of(Sps, [&](const auto& i) { return Pt.GetC().NearlyEqual(i.GetC()); })) {
 			break;
 		}
 
@@ -330,9 +330,7 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 
 	while (true) {
 		//!< 原点に最も近い三角形を取得
-		const auto& CTri = *std::ranges::min_element(Tris, [&](const auto& lhs, const auto& rhs) {
-			return Distance::PointTriangle(Math::Vec3::Zero(), Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC()) < Distance::PointTriangle(Math::Vec3::Zero(), Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC());
-			});
+		const auto& CTri = *SupportPoint::Distance::Closest(Math::Vec3::Zero(), Sps, Tris);
 		const auto A = CTri[0], B = CTri[1], C = CTri[2];
 		//!< 三角形の法線
 		const auto N = Math::Vec3::UnitNormal(Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC());
@@ -344,11 +342,11 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 		if (std::ranges::any_of(Tris, [&](const auto i) {
 			constexpr auto Eps = 0.01f;
 			return Sps[i[0]].GetC().NearlyEqual(Pt.GetC(), Eps) || Sps[i[1]].GetC().NearlyEqual(Pt.GetC(), Eps) || Sps[i[2]].GetC().NearlyEqual(Pt.GetC(), Eps);
-			})) {
+		})) {
 			break;
 		}
 
-		//!< サポートポイントと三角形の距離が 0 以下の場合は、これ以上拡張できない
+		//!< サポートポイントとの距離が無い場合は、これ以上拡張できない
 		if (Distance::PointTriangle(Pt.GetC(), Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC()) <= 0.0f) {
 			break;
 		}
@@ -359,11 +357,11 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 		{
 			const auto Range = std::ranges::remove_if(Tris, [&](const auto& i) {
 				return Distance::IsFront(Pt.GetC(), Sps[i[0]].GetC(), Sps[i[1]].GetC(), Sps[i[2]].GetC());
-				});
-			Tris.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
+			});
 			if (std::ranges::cbegin(Range) == std::ranges::cend(Range)) {
 				break;
 			}
+			Tris.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
 		}
 
 		//!< ユニークな辺を探す、無ければ終了
@@ -384,69 +382,20 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 				else {
 					return Collision::TriInds({ A, C, B });
 				}
-				});
+			});
 		}
 	}
 
 	{
 		//!< 原点に最も近い三角形を取得
-		const auto CTri = *std::ranges::min_element(Tris, [&](const auto& lhs, const auto& rhs) {
-			return Distance::PointTriangle(Math::Vec3::Zero(), Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC()) > Distance::PointTriangle(Math::Vec3::Zero(), Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC());
-			});
+		const auto& CTri = *SupportPoint::Distance::Farthest(Math::Vec3::Zero(), Sps, Tris);
 		const auto A = CTri[0], B = CTri[1], C = CTri[2];
-		//!< 最近三角形上での、原点の重心座標を取得
-		const auto Lambda = Barycentric(Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC(), Math::Vec3::Zero());
+		//!< それ上での、原点の重心座標を取得
+		const auto Lambda = Barycentric(Math::Vec3::Zero(), Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC());
 		OnA = Sps[A].GetA() * Lambda[0] + Sps[B].GetA() * Lambda[1] + Sps[C].GetA() * Lambda[2];
 		OnB = Sps[A].GetB() * Lambda[0] + Sps[B].GetB() * Lambda[1] + Sps[C].GetB() * Lambda[2];
 	}
 }
-
-//void Collision::Closest::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, Math::Vec3& OnA, Math::Vec3& OnB)
-//{
-//	std::vector<Collision::SupportPoint::Points> Sps;
-//	Sps.reserve(4);
-//
-//	Sps.emplace_back(Collision::SupportPoint::GetPoints(RbA, RbB, Math::Vec3::One().Normalize(), 0.0f));
-//
-//	auto ClosestDist = (std::numeric_limits<float>::max)();
-//	auto Dir = -Sps.back().GetC();
-//	Math::Vec4 Lambda = Math::Vec4::AxisX();
-//	do {
-//		const auto Pt = Collision::SupportPoint::GetPoints(RbA, RbB, Dir.ToNormalized(), 0.0f);
-//		Dir *= -1.0f;
-//
-//		if (std::end(Sps) != std::ranges::find_if(Sps, [&](const auto& i) { return Pt.GetC().NearlyEqual(i.GetC()); })) {
-//			break;
-//		}
-//
-//		Sps.emplace_back(Pt);
-//
-//		SupportPoint::SimplexSignedVolumes(Sps, Dir, Lambda);
-//
-//		//!< Lambda 値が有効 (非ゼロ) なものだけ、前詰めにする
-//		const auto Range = std::ranges::remove_if(Sps, [&](const auto& i) {
-//			return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, i))];
-//			});
-//		Sps.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
-//		//!< 値が有効 (非ゼロ) なものだけ、前詰めにする
-//		const auto Discard = std::ranges::remove_if(Lambda.Comps, [](const auto i) { return i == 0.0f; });
-//
-//		const auto Dist = Dir.LengthSq();
-//		if (Dist < ClosestDist) {
-//			ClosestDist = Dist;
-//		}
-//		else {
-//			break;
-//		}
-//	} while (std::size(Sps) < 4);
-//
-//	OnA.ToZero();
-//	OnB.ToZero();
-//	for (auto i = 0; i < std::size(Sps); ++i) {
-//		OnA += Sps[i].GetA() * Lambda[i];
-//		OnB += Sps[i].GetB() * Lambda[i];
-//	}
-//}
 
 #ifdef _DEBUG
 void Collision::SignedVolumeTest()

@@ -4,6 +4,7 @@
 #include <functional>
 
 #include "PhysicsMath.h"
+#include "Collision.h"
 
 namespace Physics 
 {
@@ -17,18 +18,13 @@ template<typename T> static [[nodiscard]] size_t IndexOf(const std::vector<T>& V
 namespace Collision
 {
 	//!< SignedVolue : 射影が最大となる軸や平面を見つけ、それに対し原点を射影して内部にあれば重心を返す
-
-	//!< 検証済
 	[[nodiscard]] Math::Vec2 SignedVolume(const Math::Vec3& A, const Math::Vec3& B);
-	//!< 検証済
 	[[nodiscard]] Math::Vec3 SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C);
-	//!< 検証済
 	[[nodiscard]] Math::Vec4 SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D);
-	[[nodiscard]] Math::Vec3 Barycentric(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& Pt);
+	[[nodiscard]] Math::Vec3 Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C);
 
 	namespace SupportPoint {
 		//!< サポートポイント : 特定の方向に最も遠い点
-
 		//!< A, B のサポートポイントの差が、(A, B のミンコフスキー差) C のサポートポイントとなる
 		class Points
 		{
@@ -39,14 +35,13 @@ namespace Collision
 			const Math::Vec3 GetB() const { return SPs[2]; }
 			const Math::Vec3 GetC() const { return SPs[0]; }
 
-			bool operator == (const Points& i) const { return std::ranges::equal(SPs, i.SPs); }
+			//bool operator == (const Points& rhs) const { return std::ranges::equal(SPs, rhs.SPs); }
 		private:
 			std::array<Math::Vec3, 3> SPs;
 		};
 		[[nodiscard]] Points GetPoints(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& UDir, const float Bias);
 		static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<Points>& Sps, Math::Vec3& Dir, Math::Vec4& OutLambda)
 		{
-			//constexpr auto Eps2 = (std::numeric_limits<float>::epsilon)() * (std::numeric_limits<float>::epsilon)();
 			constexpr auto Eps2 = 0.0001f * 0.00001f;
 
 			switch (size(Sps)) {
@@ -75,6 +70,24 @@ namespace Collision
 		void ToTetrahedron(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, std::vector<SupportPoint::Points>& Sps);
 		//!< バイアスの分だけ拡張する
 		void Expand(const float Bias, std::vector<SupportPoint::Points>& Sps);
+
+		namespace Distance
+		{
+			//!< 三角形から一番遠い点のイテレータを返す
+			[[nodiscard]] static auto Farthest(const Math::Vec3& Pt, const std::vector<SupportPoint::Points>& Sps, const std::vector<Collision::TriInds>& Indices)
+			{
+				return std::ranges::max_element(Indices, [&](const auto& lhs, const auto& rhs) {
+					return Collision::Distance::PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC()) < Collision::Distance::PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC());
+				});
+			}
+			//!< 三角形から一番近い点のイテレータを返す
+			[[nodiscard]] static auto Closest(const Math::Vec3& Pt, const std::vector<SupportPoint::Points>& Sps, const std::vector<Collision::TriInds>& Indices)
+			{
+				return std::ranges::min_element(Indices, [&](const auto& lhs, const auto& rhs) {
+					return Collision::Distance::PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC()) < Collision::Distance::PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC());
+				});
+			}
+		}
 	}
 
 	namespace Intersection 
@@ -96,12 +109,7 @@ namespace Collision
 			return GJK(RbA, RbB, EPA, Bias, OnA, OnB);
 		}
 	}
-	//namespace Closest 
-	//{
-	//	//!< 非衝突が確定であること
-	//	void GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, Math::Vec3& OnA, Math::Vec3& OnB);
-	//}
-
+	
 #ifdef _DEBUG
 	void SignedVolumeTest();
 #endif

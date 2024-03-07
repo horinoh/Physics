@@ -134,6 +134,16 @@ public:
 		}
 		//!< 静的オブジェクト配置
 		{
+			constexpr auto Radius = 20.0f;
+			constexpr auto Y = -Radius;
+
+			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
+
+			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+			Rb->Position = Math::Vec3::AxisY() * Y;
+			Rb->InvMass = 0;
+			Rb->Elasticity = 0.99f;
+			Rb->Init(Scene->Shapes.back());
 		}
 	}
 
@@ -176,7 +186,7 @@ public:
 #ifdef USE_MESH
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
 		Vec3s.reserve(size(Vertices));
-		for (auto& i : Vertices) { Vec3s.emplace_back(Vec3({ i.x, i.y, i.z })); }
+		for (auto& i : Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
 		std::vector<Math::Vec3> Diamond;
@@ -185,7 +195,7 @@ public:
 #endif
 
 		PlaceRigidBodies(Vec3s);
-		const auto Convex = static_cast<const Physics::ShapeConvex*>(Scene->Shapes.back());
+		const auto Convex = static_cast<const Physics::ShapeConvex*>(Scene->Shapes.front());
 		if (nullptr != Convex) {
 			for (auto& i : Convex->Vertices) {
 				Vertices_CH.emplace_back(DirectX::XMFLOAT3(i.X(), i.Y(), i.Z()));

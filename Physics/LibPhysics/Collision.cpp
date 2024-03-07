@@ -111,10 +111,6 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 
 				return true;
 			}
-			//else {
-			//	//!< 衝突が無い場合は、最近接点を求める
-			//	Closest::GJK(RbA, RbB, OnA, OnB);
-			//}
 
 			//!< 移動せずその場で回転しているような場合、ループから抜け出さない事があるのでループに上限回数を設ける
 			++ItCount;
