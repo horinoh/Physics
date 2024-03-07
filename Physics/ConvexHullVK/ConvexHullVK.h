@@ -9,6 +9,7 @@
 #include "Physics.h"
 
 //#define USE_MESH
+//#define USE_MESH_HULL
 
 class ConvexHullVK : public Gltf::SDK, public VK
 {
@@ -25,7 +26,7 @@ public:
 					break;
 				}
 
-				if (empty(Indices)) {
+				if (empty(Meshes.back().Indices)) {
 					if (Document.accessors.Has(j.indicesAccessorId)) {
 						const auto& Accessor = Document.accessors.Get(j.indicesAccessorId);
 						switch (Accessor.componentType)
@@ -38,9 +39,9 @@ public:
 								std::vector<uint16_t> Indices16(Accessor.count);
 								std::ranges::copy(ResourceReader->ReadBinaryData<uint16_t>(Document, Accessor), std::begin(Indices16));
 
-								Indices.reserve(Accessor.count);
+								Meshes.back().Indices.reserve(Accessor.count);
 								for (auto i : Indices16) {
-									Indices.emplace_back(i);
+									Meshes.back().Indices.emplace_back(i);
 								}
 							}
 							break;
@@ -52,8 +53,8 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_SCALAR:
 							{
-								Indices.resize(Accessor.count);
-								std::ranges::copy(ResourceReader->ReadBinaryData<uint32_t>(Document, Accessor), std::begin(Indices));
+								Meshes.back().Indices.resize(Accessor.count);
+								std::ranges::copy(ResourceReader->ReadBinaryData<uint32_t>(Document, Accessor), std::begin(Meshes.back().Indices));
 							}
 							break;
 							default: break;
@@ -65,11 +66,11 @@ public:
 				}
 
 				std::string AccessorId;
-				if (empty(Vertices)) {
+				if (empty(Meshes.back().Vertices)) {
 					if (j.TryGetAttributeAccessorId(Microsoft::glTF::ACCESSOR_POSITION, AccessorId))
 					{
 						const auto& Accessor = Document.accessors.Get(AccessorId);
-						Vertices.resize(Accessor.count);
+						Meshes.back().Vertices.resize(Accessor.count);
 						switch (Accessor.componentType)
 						{
 						case Microsoft::glTF::ComponentType::COMPONENT_FLOAT:
@@ -77,7 +78,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Vertices));
+								std::memcpy(data(Meshes.back().Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Meshes.back().Vertices));
 							}
 							break;
 							default: break;
@@ -87,11 +88,11 @@ public:
 						}
 					}
 				}
-				if (empty(Normals)) {
+				if (empty(Meshes.back().Normals)) {
 					if (j.TryGetAttributeAccessorId(Microsoft::glTF::ACCESSOR_NORMAL, AccessorId))
 					{
 						const auto& Accessor = Document.accessors.Get(AccessorId);
-						Normals.resize(Accessor.count);
+						Meshes.back().Normals.resize(Accessor.count);
 						switch (Accessor.componentType)
 						{
 						case Microsoft::glTF::ComponentType::COMPONENT_FLOAT:
@@ -99,7 +100,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Normals), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Normals));
+								std::memcpy(data(Meshes.back().Normals), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Meshes.back().Normals));
 							}
 							break;
 							default: break;
@@ -185,9 +186,10 @@ public:
 	virtual void CreateGeometry() override {
 		std::vector<Math::Vec3> Vec3s;
 #ifdef USE_MESH
+		Meshes.emplace_back();
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
-		Vec3s.reserve(size(Vertices));
-		for (auto& i : Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
+		Vec3s.reserve(size(Meshes.back().Vertices));
+		for (auto& i : Meshes.back().Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
 		std::vector<Math::Vec3> Diamond;
@@ -207,21 +209,25 @@ public:
 			}
 		}
 
+		Meshes.emplace_back();
+		Load(ASSET_PATH / "Box.glb");
+
 		const auto& CB = CommandBuffers[0];
 		const auto PDMP = CurrentPhysicalDeviceMemoryProperties;
 
 #ifdef USE_MESH
-		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Vertices));
+		const auto Mesh = Meshes[0];
+		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Mesh.Vertices));
 		VK::Scoped<StagingBuffer> StagingVertex(Device);
-		StagingVertex.Create(Device, PDMP, TotalSizeOf(Vertices), data(Vertices));
-		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Normals));
+		StagingVertex.Create(Device, PDMP, TotalSizeOf(Mesh.Vertices), data(Mesh.Vertices));
+		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Mesh.Normals));
 		VK::Scoped<StagingBuffer> StagingNormal(Device);
-		StagingNormal.Create(Device, PDMP, TotalSizeOf(Normals), data(Normals));
-		IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Indices));
+		StagingNormal.Create(Device, PDMP, TotalSizeOf(Mesh.Normals), data(Mesh.Normals));
+		IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Mesh.Indices));
 		VK::Scoped<StagingBuffer> StagingIndex(Device);
-		StagingIndex.Create(Device, PDMP, TotalSizeOf(Indices), data(Indices));
+		StagingIndex.Create(Device, PDMP, TotalSizeOf(Mesh.Indices), data(Mesh.Indices));
 		const VkDrawIndexedIndirectCommand DIIC = { 
-			.indexCount = static_cast<uint32_t>(size(Indices)), 
+			.indexCount = static_cast<uint32_t>(size(Mesh.Indices)),
 			.instanceCount = _countof(WorldBuffer.RigidBodies),
 			.firstIndex = 0, 
 			.vertexOffset = 0, 
@@ -257,9 +263,10 @@ public:
 		};
 		VERIFY_SUCCEEDED(vkBeginCommandBuffer(CB, &CBBI)); {
 #ifdef USE_MESH
-			VertexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Vertices), StagingVertex.Buffer);
-			VertexBuffers[1].PopulateCopyCommand(CB, TotalSizeOf(Normals), StagingNormal.Buffer);
-			IndexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Indices), StagingIndex.Buffer);
+			const auto Mesh = Meshes[0];
+			VertexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Mesh.Vertices), StagingVertex.Buffer);
+			VertexBuffers[1].PopulateCopyCommand(CB, TotalSizeOf(Mesh.Normals), StagingNormal.Buffer);
+			IndexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Mesh.Indices), StagingIndex.Buffer);
 			IndirectBuffers[0].PopulateCopyCommand(CB, sizeof(DIIC), StagingIndirect.Buffer);
 
 			VertexBuffers[2].PopulateCopyCommand(CB, TotalSizeOf(Vertices_CH), StagingVertex_CH.Buffer);
@@ -314,8 +321,8 @@ public:
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = SMs[1], .pName = "main", .pSpecializationInfo = nullptr }),
 		};
 		const std::vector VIBDs = {
-			VkVertexInputBindingDescription({.binding = 0, .stride = sizeof(Vertices[0]), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
-			VkVertexInputBindingDescription({.binding = 1, .stride = sizeof(Normals[0]), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
+			VkVertexInputBindingDescription({.binding = 0, .stride = sizeof(Meshes[0].Vertices[0]), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
+			VkVertexInputBindingDescription({.binding = 1, .stride = sizeof(Meshes[0].Normals[0]), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
 		};
 		const std::vector VIADs = {
 			VkVertexInputAttributeDescription({.location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = 0 }),
@@ -465,12 +472,13 @@ public:
 			vkCmdBindVertexBuffers(SCB, 1, static_cast<uint32_t>(size(NBs)), data(NBs), data(Offsets));
 			vkCmdBindIndexBuffer(SCB, IndexBuffers[0].Buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[0].Buffer, 0, 1, 0);
-
+#ifdef USE_MESH_HULL
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
 			const std::array VBs_CH = { VertexBuffers[2].Buffer };
 			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs_CH)), data(VBs_CH), data(Offsets));
 			vkCmdBindIndexBuffer(SCB, IndexBuffers[1].Buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[1].Buffer, 0, 1, 0);
+#endif
 #else
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
 			const std::array VBs_CH = { VertexBuffers[0].Buffer };
@@ -544,9 +552,12 @@ public:
 	}
 
 protected:
-	std::vector<uint32_t> Indices;
-	std::vector<glm::vec3> Vertices;
-	std::vector<glm::vec3> Normals;
+	struct MESH {
+		std::vector<uint32_t> Indices;
+		std::vector<glm::vec3> Vertices;
+		std::vector<glm::vec3> Normals;
+	};
+	std::vector<MESH> Meshes;
 
 	std::vector<uint32_t> Indices_CH;
 	std::vector<glm::vec3> Vertices_CH;

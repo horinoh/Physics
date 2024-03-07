@@ -9,6 +9,7 @@
 #include "Physics.h"
 
 //#define USE_MESH
+//#define USE_MESH_HULL
 
 class ConvexHullDX : public Gltf::SDK, public DX
 {
@@ -25,7 +26,7 @@ public:
 					break;
 				}
 
-				if (empty(Indices)) {
+				if (empty(Meshes.back().Indices)) {
 					if (Document.accessors.Has(j.indicesAccessorId)) {
 						const auto& Accessor = Document.accessors.Get(j.indicesAccessorId);
 						switch (Accessor.componentType)
@@ -38,9 +39,9 @@ public:
 								std::vector<UINT32> Indices16(Accessor.count);
 								std::ranges::copy(ResourceReader->ReadBinaryData<uint16_t>(Document, Accessor), std::begin(Indices16));
 
-								Indices.reserve(Accessor.count);
+								Meshes.back().Indices.reserve(Accessor.count);
 								for (auto i : Indices16) {
-									Indices.emplace_back(i);
+									Meshes.back().Indices.emplace_back(i);
 								}
 							}
 							break;
@@ -52,8 +53,8 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_SCALAR:
 							{
-								Indices.resize(Accessor.count);
-								std::ranges::copy(ResourceReader->ReadBinaryData<uint32_t>(Document, Accessor), std::begin(Indices));
+								Meshes.back().Indices.resize(Accessor.count);
+								std::ranges::copy(ResourceReader->ReadBinaryData<uint32_t>(Document, Accessor), std::begin(Meshes.back().Indices));
 							}
 							break;
 							default: break;
@@ -65,11 +66,11 @@ public:
 				}
 
 				std::string AccessorId;
-				if (empty(Vertices)) {
+				if (empty(Meshes.back().Vertices)) {
 					if (j.TryGetAttributeAccessorId(Microsoft::glTF::ACCESSOR_POSITION, AccessorId))
 					{
 						const auto& Accessor = Document.accessors.Get(AccessorId);
-						Vertices.resize(Accessor.count);
+						Meshes.back().Vertices.resize(Accessor.count);
 						switch (Accessor.componentType)
 						{
 						case Microsoft::glTF::ComponentType::COMPONENT_FLOAT:
@@ -77,7 +78,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Vertices));
+								std::memcpy(data(Meshes.back().Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Meshes.back().Vertices));
 							}
 							break;
 							default: break;
@@ -87,11 +88,11 @@ public:
 						}
 					}
 				}
-				if (empty(Normals)) {
+				if (empty(Meshes.back().Normals)) {
 					if (j.TryGetAttributeAccessorId(Microsoft::glTF::ACCESSOR_NORMAL, AccessorId))
 					{
 						const auto& Accessor = Document.accessors.Get(AccessorId);
-						Normals.resize(Accessor.count);
+						Meshes.back().Normals.resize(Accessor.count);
 						switch (Accessor.componentType)
 						{
 						case Microsoft::glTF::ComponentType::COMPONENT_FLOAT:
@@ -99,7 +100,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Normals), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Normals));
+								std::memcpy(data(Meshes.back().Normals), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Meshes.back().Normals));
 							}
 							break;
 							default: break;
@@ -184,9 +185,10 @@ public:
 	virtual void CreateGeometry() override {
 		std::vector<Math::Vec3> Vec3s;
 #ifdef USE_MESH
+		Meshes.emplace_back();
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
-		Vec3s.reserve(size(Vertices));
-		for (auto& i : Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
+		Vec3s.reserve(size(Meshes.back().Vertices));
+		for (auto& i : Meshes.back().Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
 		std::vector<Math::Vec3> Diamond;
@@ -207,22 +209,26 @@ public:
 			}
 		}
 
+		Meshes.emplace_back();
+		Load(ASSET_PATH / "Box.glb");
+
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);
 		const auto CL = COM_PTR_GET(DirectCommandLists[0]);
 		const auto CQ = COM_PTR_GET(GraphicsCommandQueue);
 
 #ifdef USE_MESH
-		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Vertices), sizeof(Vertices[0]));
+		const auto Mesh = Meshes[0];
+		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Mesh.Vertices), sizeof(Mesh.Vertices[0]));
 		UploadResource UploadVertex;
-		UploadVertex.Create(COM_PTR_GET(Device), TotalSizeOf(Vertices), data(Vertices));
-		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Normals), sizeof(Normals[0]));
+		UploadVertex.Create(COM_PTR_GET(Device), TotalSizeOf(Mesh.Vertices), data(Mesh.Vertices));
+		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Mesh.Normals), sizeof(Mesh.Normals[0]));
 		UploadResource UploadNormal;
-		UploadNormal.Create(COM_PTR_GET(Device), TotalSizeOf(Normals), data(Normals));
-		IndexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Indices), DXGI_FORMAT_R32_UINT);
+		UploadNormal.Create(COM_PTR_GET(Device), TotalSizeOf(Mesh.Normals), data(Mesh.Normals));
+		IndexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Mesh.Indices), DXGI_FORMAT_R32_UINT);
 		UploadResource UploadIndex;
-		UploadIndex.Create(COM_PTR_GET(Device), TotalSizeOf(Indices), data(Indices));
+		UploadIndex.Create(COM_PTR_GET(Device), TotalSizeOf(Mesh.Indices), data(Mesh.Indices));
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = { 
-			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)), 
+			.IndexCountPerInstance = static_cast<UINT32>(size(Mesh.Indices)),
 			.InstanceCount = _countof(WorldBuffer.RigidBodies),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
@@ -252,9 +258,10 @@ public:
 
 		VERIFY_SUCCEEDED(CL->Reset(CA, nullptr)); {
 #ifdef USE_MESH
-			VertexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Vertices), COM_PTR_GET(UploadVertex.Resource));
-			VertexBuffers[1].PopulateCopyCommand(CL, TotalSizeOf(Normals), COM_PTR_GET(UploadNormal.Resource));
-			IndexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Indices), COM_PTR_GET(UploadIndex.Resource));
+			const auto Mesh = Meshes[0];
+			VertexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Mesh.Vertices), COM_PTR_GET(UploadVertex.Resource));
+			VertexBuffers[1].PopulateCopyCommand(CL, TotalSizeOf(Mesh.Normals), COM_PTR_GET(UploadNormal.Resource));
+			IndexBuffers[0].PopulateCopyCommand(CL, TotalSizeOf(Mesh.Indices), COM_PTR_GET(UploadIndex.Resource));
 			IndirectBuffers[0].PopulateCopyCommand(CL, sizeof(DIA), COM_PTR_GET(UploadIndirect.Resource));
 
 			VertexBuffers[2].PopulateCopyCommand(CL, TotalSizeOf(Vertices_CH), COM_PTR_GET(UploadVertex_CH.Resource));
@@ -440,11 +447,13 @@ public:
 			BCL->IASetIndexBuffer(&IndexBuffers[0].View);
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
 
+#ifdef USE_MESH_HULL
 			BCL->SetPipelineState(PS1);
 			const std::array VBVs_CH = { VertexBuffers[2].View };
 			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs_CH)), data(VBVs_CH));
 			BCL->IASetIndexBuffer(&IndexBuffers[1].View);
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[1].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[1].Resource), 0, nullptr, 0);
+#endif
 #else
 			BCL->SetPipelineState(PS1);
 			const std::array VBVs_CH = { VertexBuffers[0].View };
@@ -526,9 +535,12 @@ public:
 	}
 
 protected:
-	std::vector<UINT32> Indices;
-	std::vector<DirectX::XMFLOAT3> Vertices;
-	std::vector<DirectX::XMFLOAT3> Normals;
+	struct MESH {
+		std::vector<UINT32> Indices;
+		std::vector<DirectX::XMFLOAT3> Vertices;
+		std::vector<DirectX::XMFLOAT3> Normals;
+	};
+	std::vector<MESH> Meshes;
 
 	std::vector<UINT32> Indices_CH;
 	std::vector<DirectX::XMFLOAT3> Vertices_CH;
