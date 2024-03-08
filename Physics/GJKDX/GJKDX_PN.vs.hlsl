@@ -5,7 +5,7 @@ struct IN
 	uint InstanceID : SV_InstanceID;
 };
 
-struct RIGID_BODY
+struct INSTANCE
 {
 	float4x4 World;
 	float3 Color;
@@ -13,7 +13,7 @@ struct RIGID_BODY
 };
 struct WORLD_BUFFER
 {
-	RIGID_BODY RigidBodies[2];
+	INSTANCE Instances[2];
 };
 ConstantBuffer<WORLD_BUFFER> WB : register(b0, space0);
 struct VIEW_PROJECTION_BUFFER
@@ -33,12 +33,12 @@ OUT main(IN In)
 {
 	OUT Out;
 
-	const float4x4 W = WB.RigidBodies[In.InstanceID].World;
+	const float4x4 W = WB.Instances[In.InstanceID].World;
 	const float4x4 WVP = mul(VPB.ViewProjection, W);
 
 	Out.Position = mul(WVP, float4(In.Position, 1.0f));
 	Out.Normal = mul(transpose((float3x3)W), In.Normal);
-	Out.Color = WB.RigidBodies[In.InstanceID].Color;
+	Out.Color = WB.Instances[In.InstanceID].Color;
 
 	return Out;
 }

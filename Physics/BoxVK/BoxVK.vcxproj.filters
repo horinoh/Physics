@@ -68,6 +68,8 @@
     <CustomBuild Include="BoxVK.frag">
       <Filter>Shader Files</Filter>
     </CustomBuild>
-    <CustomBuild Include="BoxVK.vert" />
+    <CustomBuild Include="BoxVK.vert">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

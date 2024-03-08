@@ -196,7 +196,7 @@ public:
 
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = {
 			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)),
-			.InstanceCount = _countof(WorldBuffer.RigidBodies),
+			.InstanceCount = _countof(WorldBuffer.Instances),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
 			.StartInstanceLocation = 0
@@ -408,14 +408,14 @@ public:
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-				if (i < _countof(WorldBuffer.RigidBodies)) {
+				if (i < _countof(WorldBuffer.Instances)) {
 					const auto Rb = Scene->RigidBodies[i];
 					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::BOX) {
 						const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 						const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
 						const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->Vertices[0].X();
 
-						DirectX::XMStoreFloat4x4(&WorldBuffer.RigidBodies[i].World, DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
+						DirectX::XMStoreFloat4x4(&WorldBuffer.Instances[i].World, DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 					}
 				}
 			}
@@ -443,11 +443,11 @@ protected:
 
 	Physics::Scene* Scene = nullptr;
 
-	struct RIGID_BODY {
+	struct INSTANCE {
 		DirectX::XMFLOAT4X4 World;
 	};
 	struct WORLD_BUFFER {
-		RIGID_BODY RigidBodies[64];
+		INSTANCE Instances[64];
 	};
 	WORLD_BUFFER WorldBuffer;
 	struct VIEW_PROJECTION_BUFFER {

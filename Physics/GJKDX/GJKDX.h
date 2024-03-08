@@ -227,7 +227,7 @@ public:
 			Indices_CH.emplace_back(i[2]);
 		}
 
-		for (auto i = 0; i < _countof(WorldBuffer.RigidBodies); ++i) {
+		for (auto i = 0; i < _countof(WorldBuffer.Instances); ++i) {
 			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 			Rb->Position = 0 == i ? Math::Vec3::AxisZ() * 5.0f : Math::Vec3::Zero();
 			Rb->Rotation = Math::Quat::Identity();
@@ -269,7 +269,7 @@ public:
 		UploadIndex_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Indices_CH), data(Indices_CH));
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA_CH = {
 			.IndexCountPerInstance = static_cast<UINT32>(size(Indices_CH)),
-			.InstanceCount = _countof(WorldBuffer.RigidBodies),
+			.InstanceCount = _countof(WorldBuffer.Instances),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
 			.StartInstanceLocation = 0
@@ -280,7 +280,7 @@ public:
 
 		const D3D12_DRAW_ARGUMENTS DA_CP = {
 			.VertexCountPerInstance = 1,
-			.InstanceCount = _countof(WorldBuffer.RigidBodies),
+			.InstanceCount = _countof(WorldBuffer.Instances),
 			.StartVertexLocation = 0,
 			.StartInstanceLocation = 0,
 		};
@@ -570,30 +570,27 @@ public:
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-				if (i < _countof(WorldBuffer.RigidBodies)) {
+				if (i < _countof(WorldBuffer.Instances)) {
 					const auto Rb = Scene->RigidBodies[i];
 					const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 					const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
 
-					DirectX::XMStoreFloat4x4(&WorldBuffer.RigidBodies[i].World, DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
+					DirectX::XMStoreFloat4x4(&WorldBuffer.Instances[i].World, DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 				}
 			}
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-				WorldBuffer.RigidBodies[i].Color = { 1.0f, 1.0f, 1.0f };
-				WorldBuffer.RigidBodies[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
+				WorldBuffer.Instances[i].Color = { 1.0f, 1.0f, 1.0f };
+				WorldBuffer.Instances[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
 			}
 			const auto RbA = Scene->RigidBodies[0];
 			const auto RbB = Scene->RigidBodies[1];
 			Math::Vec3 OnA, OnB;
 			if (Collision::Intersection::GJK_EPA(RbA, RbB, 0.01f, OnA, OnB)) {
-				WorldBuffer.RigidBodies[0].Color = { 1.0f, 1.0f, 0.0f };
-				WorldBuffer.RigidBodies[1].Color = { 1.0f, 1.0f, 0.0f };
+				WorldBuffer.Instances[0].Color = { 1.0f, 1.0f, 0.0f };
+				WorldBuffer.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
 			}
-			//else {
-			//	Collision::Closest::GJK(RbA, RbB, OnA, OnB);
-			//}
-			DirectX::XMStoreFloat3(&WorldBuffer.RigidBodies[0].ClosestPoint, DirectX::XMVectorSet(OnA.X(), OnA.Y(), OnA.Z(), 0.0f));
-			DirectX::XMStoreFloat3(&WorldBuffer.RigidBodies[1].ClosestPoint, DirectX::XMVectorSet(OnB.X(), OnB.Y(), OnB.Z(), 0.0f));
+			DirectX::XMStoreFloat3(&WorldBuffer.Instances[0].ClosestPoint, DirectX::XMVectorSet(OnA.X(), OnA.Y(), OnA.Z(), 0.0f));
+			DirectX::XMStoreFloat3(&WorldBuffer.Instances[1].ClosestPoint, DirectX::XMVectorSet(OnB.X(), OnB.Y(), OnB.Z(), 0.0f));
 			//LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
 			//LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
 		}
@@ -623,13 +620,13 @@ protected:
 
 	Physics::Scene* Scene = nullptr;
 
-	struct RIGID_BODY {
+	struct INSTANCE {
 		DirectX::XMFLOAT4X4 World;
 		alignas(16) DirectX::XMFLOAT3 Color;
 		alignas(16) DirectX::XMFLOAT3 ClosestPoint;
 	};
 	struct WORLD_BUFFER {
-		RIGID_BODY RigidBodies[2];
+		INSTANCE Instances[2];
 	};
 	WORLD_BUFFER WorldBuffer;
 	struct VIEW_PROJECTION_BUFFER {

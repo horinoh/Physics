@@ -77,5 +77,8 @@
     <CustomBuild Include="ConvexHullVK.vert">
       <Filter>Shader Files</Filter>
     </CustomBuild>
+    <CustomBuild Include="ConvexHullVK_FLR.vert">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

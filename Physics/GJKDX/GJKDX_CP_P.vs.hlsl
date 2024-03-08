@@ -4,7 +4,7 @@ struct IN
 	uint InstanceID : SV_InstanceID;
 };
 
-struct RIGID_BODY
+struct INSTANCE
 {
 	float4x4 World;
 	float3 Color;
@@ -12,7 +12,7 @@ struct RIGID_BODY
 };
 struct WORLD_BUFFER
 {
-	RIGID_BODY RigidBodies[2];
+	INSTANCE Instances[2];
 };
 ConstantBuffer<WORLD_BUFFER> WB : register(b0, space0);
 struct VIEW_PROJECTION_BUFFER
@@ -31,7 +31,7 @@ OUT main(IN In)
 {
 	OUT Out;
 
-	Out.Position = mul(VPB.ViewProjection, float4(WB.RigidBodies[In.InstanceID].ClosestPoint, 1.0f));
+	Out.Position = mul(VPB.ViewProjection, float4(WB.Instances[In.InstanceID].ClosestPoint, 1.0f));
 	//Out.PSize = 5.0f;
 
 	return Out;

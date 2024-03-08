@@ -5,13 +5,13 @@ struct IN
 	uint InstanceID : SV_InstanceID;
 };
 
-struct RIGID_BODY
+struct INSTANCE
 {
 	float4x4 World;
 };
 struct WORLD_BUFFER
 {
-	RIGID_BODY RigidBodies[64];
+	INSTANCE Instances[64];
 };
 ConstantBuffer<WORLD_BUFFER> WB : register(b0, space0);
 struct VIEW_PROJECTION_BUFFER
@@ -30,7 +30,7 @@ OUT main(IN In)
 {
 	OUT Out;
 
-	const float4x4 W = WB.RigidBodies[In.InstanceID].World;
+	const float4x4 W = WB.Instances[In.InstanceID].World;
 	const float4x4 WVP = mul(VPB.ViewProjection, W);
 
 	Out.Position = mul(WVP, float4(In.Position, 1.0f));

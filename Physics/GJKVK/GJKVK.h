@@ -228,7 +228,7 @@ public:
 			Indices_CH.emplace_back(i[2]);
 		}
 
-		for (auto i = 0; i < _countof(WorldBuffer.RigidBodies); ++i) {
+		for (auto i = 0; i < _countof(WorldBuffer.Instances); ++i) {
 			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 			Rb->Position = 0 == i ? Math::Vec3::AxisZ() * 5.0f : Math::Vec3::Zero();
 			Rb->Rotation = Math::Quat::Identity();
@@ -269,7 +269,7 @@ public:
 		StagingIndex_CH.Create(Device, PDMP, TotalSizeOf(Indices_CH), data(Indices_CH));
 		const VkDrawIndexedIndirectCommand DIIC_CH = {
 			.indexCount = static_cast<uint32_t>(size(Indices_CH)),
-			.instanceCount = _countof(WorldBuffer.RigidBodies),
+			.instanceCount = _countof(WorldBuffer.Instances),
 			.firstIndex = 0,
 			.vertexOffset = 0,
 			.firstInstance = 0
@@ -280,7 +280,7 @@ public:
 
 		const VkDrawIndirectCommand DIC_CP = {
 			.vertexCount = 1,
-			.instanceCount = _countof(WorldBuffer.RigidBodies),
+			.instanceCount = _countof(WorldBuffer.Instances),
 			.firstVertex = 0,
 			.firstInstance = 0,
 		};
@@ -592,30 +592,27 @@ public:
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-				if (i < _countof(WorldBuffer.RigidBodies)) {
+				if (i < _countof(WorldBuffer.Instances)) {
 					const auto Rb = Scene->RigidBodies[i];
 					const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 					const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
 
-					WorldBuffer.RigidBodies[i].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
+					WorldBuffer.Instances[i].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
 				}
 			}
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-				WorldBuffer.RigidBodies[i].Color = { 1.0f, 1.0f, 1.0f };
-				WorldBuffer.RigidBodies[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
+				WorldBuffer.Instances[i].Color = { 1.0f, 1.0f, 1.0f };
+				WorldBuffer.Instances[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
 			}
 			const auto RbA = Scene->RigidBodies[0];
 			const auto RbB = Scene->RigidBodies[1];
 			Math::Vec3 OnA, OnB;
 			if (Collision::Intersection::GJK_EPA(RbA, RbB, 0.01f, OnA, OnB)) {
-				WorldBuffer.RigidBodies[0].Color = { 1.0f, 1.0f, 0.0f };
-				WorldBuffer.RigidBodies[1].Color = { 1.0f, 1.0f, 0.0f };
+				WorldBuffer.Instances[0].Color = { 1.0f, 1.0f, 0.0f };
+				WorldBuffer.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
 			}
-			//else {
-			//	Collision::Closest::GJK(RbA, RbB, OnA, OnB);
-			//}
-			WorldBuffer.RigidBodies[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
-			WorldBuffer.RigidBodies[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());
+			WorldBuffer.Instances[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
+			WorldBuffer.Instances[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());
 			//LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
 			//LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
 		}
@@ -645,13 +642,13 @@ protected:
 
 	Physics::Scene* Scene = nullptr;
 
-	struct RIGID_BODY {
+	struct INSTANCE {
 		glm::mat4 World;
 		alignas(16) glm::vec3 Color;
 		alignas(16) glm::vec3 ClosestPoint;
 	};
 	struct WORLD_BUFFER {
-		RIGID_BODY RigidBodies[2];
+		INSTANCE Instances[2];
 	};
 	WORLD_BUFFER WorldBuffer;
 	struct VIEW_PROJECTION_BUFFER {

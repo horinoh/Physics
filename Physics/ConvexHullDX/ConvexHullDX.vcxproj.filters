@@ -77,5 +77,8 @@
     <FxCompile Include="ConvexHullDX_CH.vs.hlsl">
       <Filter>Shader Files</Filter>
     </FxCompile>
+    <FxCompile Include="ConvexHullDX_FLR.vs.hlsl">
+      <Filter>Shader Files</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
