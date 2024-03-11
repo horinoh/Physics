@@ -142,6 +142,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Collision.h" />
+    <ClInclude Include="Constraint.h" />
     <ClInclude Include="Convex.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GJK.h" />
@@ -157,9 +158,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Collision.cpp" />
+    <ClCompile Include="Constraint.cpp" />
     <ClCompile Include="Convex.cpp" />
     <ClCompile Include="GJK.cpp" />
-    <ClCompile Include="LibPhysics.cpp" />
     <ClCompile Include="RigidBody.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Shape.cpp" />

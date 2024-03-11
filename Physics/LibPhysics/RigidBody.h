@@ -57,7 +57,7 @@ namespace Physics
 			}
 		}
 
-		void ApplyTotalImpulse(const Math::Vec3& ImpactPoint, const Math::Vec3& Impulse) {
+		void ApplyImpulse(const Math::Vec3& ImpactPoint, const Math::Vec3& Impulse) {
 			if (0.0f != InvMass) {
 				ApplyLinearImpulse(Impulse);
 				//!< AngularJ = Radius x LinearJ

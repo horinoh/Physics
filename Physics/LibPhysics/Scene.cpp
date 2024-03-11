@@ -4,6 +4,7 @@
 #include "Scene.h"
 #include "Shape.h"
 #include "RigidBody.h"
+#include "Constraint.h"
 
 Physics::Scene::~Scene() 
 {
@@ -13,6 +14,11 @@ Physics::Scene::~Scene()
 		}
 	}
 	for (auto i : RigidBodies) {
+		if (nullptr != i) {
+			delete i;
+		}
+	}
+	for (auto i : Constraints) {
 		if (nullptr != i) {
 			delete i;
 		}
@@ -113,6 +119,24 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 }
 #endif
 
+void Physics::Scene::SolveConstraint(const float DeltaSec, const uint32_t ItCount)
+{
+	for (auto i : Constraints) {
+		i->PreSolve(DeltaSec);
+	}
+
+	//!< １度には２剛体間のコンストレイントしか解決しないので、繰り返さないと収束しない
+	for (uint32_t c = 0; c < ItCount; ++c) {
+		for (auto i : Constraints) {
+			i->Solve();
+		}
+	}
+
+	for (auto i : Constraints) {
+		i->PostSolve();
+	}
+}
+
 void Physics::Scene::Update(const float DeltaSec)
 {
 	//!< 重力
@@ -131,6 +155,9 @@ void Physics::Scene::Update(const float DeltaSec)
 		NarrowPhase(DeltaSec, CollidablePairs, Contacts);
 	}
 #endif
+
+	//!< コンストレイントの解決
+	SolveConstraint(DeltaSec, 5);
 
 	//!< TOI 毎に時間をスライスして、シミュレーションを進める
 	auto AccumTime = 0.0f;

@@ -171,8 +171,8 @@ void Collision::Resolve(const Contact& Ct)
 
 					const auto J = NrmVelAB * TotalElasticity / (TotalInvMass + AngularFactor);
 
-					Ct.RigidBodyA->ApplyTotalImpulse(Ct.PointA, J);
-					Ct.RigidBodyB->ApplyTotalImpulse(Ct.PointB, -J);
+					Ct.RigidBodyA->ApplyImpulse(Ct.PointA, J);
+					Ct.RigidBodyB->ApplyImpulse(Ct.PointB, -J);
 				}
 			}
 
@@ -190,8 +190,8 @@ void Collision::Resolve(const Contact& Ct)
 
 					const auto J = TanVelAB * TotalFriction / (TotalInvMass + AngularFactor);
 
-					Ct.RigidBodyA->ApplyTotalImpulse(Ct.PointA, J);
-					Ct.RigidBodyB->ApplyTotalImpulse(Ct.PointB, -J);
+					Ct.RigidBodyA->ApplyImpulse(Ct.PointA, J);
+					Ct.RigidBodyB->ApplyImpulse(Ct.PointB, -J);
 				}
 			}
 		}

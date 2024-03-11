@@ -44,6 +44,9 @@ namespace Math
 		inline Mat2 operator/(const float rhs) const { 
 			Mat2 r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs)); return r;
 		}
+		inline Mat2 operator-() const {
+			Mat2 r; std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); return r;
+		}
 
 		inline const Vec2& operator[](const int i) const { return Rows[i]; }
 		inline operator const float* () const { return static_cast<const float*>(Rows[0]); }
@@ -94,7 +97,7 @@ namespace Math
 		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f})\n", Rows[0].X(), Rows[0].Y(), Rows[1].X(), Rows[1].Y()); }
 
 	private:
-		std::array<Vec2, 2> Rows = { Vec2(1.0f, 0.0f), Vec2(0.0f, 1.0f) };
+		std::array<Vec2, 2> Rows = { Vec2::AxisX(), Vec2::AxisY() };
 	};
 
 	class Mat3 
@@ -138,6 +141,9 @@ namespace Math
 		}
 		inline Mat3 operator/(const float rhs) const { 
 			Mat3 r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs)); return r;
+		}
+		inline Mat3 operator-() const {
+			Mat3 r; std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); return r;
 		}
 
 		inline const Vec3& operator[](const int i) const { return Rows[i]; }
@@ -224,7 +230,7 @@ namespace Math
 		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f})\n", Rows[0].X(), Rows[0].Y(), Rows[0].Z(), Rows[1].X(), Rows[1].Y(), Rows[1].Z(), Rows[2].X(), Rows[2].Y(), Rows[2].Z()); }
 
 	private:
-		std::array<Vec3, 3> Rows = { Vec3(1.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f), Vec3(0.0f, 0.0f, 1.0f) };
+		std::array<Vec3, 3> Rows = { Vec3::AxisX(), Vec3::AxisY(), Vec3::AxisZ() };
 	};
 
 	class Mat4
@@ -270,6 +276,9 @@ namespace Math
 		}
 		inline Mat4 operator/(const float rhs) const { 
 			Mat4 r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs)); return r;
+		}
+		inline Mat4 operator-() const {
+			Mat4 r; std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); return r;
 		}
 
 		inline const Vec4& operator[](const int i) const { return Rows[i]; }
@@ -366,21 +375,98 @@ namespace Math
 		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n({}, {}, {}, {})\n", Rows[0].X(), Rows[0].Y(), Rows[0].Z(), Rows[0].W(), Rows[1].X(), Rows[1].Y(), Rows[1].Z(), Rows[1].W(), Rows[2].X(), Rows[2].Y(), Rows[2].Z(), Rows[2].W(), Rows[3].X(), Rows[3].Y(), Rows[3].Z(), Rows[3].W()); }
 
 	private:
-		std::array<Vec4, 4> Rows = { Vec4(1.0f, 0.0f, 0.0f, 0.0f), Vec4(0.0f, 1.0f, 0.0f, 0.0f), Vec4(0.0f, 0.0f, 1.0f, 0.0f), Vec4(0.0f, 0.0f, 0.0f, 1.0f) };
-	};
-
-	template<size_t N>
-	class Mat 
-	{
-	public:
-	private:
-		std::array<Vec<N>, N> Rows;
+		std::array<Vec4, 4> Rows = { Vec4::AxisX() , Vec4::AxisY(), Vec4::AxisZ(), Vec4::AxisW() };
 	};
 
 	template<size_t M, size_t N>
-	class _Mat
+	class Mat
 	{
 	public:
+		inline static Mat Identity() {
+			Mat r;
+			for (auto i = 0; i < M; ++i) {
+				r.Rows[i][i] = 1.0f;
+			}
+			return r;
+		}
+		inline static Mat Zero() { return Mat(); }
+
+		inline bool NearlyEqual(const Mat& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
+			return std::ranges::equal(Rows, rhs.Rows, [&](const Vec4& l, const Vec4& r) { return l.NearlyEqual(r, Epsilon); });
+		}
+
+		inline bool operator==(const Mat& rhs) const {
+			return std::ranges::equal(Rows, rhs.Rows);
+		}
+		inline Mat operator+(const Mat& rhs) const {
+			Mat r; std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus()); return r;
+		}
+		inline Mat operator-(const Mat& rhs) const {
+			Mat r; std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::minus()); return r;
+		}
+		inline Mat operator*(const float rhs) const {
+			Mat r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs)); return r;
+		}
+		inline Vec<N> operator*(const Vec<N>& rhs) const {
+			Vec<N> r;
+			for (auto i = 0; i < M; ++i) {
+				r[i] = Rows[i].Dot(rhs);
+			}
+			return r;
+		}
+		//!< #TODO
+		inline Mat operator*(const Mat& rhs) const {
+			Mat<M, rhs.N> r;
+			const auto Trs = rhs.Transpose();
+			for (auto i = 0; i < M; ++i) {
+				for (auto j = 0; j < N; ++j) {
+					r[i][j] += Rows[i].Dot(Trs[j]);
+				}
+			}
+			return r;
+		}
+		inline Mat operator/(const float rhs) const {
+			Mat r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs)); return r;
+		}
+		inline Mat operator-() const {
+			Mat r; std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); return r;
+		}
+
+		inline const Vec<N>& operator[](const int i) const { return Rows[i]; }
+		inline operator const float* () const { return static_cast<const float*>(Rows[0]); }
+
+		inline Mat<N, M> Transpose() const {
+			Mat<N, M> r;
+			for (auto i = 0; i < M; ++i) {
+				for (auto j = 0; j < N; ++j) {
+					r[j][i] = r[i][j];
+				}
+			}
+			return r;
+		}
+
+		inline const Mat& operator+=(const Mat& rhs) {
+			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::plus());
+			return *this;
+		}
+		inline const Mat& operator-=(const Mat& rhs) {
+			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::minus());
+			return *this;
+		}
+		inline const Mat& operator*=(const float rhs) {
+			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+			return *this;
+		}
+		inline const Mat& operator/=(const float rhs) {
+			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::divides(), std::placeholders::_1, rhs));
+			return *this;
+		}
+		inline Vec<N>& operator[](const int i) { return Rows[i]; }
+		inline operator float* () { return static_cast<float*>(Rows[0]); }
+
+		inline Mat& ToZero() { return (*this = Zero()); }
+		inline Mat& ToIdentity() { return (*this = Identity()); }
+
 	private:
 		std::array<Vec<N>, M> Rows;
 	};

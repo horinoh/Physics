@@ -9,7 +9,9 @@
 #include "Physics.h"
 
 #define USE_MESH
+#ifdef USE_MESH
 //#define USE_MESH_HULL
+#endif
 
 class ConvexHullDX : public Gltf::SDK, public DX
 {

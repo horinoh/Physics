@@ -10,6 +10,7 @@ namespace Physics
 {
 	class Shape;
 	class RigidBody;
+	class Constraint;
 
 	class Scene 
 	{
@@ -25,9 +26,13 @@ namespace Physics
 		virtual void BroadPhase(const float DeltaSec, std::vector<CollidablePair>& CollidablePairs);
 		virtual void NarrowPhase(const float DeltaSec, const std::vector<CollidablePair>& CollidablePairs, std::vector<Collision::Contact>& Contacts);
 #endif
+
+		virtual void SolveConstraint(const float DeltaSec, const uint32_t ItCount);
+
 		virtual void Update(const float DeltaSec);
 
 		std::vector<Physics::Shape*> Shapes;
 		std::vector<Physics::RigidBody*> RigidBodies;
+		std::vector<Physics::Constraint*> Constraints;
 	};
 }
