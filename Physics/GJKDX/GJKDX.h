@@ -179,9 +179,9 @@ public:
 				const auto Rb = Scene->RigidBodies[0];
 
 				Rb->Position = Math::Vec3(
-					(std::min)((std::max)(Rb->Position.X() + X, -5.0f), 5.0f),
-					(std::min)((std::max)(Rb->Position.Y() + Y, -5.0f), 5.0f),
-					(std::min)((std::max)(Rb->Position.Z() + Z, -5.0f), 5.0f)
+					(std::clamp)(Rb->Position.X() + X, -5.0f, 5.0f),
+					(std::clamp)(Rb->Position.Y() + Y, -5.0f, 5.0f),
+					(std::clamp)(Rb->Position.Z() + Z, -5.0f, 5.0f)
 				);
 				Rb->Rotation = Math::Quat(Math::Vec3::AxisY(), TO_RADIAN(RotY));
 			}

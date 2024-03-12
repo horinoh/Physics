@@ -7,10 +7,9 @@
 //!<     (     I_A    0    0) ... A の慣性テンソル 3x3 行列
 //!<     (   0   0  M_B    0) ... B の質量が対角成分の 3x3 行列
 //!<     (   0   0    0  I_B) ... B の慣性テンソル 3x3 行列
-template<uint32_t N>
-Math::Mat<N, N> Physics::Constraint::GetInverseMassMatrix()
+Math::Mat<12, 12> Physics::Constraint::GetInverseMassMatrix() const
 {
-	Math::Mat<N, N> InvMass;
+	Math::Mat<12, 12> InvMass;
 
 	//!< M_A
 	InvMass[0][0] = InvMass[1][1] = InvMass[2][2] = RigidBodyA->InvMass;
@@ -41,10 +40,9 @@ Math::Mat<N, N> Physics::Constraint::GetInverseMassMatrix()
 //!<     (W_A) ... A の角速度
 //!<     (V_B) ... B の速度
 //!<     (W_B) ... B の角速度
-template<uint32_t N>
-Math::Vec<N> Physics::Constraint::GetVelocties()
+Math::Vec<12> Physics::Constraint::GetVelocties() const
 {
-	auto v = Math::Vec<N>();
+	auto v = Math::Vec<12>();
 
 	//!< V_A
 	v[0] = RigidBodyA->LinearVelocity.X();
@@ -69,8 +67,7 @@ Math::Vec<N> Physics::Constraint::GetVelocties()
 	return v;
 }
 
-template<uint32_t N>
-void  Physics::Constraint::ApplyImpulse(const Math::Vec<N>& Impulse)
+void Physics::Constraint::ApplyImpulse(const Math::Vec<12>& Impulse)
 {
 	RigidBodyA->ApplyLinearImpulse(Math::Vec3({ Impulse[0], Impulse[1], Impulse[2] }));
 	RigidBodyA->ApplyAngularImpulse(Math::Vec3({ Impulse[3], Impulse[4], Impulse[5] }));
@@ -114,14 +111,13 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 void Physics::ConstraintDistance::Solve()  
 {
 	const auto JT = Jacobian.Transpose();
-	auto rhs = -Jacobian * GetVelocties<12>();
-	rhs[0] -= Baumgarte;
+	const auto A = Jacobian * GetInverseMassMatrix() * JT;
+	const auto B = -Jacobian * GetVelocties() - Math::Vec<1>(Baumgarte);
+	const auto Lambda = GaussSiedel(A, B);
 
-	//const auto Lambda = GaussSiedel(Jacobian * GetInverseMassMatrix<12>() * JT, rhs);
+	ApplyImpulse(JT * Lambda);
 
-	//ApplyImpulse(JT * Lambda);
-
-	//CachedLambda += Lambda;
+	CachedLambda += Lambda;
 }
 void Physics::ConstraintDistance::PostSolve() 
 {

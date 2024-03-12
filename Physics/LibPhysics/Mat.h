@@ -407,20 +407,21 @@ namespace Math
 		inline Mat operator*(const float rhs) const {
 			Mat r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs)); return r;
 		}
-		inline Vec<N> operator*(const Vec<N>& rhs) const {
-			Vec<N> r;
+		template<uint32_t O>
+		inline Vec<M> operator*(const Vec<O>& rhs) const {
+			Vec<M> r;
 			for (auto i = 0; i < M; ++i) {
-				r[i] = Rows[i].Dot(rhs);
+				r[i] = rhs.Dot(Rows[i]);
 			}
 			return r;
 		}
-		//!< #TODO
-		inline Mat operator*(const Mat& rhs) const {
-			Mat<M, rhs.N> r;
+		template<uint32_t O>
+		inline Mat<M, O> operator*(const Mat<N, O>& rhs) const {
+			Mat<M, O> r;
 			const auto Trs = rhs.Transpose();
 			for (auto i = 0; i < M; ++i) {
 				for (auto j = 0; j < N; ++j) {
-					r[i][j] += Rows[i].Dot(Trs[j]);
+					r[i][j] = Rows[i].Dot(Trs[j]);
 				}
 			}
 			return r;

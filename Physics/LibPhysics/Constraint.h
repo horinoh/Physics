@@ -13,9 +13,9 @@ namespace Physics
 		virtual void Solve() = 0;
 		virtual void PostSolve() {}
 
-		template<uint32_t N> Math::Mat<N, N> GetInverseMassMatrix();
-		template<uint32_t N> Math::Vec<N> GetVelocties();
-		template<uint32_t N> void ApplyImpulse(const Math::Vec<N>& Impulse);
+		Math::Mat<12, 12> GetInverseMassMatrix() const;
+		Math::Vec<12> GetVelocties() const;
+		void ApplyImpulse(const Math::Vec<12>& Impulse);
 
 		Physics::RigidBody* RigidBodyA = nullptr;
 		Math::Vec3 AnchorA;
