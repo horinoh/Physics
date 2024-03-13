@@ -13,8 +13,10 @@ namespace Physics
 		virtual void Solve() = 0;
 		virtual void PostSolve() {}
 
-		Math::Mat<12, 12> GetInverseMassMatrix() const;
-		Math::Vec<12> GetVelocties() const;
+		static Math::Mat<12, 12> GetInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
+		static Math::Vec<12> GetVeloctyVector(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
+
+		Math::Vec<12> GetVelocties() const { return GetVeloctyVector(RigidBodyA, RigidBodyB); }
 		void ApplyImpulse(const Math::Vec<12>& Impulse);
 
 		Physics::RigidBody* RigidBodyA = nullptr;
@@ -24,6 +26,8 @@ namespace Physics
 		Physics::RigidBody* RigidBodyB = nullptr;
 		Math::Vec3 AnchorB;
 		Math::Vec3 AxisB;
+
+		Math::Mat<12, 12> InvMass;
 	};
 	class ConstraintDistance : public Constraint 
 	{
@@ -35,7 +39,22 @@ namespace Physics
 	private:
 		Math::Mat<1, 12> Jacobian;
 		Math::Vec<1> CachedLambda;
-		float Baumgarte;
+		float Baumgarte = 0.0f;
+	};
+
+	class ConstraintPenetration : public Constraint 
+	{
+	public:
+		virtual void PreSolve(const float DeltaSec) override;
+		virtual void Solve() override;
+
+	private:
+		Math::Mat<3, 12> Jacobian;
+		Math::Vec<3> CachedLambda;
+		float Baumgarte = 0.0f;
+
+		Math::Vec3 Normal;
+		float Friction = 0.0f;
 	};
 
 	//!< Linear Complimentary Problem (LCP)

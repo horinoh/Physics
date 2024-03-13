@@ -163,6 +163,7 @@ namespace Math
 			return *this;
 		}
 		inline Vec3 Cross(const Vec3& rhs) const { return Vec3(Y() * rhs.Z() - rhs.Y() * Z(), rhs.X() * Z() - X() * rhs.Z(), X() * rhs.Y() - rhs.X() * Y()); }
+		//!< ‚’¼‚È 2 Ž²‚ðŽæ“¾
 		void GetOrtho(Vec3& U, Vec3& V) const {
 			const auto N = Normalize();
 			const auto W = (N.Z() * N.Z() > 0.9f * 0.9f) ? Vec3::AxisX() : Vec3::AxisZ();

@@ -142,7 +142,7 @@ namespace Collision
 			const auto AD = D - A;
 			const auto BD = D - B;
 			const auto CD = D - C;
-			return fabs(AD.Dot(BD.Cross(CD)) / 6.0f);
+			return std::fabsf(AD.Dot(BD.Cross(CD)) / 6.0f);
 		}
 	}
 
