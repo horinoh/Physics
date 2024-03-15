@@ -130,6 +130,30 @@ public:
 					Rb->Init(Scene->Shapes.back());
 				}
 			}
+
+			//!< コンストレイント
+			{
+				constexpr auto Radius = 0.5f;
+				constexpr auto Y = 6.0f, Z = -10.0f;
+				constexpr auto JntLen = 1.25f;
+
+				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				RbA->Position = Math::Vec3(0, Y, Z);
+				RbA->InvMass = 0;
+				RbA->Init(Scene->Shapes.back());
+
+				for (auto i = 0; i < 5; ++i) {
+					auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+					RbB->Position = RbA->Position + Math::Vec3::AxisX() * JntLen;
+					RbB->Init(Scene->Shapes.back());
+
+					auto Jnt = new Physics::ConstraintDistance();
+					Jnt->Init(RbA, RbB, (RbA->Position + RbB->Position) * 0.5f);
+					Scene->Constraints.emplace_back(Jnt);
+
+					RbA = RbB;
+				}
+			}
 		}
 
 		//!< 静的オブジェクト配置

@@ -2,6 +2,11 @@
 
 #include "PhysicsMath.h"
 
+namespace Collision 
+{
+	struct Contact;
+}
+
 namespace Physics
 {
 	class RigidBody;
@@ -13,12 +18,14 @@ namespace Physics
 		virtual void Solve() = 0;
 		virtual void PostSolve() {}
 
-		static Math::Mat<12, 12> GetInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
-		static Math::Vec<12> GetVeloctyVector(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
+		static Math::Mat<12, 12> CreateInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
+		static Math::Vec<12> CreateVelocties(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
 
-		Math::Vec<12> GetVelocties() const { return GetVeloctyVector(RigidBodyA, RigidBodyB); }
+		inline const Math::Mat<12, 12>& GetInverseMassMatrix() const { return InvMass; }
+		Math::Vec<12> GetVelocties() const { return CreateVelocties(RigidBodyA, RigidBodyB); }
 		void ApplyImpulse(const Math::Vec<12>& Impulse);
 
+	protected:
 		Physics::RigidBody* RigidBodyA = nullptr;
 		Math::Vec3 AnchorA;
 		Math::Vec3 AxisA;
@@ -36,7 +43,9 @@ namespace Physics
 		virtual void Solve() override;
 		virtual void PostSolve() override;
 
-	private:
+		void Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor);
+
+	protected:
 		Math::Mat<1, 12> Jacobian;
 		Math::Vec<1> CachedLambda;
 		float Baumgarte = 0.0f;
@@ -48,7 +57,9 @@ namespace Physics
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
 
-	private:
+		void Init(const Collision::Contact& Ct);
+
+	protected:
 		Math::Mat<3, 12> Jacobian;
 		Math::Vec<3> CachedLambda;
 		float Baumgarte = 0.0f;

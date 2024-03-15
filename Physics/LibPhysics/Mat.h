@@ -407,8 +407,8 @@ namespace Math
 		inline Mat operator*(const float rhs) const {
 			Mat r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs)); return r;
 		}
-		template<uint32_t O>
-		inline Vec<M> operator*(const Vec<O>& rhs) const {
+		template<uint32_t N>
+		inline Vec<M> operator*(const Vec<N>& rhs) const {
 			Vec<M> r;
 			for (auto i = 0; i < M; ++i) {
 				r[i] = rhs.Dot(Rows[i]);
@@ -420,7 +420,7 @@ namespace Math
 			Mat<M, O> r;
 			const auto Trs = rhs.Transpose();
 			for (auto i = 0; i < M; ++i) {
-				for (auto j = 0; j < N; ++j) {
+				for (auto j = 0; j < O; ++j) {
 					r[i][j] = Rows[i].Dot(Trs[j]);
 				}
 			}
@@ -440,7 +440,7 @@ namespace Math
 			Mat<N, M> r;
 			for (auto i = 0; i < M; ++i) {
 				for (auto j = 0; j < N; ++j) {
-					r[j][i] = r[i][j];
+					r[j][i] = Rows[i][j];
 				}
 			}
 			return r;

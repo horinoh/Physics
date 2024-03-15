@@ -1,5 +1,6 @@
 #include "Constraint.h"
 #include "RigidBody.h"
+#include "Collision.h"
 
 //!< Lambda = -J * v / J * M.Inverse() * J.Transpose()
 
@@ -7,7 +8,7 @@
 //!<     (     I_A    0    0) ... A の慣性テンソル 3x3 行列
 //!<     (   0   0  M_B    0) ... B の質量が対角成分の 3x3 行列
 //!<     (   0   0    0  I_B) ... B の慣性テンソル 3x3 行列
-Math::Mat<12, 12> Physics::Constraint::GetInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
+Math::Mat<12, 12> Physics::Constraint::CreateInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
 {
 	Math::Mat<12, 12> InvM;
 
@@ -40,7 +41,7 @@ Math::Mat<12, 12> Physics::Constraint::GetInverseMassMatrix(const Physics::Rigid
 //!<     (W_A) ... A の角速度
 //!<     (V_B) ... B の速度
 //!<     (W_B) ... B の角速度
-Math::Vec<12> Physics::Constraint::GetVeloctyVector(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
+Math::Vec<12> Physics::Constraint::CreateVelocties(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
 {
 	auto V = Math::Vec<12>();
 
@@ -113,7 +114,7 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 void Physics::ConstraintDistance::Solve()  
 {
 	const auto JT = Jacobian.Transpose();
-	const auto A = Jacobian * InvMass * JT;
+	const auto A = Jacobian * GetInverseMassMatrix() * JT;
 	const auto B = -Jacobian * GetVelocties() - Math::Vec<1>(Baumgarte);
 
 	const auto Lambda = GaussSiedel(A, B);
@@ -126,6 +127,17 @@ void Physics::ConstraintDistance::PostSolve()
 {
 	if (CachedLambda[0] * 0.0f != CachedLambda[0] * 0.0f) { CachedLambda[0] = 0.0f; }
 	CachedLambda[0] = (std::clamp)(CachedLambda[0], -std::numeric_limits<float>::epsilon(), std::numeric_limits<float>::epsilon());
+}
+
+void Physics::ConstraintDistance::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor)
+{
+	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
+	AnchorA = RigidBodyA->ToLocal(Anchor);
+
+	RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
+	AnchorB = RigidBodyB->ToLocal(Anchor);
+
+	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
 }
 
 void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
@@ -161,42 +173,44 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 	Jacobian[0][10] = J4.Y();
 	Jacobian[0][11] = J4.Z();
 
-	Friction = RigidBodyA->Friction * RigidBodyB->Friction;
+	//Friction = RigidBodyA->Friction * RigidBodyB->Friction;
 	if (Friction > 0.0f) {
-		const auto J1 = -U;
-		Jacobian[1][0] = J1.X();
-		Jacobian[1][1] = J1.Y();
-		Jacobian[1][2] = J1.Z();
-		const auto J2 = RA.Cross(J1);
-		Jacobian[1][3] = J2.X();
-		Jacobian[1][4] = J2.Y();
-		Jacobian[1][5] = J2.Z();
-		const auto J3 = U;
-		Jacobian[1][6] = J3.X();
-		Jacobian[1][7] = J3.Y();
-		Jacobian[1][8] = J3.Z();
-		const auto J4 = RB.Cross(J3);
-		Jacobian[1][9] = J4.X();
-		Jacobian[1][10] = J4.Y();
-		Jacobian[1][11] = J4.Z();
-	}
-	if (Friction > 0.0f) {
-		const auto J1 = -V;
-		Jacobian[2][0] = J1.X();
-		Jacobian[2][1] = J1.Y();
-		Jacobian[2][2] = J1.Z();
-		const auto J2 = RA.Cross(J1);
-		Jacobian[2][3] = J2.X();
-		Jacobian[2][4] = J2.Y();
-		Jacobian[2][5] = J2.Z();
-		const auto J3 = V;
-		Jacobian[2][6] = J3.X();
-		Jacobian[2][7] = J3.Y();
-		Jacobian[2][8] = J3.Z();
-		const auto J4 = RB.Cross(J3);
-		Jacobian[2][9] = J4.X();
-		Jacobian[2][10] = J4.Y();
-		Jacobian[2][11] = J4.Z();
+		{
+			const auto J1 = -U;
+			Jacobian[1][0] = J1.X();
+			Jacobian[1][1] = J1.Y();
+			Jacobian[1][2] = J1.Z();
+			const auto J2 = RA.Cross(J1);
+			Jacobian[1][3] = J2.X();
+			Jacobian[1][4] = J2.Y();
+			Jacobian[1][5] = J2.Z();
+			const auto J3 = U;
+			Jacobian[1][6] = J3.X();
+			Jacobian[1][7] = J3.Y();
+			Jacobian[1][8] = J3.Z();
+			const auto J4 = RB.Cross(J3);
+			Jacobian[1][9] = J4.X();
+			Jacobian[1][10] = J4.Y();
+			Jacobian[1][11] = J4.Z();
+		}
+		{
+			const auto J1 = -V;
+			Jacobian[2][0] = J1.X();
+			Jacobian[2][1] = J1.Y();
+			Jacobian[2][2] = J1.Z();
+			const auto J2 = RA.Cross(J1);
+			Jacobian[2][3] = J2.X();
+			Jacobian[2][4] = J2.Y();
+			Jacobian[2][5] = J2.Z();
+			const auto J3 = V;
+			Jacobian[2][6] = J3.X();
+			Jacobian[2][7] = J3.Y();
+			Jacobian[2][8] = J3.Z();
+			const auto J4 = RB.Cross(J3);
+			Jacobian[2][9] = J4.X();
+			Jacobian[2][10] = J4.Y();
+			Jacobian[2][11] = J4.Z();
+		}
 	}
 
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
@@ -206,7 +220,7 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 void Physics::ConstraintPenetration::Solve()
 {
 	const auto JT = Jacobian.Transpose();
-	const auto A = Jacobian * InvMass * JT;
+	const auto A = Jacobian * GetInverseMassMatrix() * JT;
 	auto B = -Jacobian * GetVelocties(); B[0] -= Baumgarte;
 
 	auto Lambda = GaussSiedel(A, B);
@@ -225,4 +239,19 @@ void Physics::ConstraintPenetration::Solve()
 	Lambda = CachedLambda - Old;
 
 	ApplyImpulse(JT * Lambda);
+}
+
+void Physics::ConstraintPenetration::Init(const Collision::Contact& Ct) 
+{
+	RigidBodyA = Ct.RigidBodyA;
+	AnchorA = RigidBodyA->ToLocal(Ct.PointA);
+
+	RigidBodyB = Ct.RigidBodyB;	
+	AnchorB = RigidBodyB->ToLocal(Ct.PointB);
+
+	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
+
+	//!< A 空間での法線
+	Normal = RigidBodyA->Rotation.Inverse().Rotate(-Ct.Normal).Normalize();
+	Friction = RigidBodyA->Friction * RigidBodyB->Friction;
 }

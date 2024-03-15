@@ -99,6 +99,10 @@ void Physics::Scene::BroadPhase(const float DeltaSec, std::vector<CollidablePair
 }
 void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<CollidablePair>& CollidablePairs, std::vector<Collision::Contact>& Contacts)
 {
+#if 0
+	for (auto i : Constraints) { delete i; } Constraints.clear();
+#endif
+
 	Contacts.reserve(std::size(CollidablePairs));
 	Contacts.clear();
 
@@ -109,8 +113,20 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 		if (0.0f != RbA->InvMass || 0.0f != RbB->InvMass) {
 			Collision::Contact Ct;
 			if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
-				//!< Õ“Ë‚ðŽûW
-				Contacts.emplace_back(Ct);
+				if (0.0f == Ct.TimeOfImpact) {
+					//!< Ã“IÕ“Ë
+#if 0
+					auto CP = new ConstraintPenetration();
+					CP->Init(Ct);
+					Constraints.emplace_back(CP);
+#else
+					Contacts.emplace_back(Ct);
+#endif
+				}
+				else {
+					//!< “®“IÕ“Ë
+					Contacts.emplace_back(Ct);
+				}
 			}
 		}
 	}
