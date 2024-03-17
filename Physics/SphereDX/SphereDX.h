@@ -132,21 +132,23 @@ public:
 			//!< コンストレイント
 			{
 				constexpr auto Radius = 0.5f;
-				constexpr auto Y = 6.0f, Z = -10.0f;
+
+				const auto JntRootPos = Math::Vec3(0.0f, 6.0f, -10.0f);
 				constexpr auto JntLen = 1.25f;
+				constexpr auto JntCount = 5;
 
 				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-				RbA->Position = Math::Vec3(0, Y, Z);
+				RbA->Position = JntRootPos;
 				RbA->InvMass = 0;
 				RbA->Init(Scene->Shapes.back());
 
-				for (auto i = 0; i < 5; ++i) {
+				for (auto i = 0; i < JntCount; ++i) {
 					auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 					RbB->Position = RbA->Position + Math::Vec3::AxisX() * JntLen;
 					RbB->Init(Scene->Shapes.back());
 
 					auto Jnt = new Physics::ConstraintDistance();
-					Jnt->Init(RbA, RbB, (RbA->Position + RbB->Position) * 0.5f);
+					Jnt->Init(RbA, RbB, RbA->Position);
 					Scene->Constraints.emplace_back(Jnt);
 
 					RbA = RbB;

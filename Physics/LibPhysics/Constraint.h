@@ -20,6 +20,8 @@ namespace Physics
 
 		static Math::Mat<12, 12> CreateInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
 		static Math::Vec<12> CreateVelocties(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
+		static Math::Mat4 Left(const Math::Quat& lhs);
+		static Math::Mat4 Right(const Math::Quat& lhs);
 
 		inline const Math::Mat<12, 12>& GetInverseMassMatrix() const { return InvMass; }
 		Math::Vec<12> GetVelocties() const { return CreateVelocties(RigidBodyA, RigidBodyB); }
@@ -66,6 +68,23 @@ namespace Physics
 
 		Math::Vec3 Normal;
 		float Friction = 0.0f;
+	};
+
+	class ConstraintHinge : public Constraint
+	{
+	public:
+		virtual void PreSolve(const float DeltaSec) override;
+		virtual void Solve() override;
+		virtual void PostSolve() override;
+
+	protected:
+		Math::Mat<4, 12> Jacobian;
+		Math::Vec<4> CachedLambda;
+		float Baumgarte = 0.0f;
+
+		Math::Quat Q;	
+		bool IsAngleViolated;
+		float RelativeAngle;
 	};
 
 	//!< Linear Complimentary Problem (LCP)
