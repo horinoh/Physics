@@ -45,7 +45,7 @@ namespace Physics
 		virtual void Solve() override;
 		virtual void PostSolve() override;
 
-		void Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor);
+		ConstraintDistance& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor);
 
 	protected:
 		Math::Mat<1, 12> Jacobian;
@@ -56,10 +56,13 @@ namespace Physics
 	class ConstraintPenetration : public Constraint 
 	{
 	public:
+		ConstraintPenetration() {}
+		ConstraintPenetration(const Collision::Contact& Ct) { Init(Ct); }
+
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
 
-		void Init(const Collision::Contact& Ct);
+		ConstraintPenetration& Init(const Collision::Contact& Ct);
 
 	protected:
 		Math::Mat<3, 12> Jacobian;
@@ -85,6 +88,40 @@ namespace Physics
 		Math::Quat Q;	
 		bool IsAngleViolated;
 		float RelativeAngle;
+	};
+
+	class Manifold 
+	{
+	public:
+		void Add(const Collision::Contact& CtOrig);
+		void RemoveExpired();
+
+	protected:
+		friend class ManifoldCollector;
+
+		//!< コンストラクト時にセットした A, B の順序を覚えておく、以降の追加はこの順に従う
+		Physics::RigidBody* RigidBodyA = nullptr;
+		Physics::RigidBody* RigidBodyB = nullptr;
+
+		using ContactAndConstraint = std::pair<Collision::Contact, ConstraintPenetration>;
+		std::vector<ContactAndConstraint> Constraints;
+	};
+	class ManifoldCollector
+	{
+	public:
+		void Add(const Collision::Contact& Ct);
+		void RemoveExpired() {
+			for (auto& i : Manifolds) { i.RemoveExpired(); }
+			const auto Range = std::ranges::remove_if(Manifolds, [](const auto& i) {return std::empty(i.Constraints); });
+			Manifolds.erase(std::cbegin(Range), std::cend(Range));
+		}
+
+		void PreSolve(const float DeltaSec);
+		void Solve();
+		void PostSolve();
+
+	protected:
+		std::vector<Manifold> Manifolds;
 	};
 
 	//!< Linear Complimentary Problem (LCP)

@@ -116,9 +116,7 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 				if (0.0f == Ct.TimeOfImpact) {
 					//!< 静的衝突
 #if 0
-					auto CP = new ConstraintPenetration();
-					CP->Init(Ct);
-					Constraints.emplace_back(CP);
+					Manifolds.Add(Ct);
 #else
 					Contacts.emplace_back(Ct);
 #endif
@@ -140,21 +138,26 @@ void Physics::Scene::SolveConstraint(const float DeltaSec, const uint32_t ItCoun
 	for (auto i : Constraints) {
 		i->PreSolve(DeltaSec);
 	}
+	Manifolds.PreSolve(DeltaSec);
 
 	//!< １度には２剛体間のコンストレイントしか解決しないので、繰り返さないと収束しない
 	for (uint32_t c = 0; c < ItCount; ++c) {
 		for (auto i : Constraints) {
 			i->Solve();
 		}
+		Manifolds.Solve();
 	}
 
 	for (auto i : Constraints) {
 		i->PostSolve();
 	}
+	Manifolds.PostSolve();
 }
 
 void Physics::Scene::Update(const float DeltaSec)
 {
+	Manifolds.RemoveExpired();
+
 	//!< 重力
 	for (auto i : RigidBodies) {
 		i->ApplyGravity(DeltaSec);

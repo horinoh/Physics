@@ -113,13 +113,13 @@ public:
 
 	void PlaceRigidBodies() {
 		//!< 動的オブジェクト配置
-#if 0
 		{
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
 			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
 
+#if 1
 			const auto n = 4;
 			const auto n2 = n >> 1;
 			for (auto x = 0; x < n; ++x) {
@@ -129,33 +129,15 @@ public:
 					Rb->Init(Scene->Shapes.back());
 				}
 			}
-		}
 #else
-		{
-			constexpr auto Radius = 0.5f;
-			constexpr auto Y = 8.0f;
-			constexpr auto JntLen = 1.25f;
-
-			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
-
-			auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-			RbA->Position = Math::Vec3(0, Y, 0);
-			RbA->InvMass = 0;
-			RbA->Init(Scene->Shapes.back());
-
-			for (auto i = 0; i < 6; ++i) {
-				auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-				RbB->Position = RbA->Position + Math::Vec3::AxisX() * JntLen;
-				RbB->Init(Scene->Shapes.back());
-				
-				auto Jnt = new Physics::ConstraintDistance();
-				Jnt->Init(RbA, RbB, RbA->Position);
-				Scene->Constraints.emplace_back(Jnt);
-
-				RbA = RbB;
+			constexpr auto StackCount = 5;
+			for (auto i = 0; i < StackCount; ++i) {
+				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				Rb->Position = Math::Vec3(0.0f, i * 1.3f + 0.6f, 0.0f);
+				Rb->Init(Scene->Shapes.back());
 			}
-		}
 #endif
+		}
 		//!< 静的オブジェクト配置
 		{
 			constexpr auto Radius = 20.0f;

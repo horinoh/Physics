@@ -25,7 +25,7 @@ vec3 Specular(const vec3 MaterialColor, const vec4 LightColor, const float LN, c
 	return Phong(MaterialColor, LightColor, LN, L, N, V);
 }
 
-const vec3 LightDirection = vec3(0.0f, 1.0f, 1.0f);
+const vec3 LightDirection = vec3(0.0f, 1.0f, -1.0f);
 
 void main()
 {

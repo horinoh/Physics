@@ -151,7 +151,7 @@ void Physics::ConstraintDistance::PostSolve()
 	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Eps, Eps);
 }
 
-void Physics::ConstraintDistance::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor)
+Physics::ConstraintDistance& Physics::ConstraintDistance::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor)
 {
 	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
 	AnchorA = RigidBodyA->ToLocal(Anchor);
@@ -160,6 +160,8 @@ void Physics::ConstraintDistance::Init(const Physics::RigidBody* RbA, const Phys
 	AnchorB = RigidBodyB->ToLocal(Anchor);
 
 	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
+
+	return *this;
 }
 
 void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
@@ -263,7 +265,7 @@ void Physics::ConstraintPenetration::Solve()
 	ApplyImpulse(JT * Lambda);
 }
 
-void Physics::ConstraintPenetration::Init(const Collision::Contact& Ct) 
+Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Collision::Contact& Ct)
 {
 	RigidBodyA = Ct.RigidBodyA;
 	AnchorA = RigidBodyA->ToLocal(Ct.PointA);
@@ -276,6 +278,8 @@ void Physics::ConstraintPenetration::Init(const Collision::Contact& Ct)
 	//!< A 空間での法線
 	Normal = RigidBodyA->Rotation.Inverse().Rotate(-Ct.Normal).Normalize();
 	Friction = RigidBodyA->Friction * RigidBodyB->Friction;
+
+	return *this;
 }
 
 void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
@@ -413,4 +417,84 @@ void Physics::ConstraintHinge::PostSolve()
 	constexpr auto Limit = 20.0f;
 	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Limit, Limit);
 	CachedLambda[1] = CachedLambda[2] = CachedLambda[3] = 0.0f;
+}
+
+void Physics::Manifold::Add(const Collision::Contact& CtOrig)
+{
+	//!< 剛体 A, B の順序が食い違っている場合は辻褄を合わせる
+	auto Ct = CtOrig;
+	if (RigidBodyA != CtOrig.RigidBodyA) { Ct.Swap(); }
+
+	//!< 既存とほぼ同じ接触位置の場合は何もしない
+	constexpr auto Esp2 = 0.02f * 0.02f;
+	if (std::ranges::any_of(Constraints, [&](const auto& i) {
+		return (i.first.PointA - Ct.PointA).LengthSq() < Esp2 || (i.first.PointB - Ct.PointB).LengthSq() < Esp2;
+	})) {
+		return;
+	}
+
+	const auto NewItem = ContactAndConstraint({ Ct, ConstraintPenetration(Ct) });
+	if (std::size(Constraints) < 4) {
+		//!< 空きがある場合は追加
+		Constraints.emplace_back(NewItem);
+	}
+	else {
+		//!< 平均値に最も近いものを入れ替える
+		const auto Avg = (Constraints[0].first.PointA + Constraints[1].first.PointA + Constraints[2].first.PointA + Constraints[3].first.PointA + Ct.PointA) * 0.2f;
+		*std::ranges::min_element(Constraints, [&](const auto& lhs, const auto& rhs) {
+			return (Avg - lhs.first.PointA).LengthSq() < (Avg - rhs.first.PointA).LengthSq();
+		}) = NewItem;
+	}
+}
+void Physics::Manifold::RemoveExpired()
+{
+	constexpr auto Eps2 = 0.02f * 0.02f;
+	const auto Range = std::ranges::remove_if(Constraints, [&](const auto& i) {
+		const auto AB = i.first.PointB - i.first.PointA;
+		const auto N = i.first.RigidBodyA->Rotation.Rotate(i.first.Normal);
+		const auto PenDepth = N.Dot(AB);
+		return PenDepth > 0.0f || (AB - N * PenDepth).LengthSq() >= Eps2;
+	});
+	Constraints.erase(std::cbegin(Range), std::cend(Range));
+}
+
+void Physics::ManifoldCollector::Add(const Collision::Contact& Ct)
+{
+	//!< 同じ剛体 A, B 間のマニフォールドか存在するか
+	auto It = std::ranges::find_if(Manifolds, [&](const auto& i) {
+		return (i.RigidBodyA==Ct.RigidBodyA && i.RigidBodyB == Ct.RigidBodyB) || (i.RigidBodyA == Ct.RigidBodyB && i.RigidBodyB == Ct.RigidBodyA);
+	});
+	if (std::cend(Manifolds) != It) {
+		//!< 既存なら衝突を追加
+		It->Add(Ct);
+	}
+	else {
+		//!< 既存でなければ、マニフォールド(と衝突)を追加
+		Manifolds.emplace_back().Add(Ct);
+	}
+}
+
+void Physics::ManifoldCollector::PreSolve(const float DeltaSec) 
+{
+	for (auto& i : Manifolds) {
+		for (auto& j : i.Constraints) {
+			j.second.PreSolve(DeltaSec);
+		}
+	}
+}
+void Physics::ManifoldCollector::Solve()
+{
+	for (auto& i : Manifolds) {
+		for (auto& j : i.Constraints) {
+			j.second.Solve();
+		}
+	}
+}
+void Physics::ManifoldCollector::PostSolve()
+{
+	for (auto& i : Manifolds) {
+		for (auto& j : i.Constraints) {
+			j.second.PostSolve();
+		}
+	}
 }

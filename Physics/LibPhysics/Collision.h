@@ -67,11 +67,17 @@ namespace Collision
 
 		Math::Vec3 Normal;
 
-		//float SeparationDistance = 0.0f;
-
-		bool operator==(const Contact& rhs) const {
-			return Normal == rhs.Normal && PointA == rhs.PointA && PointB == rhs.PointB && TimeOfImpact == rhs.TimeOfImpact && RigidBodyA == rhs.RigidBodyA && RigidBodyB == rhs.RigidBodyB;
+		Contact& Swap() {
+			std::swap(RigidBodyA, RigidBodyB);
+			std::swap(PointA, PointB);
+			Normal = -Normal;
+			return *this;
 		}
+
+		//float SeparationDistance = 0.0f;
+		//bool operator==(const Contact& rhs) const {
+		//	return Normal == rhs.Normal && PointA == rhs.PointA && PointB == rhs.PointB && TimeOfImpact == rhs.TimeOfImpact && RigidBodyA == rhs.RigidBodyA && RigidBodyB == rhs.RigidBodyB;
+		//}
 	};
 
 	namespace Distance 

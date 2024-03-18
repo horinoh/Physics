@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "Collision.h"
+#include "Constraint.h"
 
 //#define USE_BRUTE_FORCE
 
@@ -34,5 +35,6 @@ namespace Physics
 		std::vector<Physics::Shape*> Shapes;
 		std::vector<Physics::RigidBody*> RigidBodies;
 		std::vector<Physics::Constraint*> Constraints;
+		Physics::ManifoldCollector Manifolds;
 	};
 }
