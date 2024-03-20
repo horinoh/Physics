@@ -61,4 +61,18 @@
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="ConstraintVK.frag">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ConstraintVK.vert">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ConstraintVK_FLR.vert">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
 </Project>
