@@ -145,10 +145,7 @@ namespace Collision
 	{
 		[[nodiscard]] static float Tetrahedron(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D)
 		{
-			const auto AD = D - A;
-			const auto BD = D - B;
-			const auto CD = D - C;
-			return std::fabsf(AD.Dot(BD.Cross(CD)) / 6.0f);
+			return std::fabsf((D - A).Dot((D - B).Cross(D - C)) / 6.0f);
 		}
 	}
 

@@ -105,7 +105,7 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	//!< ヤコビ行列を作成
-	const auto J1 = BA * 2.0f;
+	const auto J1 = -AB * 2.0f;
 	Jacobian[0][0] = J1.X();
 	Jacobian[0][1] = J1.Y();
 	Jacobian[0][2] = J1.Z();
@@ -113,7 +113,7 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	Jacobian[0][3] = J2.X();
 	Jacobian[0][4] = J2.Y();
 	Jacobian[0][5] = J2.Z();
-	const auto J3 = AB * 2.0f;
+	const auto J3 = -BA * 2.0f;
 	Jacobian[0][6] = J3.X();
 	Jacobian[0][7] = J3.Y();
 	Jacobian[0][8] = J3.Z();
@@ -175,7 +175,7 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 	//!< 法線に垂直な 2 軸を取得
 	Math::Vec3 U, V;
 	Normal.GetOrtho(U, V);
-	//!< ワールドスペースへ
+	//!< N, U, V をワールドスペースへ
 	const auto N = RigidBodyA->Rotation.Rotate(Normal);
 	U = RigidBodyA->Rotation.Rotate(U);
 	V = RigidBodyA->Rotation.Rotate(V);
@@ -276,7 +276,8 @@ Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Colli
 	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
 
 	//!< A 空間での法線
-	Normal = RigidBodyA->Rotation.Inverse().Rotate(-Ct.Normal).Normalize();
+	//Normal = RigidBodyA->Rotation.Inverse().Rotate(-Ct.Normal).Normalize();
+	Normal = RigidBodyA->Rotation.Inverse().Rotate(Ct.Normal).Normalize();
 	Friction = RigidBodyA->Friction * RigidBodyB->Friction;
 
 	return *this;
@@ -314,7 +315,7 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
 
-	const auto J1 = BA * 2.0f;
+	const auto J1 = -AB * 2.0f;
 	Jacobian[0][0] = J1.X();
 	Jacobian[0][1] = J1.Y();
 	Jacobian[0][2] = J1.Z();
@@ -322,7 +323,7 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	Jacobian[0][3] = J2.X();
 	Jacobian[0][4] = J2.Y();
 	Jacobian[0][5] = J2.Z();
-	const auto J3 = AB * 2.0f;
+	const auto J3 = -BA * 2.0f;
 	Jacobian[0][6] = J3.X();
 	Jacobian[0][7] = J3.Y();
 	Jacobian[0][8] = J3.Z();
@@ -419,6 +420,7 @@ void Physics::ConstraintHinge::PostSolve()
 	CachedLambda[1] = CachedLambda[2] = CachedLambda[3] = 0.0f;
 }
 
+Physics::Manifold::Manifold(const Collision::Contact& Ct) : RigidBodyA(Ct.RigidBodyA), RigidBodyB(Ct.RigidBodyB) { Add(Ct); }
 void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 {
 	//!< 剛体 A, B の順序が食い違っている場合は辻褄を合わせる
@@ -426,9 +428,9 @@ void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 	if (RigidBodyA != CtOrig.RigidBodyA) { Ct.Swap(); }
 
 	//!< 既存とほぼ同じ接触位置の場合は何もしない
-	constexpr auto Esp2 = 0.02f * 0.02f;
+	constexpr auto Eps2 = 0.02f * 0.02f;
 	if (std::ranges::any_of(Constraints, [&](const auto& i) {
-		return (i.first.PointA - Ct.PointA).LengthSq() < Esp2 || (i.first.PointB - Ct.PointB).LengthSq() < Esp2;
+		return (i.first.PointA - Ct.PointA).LengthSq() < Eps2 || (i.first.PointB - Ct.PointB).LengthSq() < Eps2;
 	})) {
 		return;
 	}
@@ -439,11 +441,24 @@ void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 		Constraints.emplace_back(NewItem);
 	}
 	else {
-		//!< 平均値に最も近いものを入れ替える
-		const auto Avg = (Constraints[0].first.PointA + Constraints[1].first.PointA + Constraints[2].first.PointA + Constraints[3].first.PointA + Ct.PointA) * 0.2f;
+		//!< 平均値
+		const auto Avg = (std::accumulate(std::cbegin(Constraints), std::cend(Constraints), Math::Vec3::Zero(), [](const auto& Acc, const auto& i) {
+			return Acc + i.first.PointA; 
+		}) + Ct.PointA) * 0.2f;
+#if 1
+		//!< (新規を含め) 平均値に一番近い要素を削除する為、一旦追加してしまう
+		Constraints.emplace_back(NewItem);
+		//!< 平均値に一番近い要素を見つけ削除
+		Constraints.erase(std::ranges::min_element(Constraints, [&](const auto& lhs, const auto& rhs) {
+			return (Avg - lhs.first.PointA).LengthSq() < (Avg - rhs.first.PointA).LengthSq();
+		}));
+#else
+		const auto Avg1 = (Constraints[0].first.PointA + Constraints[1].first.PointA + Constraints[2].first.PointA + Constraints[3].first.PointA + Ct.PointA) * 0.2f;
 		*std::ranges::min_element(Constraints, [&](const auto& lhs, const auto& rhs) {
 			return (Avg - lhs.first.PointA).LengthSq() < (Avg - rhs.first.PointA).LengthSq();
 		}) = NewItem;
+		
+#endif
 	}
 }
 void Physics::Manifold::RemoveExpired()
@@ -462,7 +477,7 @@ void Physics::ManifoldCollector::Add(const Collision::Contact& Ct)
 {
 	//!< 同じ剛体 A, B 間のマニフォールドか存在するか
 	auto It = std::ranges::find_if(Manifolds, [&](const auto& i) {
-		return (i.RigidBodyA==Ct.RigidBodyA && i.RigidBodyB == Ct.RigidBodyB) || (i.RigidBodyA == Ct.RigidBodyB && i.RigidBodyB == Ct.RigidBodyA);
+		return (i.RigidBodyA == Ct.RigidBodyA && i.RigidBodyB == Ct.RigidBodyB) || (i.RigidBodyA == Ct.RigidBodyB && i.RigidBodyB == Ct.RigidBodyA);
 	});
 	if (std::cend(Manifolds) != It) {
 		//!< 既存なら衝突を追加
@@ -470,7 +485,7 @@ void Physics::ManifoldCollector::Add(const Collision::Contact& Ct)
 	}
 	else {
 		//!< 既存でなければ、マニフォールド(と衝突)を追加
-		Manifolds.emplace_back().Add(Ct);
+		Manifolds.emplace_back(Ct);
 	}
 }
 

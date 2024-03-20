@@ -99,10 +99,6 @@ void Physics::Scene::BroadPhase(const float DeltaSec, std::vector<CollidablePair
 }
 void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<CollidablePair>& CollidablePairs, std::vector<Collision::Contact>& Contacts)
 {
-#if 0
-	for (auto i : Constraints) { delete i; } Constraints.clear();
-#endif
-
 	Contacts.reserve(std::size(CollidablePairs));
 	Contacts.clear();
 

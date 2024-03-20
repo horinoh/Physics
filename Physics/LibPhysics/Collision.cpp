@@ -120,7 +120,8 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 
 			//!< ‰ñ“]‚ðl—¶‚µ‚½‘Š‘Î‘¬“x‚ð‹‚ß‚é
 			const auto Dir = (OnB - OnA).Normalize();
-			const auto LVel = RbA->LinearVelocity - RbB->LinearVelocity;
+			//const auto LVel = RbA->LinearVelocity - RbB->LinearVelocity;
+			const auto LVel = RbB->LinearVelocity - RbA->LinearVelocity;
 			const auto AngVelA = RbA->Shape->GetFastestPointSpeed(RbA->AngularVelocity, Dir);
 			const auto AngVelB = RbB->Shape->GetFastestPointSpeed(RbB->AngularVelocity, -Dir);
 			const auto OrthoSpeed = LVel.Dot(Dir) + AngVelA + AngVelB;

@@ -93,6 +93,8 @@ namespace Physics
 	class Manifold 
 	{
 	public:
+		Manifold(const Collision::Contact& Ct);
+
 		void Add(const Collision::Contact& CtOrig);
 		void RemoveExpired();
 
