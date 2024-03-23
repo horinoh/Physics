@@ -79,7 +79,7 @@ namespace Physics
 		using Super = Shape;
 	public:
 		ShapeBox() {}
-		ShapeBox(const float R) { 
+		ShapeBox(const float R) {
 			Vertices = {
 				Math::Vec3(R),
 				Math::Vec3(R, R, -R),
@@ -100,7 +100,7 @@ namespace Physics
 		}
 
 		virtual SHAPE GetShapeTyoe() const override { return SHAPE::BOX; }
-		
+
 		//!< ボックスの慣性テンソル 1 / 12 * (H^2+D^2,       0,       0)
 		//!<							  (      0, w^2+D^2,       0)
 		//!<							  (      0,       0, W^2+H^2)
@@ -147,7 +147,7 @@ namespace Physics
 		}
 
 	public:
-		std::array<Math::Vec3, 8> Vertices = { 
+		std::array<Math::Vec3, 8> Vertices = {
 			Math::Vec3(0.5f),
 			Math::Vec3(0.5f, 0.5f, -0.5f),
 			Math::Vec3(0.5f, -0.5f, 0.5f),
@@ -181,9 +181,9 @@ namespace Physics
 
 		virtual Math::Vec3 GetSupportPoint(const Math::Vec3& Pos, const Math::Quat& Rot, const Math::Vec3& UDir, const float Bias) const override {
 #if 0
-			return *std::ranges::max_element(Points, [&](const auto lhs, const auto rhs) { 
+			return *std::ranges::max_element(Points, [&](const auto lhs, const auto rhs) {
 				return UDir.Dot(Rot.Rotate(lhs) + Pos) < UDir.Dot(Rot.Rotate(rhs) + Pos);
-			}) + UDir * Bias;
+				}) + UDir * Bias;
 #else
 			Math::Vec3 MaxPt = Rot.Rotate(Vertices[0]) + Pos;
 			auto MaxDist = UDir.Dot(MaxPt);
@@ -216,6 +216,7 @@ namespace Physics
 		std::vector<Collision::TriInds> Indices;
 	};
 
+	void CreateVertices_Box(std::vector<Math::Vec3>& Dst, const float W = 1.0f, const float H = 1.0f, const float D = 1.0f);
 	void CreateVertices_Diamond(std::vector<Math::Vec3>& Dst);
 }
 

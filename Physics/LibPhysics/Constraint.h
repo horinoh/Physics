@@ -48,6 +48,10 @@ namespace Physics
 		ConstraintDistance& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor);
 
 	protected:
+		//!< ヤコビ行列 (n * 12)
+		//!<	n : コンストレイント数
+		//!<	12 : 6 軸 (移動と回転に 3 軸ずつ) の自由度  * 2 オブジェクト
+		//!< 距離 (n == 1)
 		Math::Mat<1, 12> Jacobian;
 		Math::Vec<1> CachedLambda;
 		float Baumgarte = 0.0f;
@@ -65,6 +69,7 @@ namespace Physics
 		ConstraintPenetration& Init(const Collision::Contact& Ct);
 
 	protected:
+		//!< 法線 N、接面 U, V (n == 3)
 		Math::Mat<3, 12> Jacobian;
 		Math::Vec<3> CachedLambda;
 		float Baumgarte = 0.0f;

@@ -26,7 +26,22 @@ void Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& MeshVert)
 
 	InvInertiaTensor = InertiaTensor.Inverse();
 }
+void Physics::CreateVertices_Box(std::vector<Math::Vec3>& Dst, const float W, const float H, const float D)
+{
+	static const std::array Box = {
+		Math::Vec3(-W, -H, -D),
+		Math::Vec3(W, -H, -D),
+		Math::Vec3(-W, H, -D),
+		Math::Vec3(W, H, -D),
 
+		Math::Vec3(-W, -H, D),
+		Math::Vec3(W, -H, D),
+		Math::Vec3(-W, H, D),
+		Math::Vec3(W, H, D),
+	};
+	Dst.reserve(std::size(Box));
+	std::ranges::copy(Box, std::back_inserter(Dst));
+}
 void Physics::CreateVertices_Diamond(std::vector<Math::Vec3>& Dst)
 {
 	Dst.reserve(7 * 8);

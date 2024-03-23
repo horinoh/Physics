@@ -2,6 +2,8 @@
 
 #include "framework.h"
 
+#include "Log.h"
+
 #include "PhysicsMath.h"
 #include "RigidBody.h"
 #include "Shape.h"

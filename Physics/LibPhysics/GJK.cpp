@@ -42,6 +42,7 @@ Math::Vec2 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B)
 Math::Vec3 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C)
 {
 	const auto N = (B - A).Cross(C - A);
+	if (N.NearlyEqual(Math::Vec3::Zero())) { return Math::Vec3::AxisX(); }
 	const auto P = N * A.Dot(N) / N.LengthSq(); //!< •½•ûª‚ðÈ‚¯‚é‚Ì‚Å³‹K‰»‚µ‚È‚¢•û‚ª—Ç‚¢
 
 	//!< XY, YZ, ZX •½–Ê‚Ì“àAŽË‰e–ÊÏ‚ªÅ‘å‚Ì‚à‚Ì‚ðŒ©‚Â‚¯‚é

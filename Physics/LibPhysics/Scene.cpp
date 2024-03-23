@@ -26,7 +26,7 @@ Physics::Scene::~Scene()
 }
 
 #ifdef USE_BRUTE_FORCE
-void Scene::BruteForce(const float DeltaSec, std::vector<Contact>& Contacts)
+void Physics::Scene::BruteForce(const float DeltaSec, std::vector<Collision::Contact>& Contacts)
 {
 	const auto RbCount = size(RigidBodies);
 	Contacts.reserve(RbCount * RbCount);
@@ -36,14 +36,19 @@ void Scene::BruteForce(const float DeltaSec, std::vector<Contact>& Contacts)
 			const auto RbA = RigidBodies[i];
 			const auto RbB = RigidBodies[j];
 			if (0.0f != RbA->InvMass || 0.0f != RbB->InvMass) {
-				Contact Ct;
+				Collision::Contact Ct;
 				if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
-					Contacts.emplace_back(Ct);
+					if (0.0f == Ct.TimeOfImpact) {
+						Manifolds.Add(Ct);
+					}
+					else {
+						Contacts.emplace_back(Ct);
+					}
 				}
 			}
 		}
 	}
-	std::ranges::sort(Contacts, std::ranges::less{}, &Contact::TimeOfImpact);
+	std::ranges::sort(Contacts, std::ranges::less{}, &Collision::Contact::TimeOfImpact);
 }
 #else
 //!< SAP (Sweep And Prune)
@@ -109,13 +114,11 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 		if (0.0f != RbA->InvMass || 0.0f != RbB->InvMass) {
 			Collision::Contact Ct;
 			if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
-				if (0.0f == Ct.TimeOfImpact) {
+				//if (0.0f == Ct.TimeOfImpact) {
+				if (0.0f == Ct.TimeOfImpact && (RbA->LinearVelocity-RbB->LinearVelocity).LengthSq() < 0.01f) {
 					//!< Ã“IÕ“Ë
-#if 0
-					Manifolds.Add(Ct);
-#else
+					//Manifolds.Add(Ct);
 					Contacts.emplace_back(Ct);
-#endif
 				}
 				else {
 					//!< “®“IÕ“Ë

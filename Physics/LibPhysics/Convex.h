@@ -29,9 +29,7 @@ namespace Convex
 	void BuildConvexHull(const std::vector<Math::Vec3>& Pts, std::vector<Math::Vec3>& Vertices, std::vector<Collision::TriInds>& Indices);
 
 	namespace Uniform {
-		//!< #TODO —vŒŸØ
 		[[nodiscard]] Math::Vec3 CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices);
-		//!< #TODO —vŒŸØ
 		[[nodiscard]] Math::Mat3 CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass);
 	}
 	namespace MonteCarlo

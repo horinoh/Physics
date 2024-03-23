@@ -21,7 +21,7 @@ namespace Physics
 		virtual ~Scene();
 		
 #ifdef USE_BRUTE_FORCE
-		virtual void BruteForce(const float DeltaSec, std::vector<Contact>& Contacts);
+		virtual void BruteForce(const float DeltaSec, std::vector<Collision::Contact>& Contacts);
 #else
 		//!< SAP (Sweep And Prune)
 		virtual void BroadPhase(const float DeltaSec, std::vector<CollidablePair>& CollidablePairs);

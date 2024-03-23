@@ -2,6 +2,8 @@
 #include "RigidBody.h"
 #include "Collision.h"
 
+#include "Log.h"
+
 //!< Lambda = -J * v / (J * M.Inverse() * J.Transpose())
 //!<	Lambda : ラグランジュの未定乗数 (Lagrange multiplier) 
 //!<	J : ヤコビ行列 dC/dt = J * v = 0
@@ -276,7 +278,6 @@ Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Colli
 	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
 
 	//!< A 空間での法線
-	//Normal = RigidBodyA->Rotation.Inverse().Rotate(-Ct.Normal).Normalize();
 	Normal = RigidBodyA->Rotation.Inverse().Rotate(Ct.Normal).Normalize();
 	Friction = RigidBodyA->Friction * RigidBodyB->Friction;
 
@@ -444,29 +445,24 @@ void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 		//!< 平均値
 		const auto Avg = (std::accumulate(std::cbegin(Constraints), std::cend(Constraints), Math::Vec3::Zero(), [](const auto& Acc, const auto& i) {
 			return Acc + i.first.PointA; 
-		}) + Ct.PointA) * 0.2f;
-#if 1
+		}) + Ct.PointA) / 5.0f;
+
 		//!< (新規を含め) 平均値に一番近い要素を削除する為、一旦追加してしまう
 		Constraints.emplace_back(NewItem);
 		//!< 平均値に一番近い要素を見つけ削除
 		Constraints.erase(std::ranges::min_element(Constraints, [&](const auto& lhs, const auto& rhs) {
 			return (Avg - lhs.first.PointA).LengthSq() < (Avg - rhs.first.PointA).LengthSq();
 		}));
-#else
-		const auto Avg1 = (Constraints[0].first.PointA + Constraints[1].first.PointA + Constraints[2].first.PointA + Constraints[3].first.PointA + Ct.PointA) * 0.2f;
-		*std::ranges::min_element(Constraints, [&](const auto& lhs, const auto& rhs) {
-			return (Avg - lhs.first.PointA).LengthSq() < (Avg - rhs.first.PointA).LengthSq();
-		}) = NewItem;
-		
-#endif
 	}
 }
 void Physics::Manifold::RemoveExpired()
 {
+	//!< #TODO
 	constexpr auto Eps2 = 0.02f * 0.02f;
 	const auto Range = std::ranges::remove_if(Constraints, [&](const auto& i) {
 		const auto AB = i.first.PointB - i.first.PointA;
-		const auto N = i.first.RigidBodyA->Rotation.Rotate(i.first.Normal);
+		//const auto N = i.first.RigidBodyA->Rotation.Rotate(i.first.Normal);
+		const auto N = -i.first.RigidBodyA->Rotation.Rotate(i.first.Normal);
 		const auto PenDepth = N.Dot(AB);
 		return PenDepth > 0.0f || (AB - N * PenDepth).LengthSq() >= Eps2;
 	});
@@ -485,12 +481,18 @@ void Physics::ManifoldCollector::Add(const Collision::Contact& Ct)
 	}
 	else {
 		//!< 既存でなければ、マニフォールド(と衝突)を追加
-		Manifolds.emplace_back(Ct);
+		Manifolds.emplace_back(Manifold(Ct));
 	}
 }
 
 void Physics::ManifoldCollector::PreSolve(const float DeltaSec) 
 {
+#ifdef _DEBUG
+	for (auto i = 0; i < std::size(Manifolds);++i) {
+		LOG(data(std::format("Manifold[{}] Contacts = {}\n", i, std::size(Manifolds[i].Constraints))));
+	}
+#endif
+
 	for (auto& i : Manifolds) {
 		for (auto& j : i.Constraints) {
 			j.second.PreSolve(DeltaSec);

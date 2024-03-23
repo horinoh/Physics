@@ -40,8 +40,6 @@ namespace Collision
 			return *this;
 		}
 
-		//[[nodiscard]] bool Intersect(const AABB& rhs) const { return Collision::Intersection::AABBAABB(*this, rhs); }
-
 		[[nodiscard]] Math::Vec3 GetCenter() const { return (Min + Max) * 0.5f; }
 		[[nodiscard]] Math::Vec3 GetExtent() const { return Max - Min; }
 
@@ -73,11 +71,6 @@ namespace Collision
 			Normal = -Normal;
 			return *this;
 		}
-
-		//float SeparationDistance = 0.0f;
-		//bool operator==(const Contact& rhs) const {
-		//	return Normal == rhs.Normal && PointA == rhs.PointA && PointB == rhs.PointB && TimeOfImpact == rhs.TimeOfImpact && RigidBodyA == rhs.RigidBodyA && RigidBodyB == rhs.RigidBodyB;
-		//}
 	};
 
 	namespace Distance 
