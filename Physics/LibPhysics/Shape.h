@@ -18,7 +18,7 @@ namespace Physics
 			BOX,
 			CONVEX,
 		};
-		[[nodiscard]] virtual SHAPE GetShapeTyoe() const = 0;
+		[[nodiscard]] virtual SHAPE GetShapeType() const = 0;
 
 		[[nodiscard]] virtual Collision::AABB GetAABB(const Math::Vec3& Pos, const Math::Quat& Rot) const = 0;
 
@@ -49,13 +49,14 @@ namespace Physics
 		ShapeSphere(const float R) : Radius(R) {}
 		virtual ~ShapeSphere() {}
 
-		void Init() {
+		ShapeSphere& Init() {
 			//CenterOfMass = Math::Vec3::Zero();
 			InertiaTensor = CalcInertiaTensor();
 			InvInertiaTensor = InertiaTensor.Inverse();
+			return *this;
 		}
 
-		virtual SHAPE GetShapeTyoe() const override { return SHAPE::SPHERE; }
+		virtual SHAPE GetShapeType() const override { return SHAPE::SPHERE; }
 
 		//!< 球の慣性テンソル R^2 * 2 / 5  * Identity
 		Math::Mat3 CalcInertiaTensor() const { return Radius * Radius * 2.0f / 5.0f * Math::Mat3::Identity(); }
@@ -93,13 +94,14 @@ namespace Physics
 		}
 		virtual ~ShapeBox() {}
 
-		void Init() {
+		ShapeBox& Init() {
 			//CenterOfMass = Math::Vec3::Zero();
 			InertiaTensor = CalcInertiaTensor();
 			InvInertiaTensor = InertiaTensor.Inverse();
+			return *this;
 		}
 
-		virtual SHAPE GetShapeTyoe() const override { return SHAPE::BOX; }
+		virtual SHAPE GetShapeType() const override { return SHAPE::BOX; }
 
 		//!< ボックスの慣性テンソル 1 / 12 * (H^2+D^2,       0,       0)
 		//!<							  (      0, w^2+D^2,       0)
@@ -167,9 +169,9 @@ namespace Physics
 		ShapeConvex() {}
 		virtual ~ShapeConvex() {}
 
-		virtual void Init(const std::vector<Math::Vec3>& Vert);
+		virtual ShapeConvex& Init(const std::vector<Math::Vec3>& Vert);
 
-		virtual SHAPE GetShapeTyoe() const override { return SHAPE::CONVEX; }
+		virtual SHAPE GetShapeType() const override { return SHAPE::CONVEX; }
 
 		virtual Collision::AABB GetAABB(const Math::Vec3& Pos, const Math::Quat& Rot) const override {
 			Collision::AABB Ab;

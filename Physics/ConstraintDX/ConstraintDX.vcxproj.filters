@@ -68,7 +68,7 @@
     <FxCompile Include="ConstraintDX.vs.hlsl">
       <Filter>Shader Files</Filter>
     </FxCompile>
-    <FxCompile Include="ConstraintDX_FLR.vs.hlsl">
+    <FxCompile Include="ConstraintDX_1.vs.hlsl">
       <Filter>Shader Files</Filter>
     </FxCompile>
   </ItemGroup>

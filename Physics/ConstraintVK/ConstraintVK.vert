@@ -27,6 +27,5 @@ void main()
 	const mat4 PVW = VPB.ViewProjection * W;
 
 	gl_Position = PVW * vec4(InPosition, 1.0f);
-	//OutNormal = transpose(mat3(W)) * InNormal;
 	OutNormal = mat3(W) * InNormal;
 }

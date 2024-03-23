@@ -212,12 +212,12 @@ public:
 			}
 		}
 
-		Meshes.emplace_back();
-		Load(ASSET_PATH / "Box.glb");
-
 		const auto& CB = CommandBuffers[0];
 		const auto PDMP = CurrentPhysicalDeviceMemoryProperties;
 
+		Meshes.emplace_back();
+		Load(ASSET_PATH / "Box.glb");
+	
 #ifdef USE_MESH
 		const auto& Mesh = Meshes[0];
 		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Mesh.Vertices));
@@ -607,12 +607,12 @@ public:
 				const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
 
 				if (0.0f == Rb->InvMass) {
-					if (i < _countof(WorldBuffer.Instances1)) {
+					if (i1 < _countof(WorldBuffer.Instances1)) {
 						WorldBuffer.Instances1[i1++].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot) * glm::scale(glm::mat4(1.0f), glm::vec3(20.0f));
 					}
 				}
 				else {
-					if (i < _countof(WorldBuffer.Instances0)) {
+					if (i0 < _countof(WorldBuffer.Instances0)) {
 						WorldBuffer.Instances0[i0++].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
 					}
 				}

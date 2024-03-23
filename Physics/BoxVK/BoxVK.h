@@ -424,7 +424,7 @@ public:
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances)) {
 					const auto Rb = Scene->RigidBodies[i];
-					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::BOX) {
+					if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE::BOX) {
 						const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 						const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
 						const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->Vertices[0].X();

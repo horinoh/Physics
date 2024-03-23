@@ -60,7 +60,7 @@ bool Collision::Intersection::SphereShpere(const float RadA, const float RadB,
 }
 bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct)
 {
-	if (RbA->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::SPHERE && RbB->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::SPHERE) {
+	if (RbA->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE && RbB->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE) {
 		const auto SpA = static_cast<const Physics::ShapeSphere*>(RbA->Shape);
 		const auto SpB = static_cast<const Physics::ShapeSphere*>(RbB->Shape);
 		float T;

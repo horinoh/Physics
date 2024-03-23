@@ -21,7 +21,7 @@ float3 Specular(const float3 MaterialColor, const float4 LightColor, const float
 	return Phong(MaterialColor, LightColor, LN, L, N, V);
 }
 
-static const float3 LightDirection = float3(0.0f, 1.0f, -1.0f);
+static const float3 LightDirection = float3(0.0f, 1.0f, 1.0f);
 
 float4 main(IN In) : SV_TARGET
 {

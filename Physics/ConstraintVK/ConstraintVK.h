@@ -23,7 +23,8 @@ public:
 					break;
 				}
 
-				if (empty(Indices)) {
+				auto& Mesh = Meshes.back();
+				if (empty(Mesh.Indices)) {
 					if (Document.accessors.Has(j.indicesAccessorId)) {
 						const auto& Accessor = Document.accessors.Get(j.indicesAccessorId);
 						switch (Accessor.componentType)
@@ -36,9 +37,9 @@ public:
 								std::vector<uint16_t> Indices16(Accessor.count);
 								std::ranges::copy(ResourceReader->ReadBinaryData<uint16_t>(Document, Accessor), std::begin(Indices16));
 
-								Indices.reserve(Accessor.count);
+								Mesh.Indices.reserve(Accessor.count);
 								for (auto i : Indices16) {
-									Indices.emplace_back(i);
+									Mesh.Indices.emplace_back(i);
 								}
 							}
 							break;
@@ -50,8 +51,8 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_SCALAR:
 							{
-								Indices.resize(Accessor.count);
-								std::ranges::copy(ResourceReader->ReadBinaryData<uint32_t>(Document, Accessor), std::begin(Indices));
+								Mesh.Indices.resize(Accessor.count);
+								std::ranges::copy(ResourceReader->ReadBinaryData<uint32_t>(Document, Accessor), std::begin(Mesh.Indices));
 							}
 							break;
 							default: break;
@@ -63,11 +64,11 @@ public:
 				}
 
 				std::string AccessorId;
-				if (empty(Vertices)) {
+				if (empty(Mesh.Vertices)) {
 					if (j.TryGetAttributeAccessorId(Microsoft::glTF::ACCESSOR_POSITION, AccessorId))
 					{
 						const auto& Accessor = Document.accessors.Get(AccessorId);
-						Vertices.resize(Accessor.count);
+						Mesh.Vertices.resize(Accessor.count);
 						switch (Accessor.componentType)
 						{
 						case Microsoft::glTF::ComponentType::COMPONENT_FLOAT:
@@ -75,7 +76,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Vertices));
+								std::memcpy(data(Mesh.Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Mesh.Vertices));
 							}
 							break;
 							default: break;
@@ -85,11 +86,11 @@ public:
 						}
 					}
 				}
-				if (empty(Normals)) {
+				if (empty(Mesh.Normals)) {
 					if (j.TryGetAttributeAccessorId(Microsoft::glTF::ACCESSOR_NORMAL, AccessorId))
 					{
 						const auto& Accessor = Document.accessors.Get(AccessorId);
-						Normals.resize(Accessor.count);
+						Mesh.Normals.resize(Accessor.count);
 						switch (Accessor.componentType)
 						{
 						case Microsoft::glTF::ComponentType::COMPONENT_FLOAT:
@@ -97,7 +98,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Normals), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Normals));
+								std::memcpy(data(Mesh.Normals), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Mesh.Normals));
 							}
 							break;
 							default: break;
@@ -118,12 +119,13 @@ public:
 			constexpr auto Y = 10.0f;
 
 			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
+			static_cast<Physics::ShapeSphere*>(Scene->Shapes.emplace_back(new Physics::ShapeSphere(Radius)))->Init();
 
 			//!< コンストレイント
 			{
 				constexpr auto Radius = 0.5f;
 
-				const auto JntRootPos = Math::Vec3(0.0f, 6.0f, -10.0f);
+				const auto JntRootPos = Math::Vec3(0.0f, 6.0f, 0.0f);
 				constexpr auto JntLen = 1.25f;
 				constexpr auto JntCount = 5;
 
@@ -135,7 +137,7 @@ public:
 				for (auto i = 0; i < JntCount; ++i) {
 					auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 					RbB->Position = RbA->Position + Math::Vec3::AxisX() * JntLen;
-					RbB->Init(Scene->Shapes.back());
+					RbB->Init(Scene->Shapes[1]);
 
 					auto Jnt = new Physics::ConstraintDistance();
 					Jnt->Init(RbA, RbB, RbA->Position);
@@ -144,28 +146,21 @@ public:
 					RbA = RbB;
 				}
 			}
-#if 0
-			constexpr auto StackCount = 5;
-			for (auto i = 0; i < StackCount; ++i) {
-				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-				Rb->Position = Math::Vec3(0.0f, i * 1.3f + 0.6f, 0.0f);
-				Rb->Init(Scene->Shapes.back());
-			}
-#endif
 		}
+
 		//!< 静的オブジェクト配置
-		{
-			constexpr auto Radius = 20.0f;
-			constexpr auto Y = -Radius;
+		//{
+		//	constexpr auto Radius = 20.0f;
+		//	constexpr auto Y = -Radius;
 
-			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
+		//	static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
 
-			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-			Rb->Position = Math::Vec3::AxisY() * Y;
-			Rb->InvMass = 0;
-			Rb->Elasticity = 0.99f;
-			Rb->Init(Scene->Shapes.back());
-		}
+		//	auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+		//	Rb->Position = Math::Vec3::AxisY() * Y;
+		//	Rb->InvMass = 0;
+		//	Rb->Elasticity = 0.99f;
+		//	Rb->Init(Scene->Shapes[0]);
+		//}
 	}
 
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
@@ -201,33 +196,61 @@ public:
 	}
 
 	virtual void CreateGeometry() override {
-		Load(ASSET_PATH / "Box.glb");
-
 		const auto& CB = CommandBuffers[0];
 		const auto PDMP = CurrentPhysicalDeviceMemoryProperties;
 
-		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Vertices));
-		VK::Scoped<StagingBuffer> StagingVertex(Device);
-		StagingVertex.Create(Device, PDMP, TotalSizeOf(Vertices), data(Vertices));
+		Meshes.emplace_back();
+		Load(ASSET_PATH / "Box.glb");
+		Meshes.emplace_back();
+		Load(ASSET_PATH / "Sphere.glb");
 
-		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Normals));
-		VK::Scoped<StagingBuffer> StagingNormal(Device);
-		StagingNormal.Create(Device, PDMP, TotalSizeOf(Normals), data(Normals));
+		const auto& Box = Meshes[0];
+		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Box.Vertices));
+		VK::Scoped<StagingBuffer> StagingVertex_Box(Device);
+		StagingVertex_Box.Create(Device, PDMP, TotalSizeOf(Box.Vertices), data(Box.Vertices));
 
-		IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Indices));
-		VK::Scoped<StagingBuffer> StagingIndex(Device);
-		StagingIndex.Create(Device, PDMP, TotalSizeOf(Indices), data(Indices));
+		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Box.Normals));
+		VK::Scoped<StagingBuffer> StagingNormal_Box(Device);
+		StagingNormal_Box.Create(Device, PDMP, TotalSizeOf(Box.Normals), data(Box.Normals));
 
-		const VkDrawIndexedIndirectCommand DIIC = {
-			.indexCount = static_cast<uint32_t>(size(Indices)),
-			.instanceCount = _countof(WorldBuffer.Instances),
+		IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Box.Indices));
+		VK::Scoped<StagingBuffer> StagingIndex_Box(Device);
+		StagingIndex_Box.Create(Device, PDMP, TotalSizeOf(Box.Indices), data(Box.Indices));
+
+		const VkDrawIndexedIndirectCommand DIIC_Box = {
+			.indexCount = static_cast<uint32_t>(size(Box.Indices)),
+			.instanceCount = _countof(WorldBuffer.Instances0),
 			.firstIndex = 0,
 			.vertexOffset = 0,
 			.firstInstance = 0
 		};
-		IndirectBuffers.emplace_back().Create(Device, PDMP, DIIC);
-		VK::Scoped<StagingBuffer> StagingIndirect(Device);
-		StagingIndirect.Create(Device, PDMP, sizeof(DIIC), &DIIC);
+		IndirectBuffers.emplace_back().Create(Device, PDMP, DIIC_Box);
+		VK::Scoped<StagingBuffer> StagingIndirect_Box(Device);
+		StagingIndirect_Box.Create(Device, PDMP, sizeof(DIIC_Box), &DIIC_Box);
+
+		const auto& Sphere = Meshes[1];
+		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Sphere.Vertices));
+		VK::Scoped<StagingBuffer> StagingVertex_Sphere(Device);
+		StagingVertex_Sphere.Create(Device, PDMP, TotalSizeOf(Sphere.Vertices), data(Sphere.Vertices));
+
+		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Sphere.Normals));
+		VK::Scoped<StagingBuffer> StagingNormal_Sphere(Device);
+		StagingNormal_Sphere.Create(Device, PDMP, TotalSizeOf(Sphere.Normals), data(Sphere.Normals));
+
+		IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Sphere.Indices));
+		VK::Scoped<StagingBuffer> StagingIndex_Sphere(Device);
+		StagingIndex_Sphere.Create(Device, PDMP, TotalSizeOf(Sphere.Indices), data(Sphere.Indices));
+
+		const VkDrawIndexedIndirectCommand DIIC_Sphere = {
+			.indexCount = static_cast<uint32_t>(size(Sphere.Indices)),
+			.instanceCount = _countof(WorldBuffer.Instances1),
+			.firstIndex = 0,
+			.vertexOffset = 0,
+			.firstInstance = 0
+		};
+		IndirectBuffers.emplace_back().Create(Device, PDMP, DIIC_Sphere);
+		VK::Scoped<StagingBuffer> StagingIndirect_Sphere(Device);
+		StagingIndirect_Sphere.Create(Device, PDMP, sizeof(DIIC_Sphere), &DIIC_Sphere);
 
 		constexpr VkCommandBufferBeginInfo CBBI = {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -236,10 +259,15 @@ public:
 			.pInheritanceInfo = nullptr
 		};
 		VERIFY_SUCCEEDED(vkBeginCommandBuffer(CB, &CBBI)); {
-			VertexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Vertices), StagingVertex.Buffer);
-			VertexBuffers[1].PopulateCopyCommand(CB, TotalSizeOf(Normals), StagingNormal.Buffer);
-			IndexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Indices), StagingIndex.Buffer);
-			IndirectBuffers[0].PopulateCopyCommand(CB, sizeof(DIIC), StagingIndirect.Buffer);
+			VertexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Box.Vertices), StagingVertex_Box.Buffer);
+			VertexBuffers[1].PopulateCopyCommand(CB, TotalSizeOf(Box.Normals), StagingNormal_Box.Buffer);
+			IndexBuffers[0].PopulateCopyCommand(CB, TotalSizeOf(Box.Indices), StagingIndex_Box.Buffer);
+			IndirectBuffers[0].PopulateCopyCommand(CB, sizeof(DIIC_Box), StagingIndirect_Box.Buffer);
+
+			VertexBuffers[2].PopulateCopyCommand(CB, TotalSizeOf(Sphere.Vertices), StagingVertex_Sphere.Buffer);
+			VertexBuffers[3].PopulateCopyCommand(CB, TotalSizeOf(Sphere.Normals), StagingNormal_Sphere.Buffer);
+			IndexBuffers[1].PopulateCopyCommand(CB, TotalSizeOf(Sphere.Indices), StagingIndex_Sphere.Buffer);
+			IndirectBuffers[1].PopulateCopyCommand(CB, sizeof(DIIC_Sphere), StagingIndirect_Sphere.Buffer);
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(CB));
 		VK::SubmitAndWait(GraphicsQueue, CB);
 	}
@@ -273,6 +301,7 @@ public:
 	}
 	virtual void CreatePipeline() override {
 		Pipelines.emplace_back();
+		Pipelines.emplace_back();
 
 		const std::array SMs = {
 			VK::CreateShaderModule(std::filesystem::path(".") / "ConstraintVK.vert.spv"),
@@ -282,9 +311,10 @@ public:
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs[0], .pName = "main", .pSpecializationInfo = nullptr }),
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = SMs[1], .pName = "main", .pSpecializationInfo = nullptr }),
 		};
+		const auto& Box = Meshes[0];
 		const std::vector VIBDs = {
-			VkVertexInputBindingDescription({.binding = 0, .stride = sizeof(Vertices[0]), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
-			VkVertexInputBindingDescription({.binding = 1, .stride = sizeof(Normals[0]), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
+			VkVertexInputBindingDescription({.binding = 0, .stride = sizeof(Box.Vertices[0]), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
+			VkVertexInputBindingDescription({.binding = 1, .stride = sizeof(Box.Normals[0]), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
 		};
 		const std::vector VIADs = {
 			VkVertexInputAttributeDescription({.location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = 0 }),
@@ -303,6 +333,16 @@ public:
 			.lineWidth = 1.0f
 		};
 		VK::CreatePipeline_VsFs_Input(Pipelines[0], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI, VK_TRUE, VIBDs, VIADs, PSSCIs);
+
+		const std::array SMs_1 = {
+			VK::CreateShaderModule(std::filesystem::path(".") / "ConstraintVK_1.vert.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "ConstraintVK.frag.spv"),
+		};
+		const std::array PSSCIs_1 = {
+			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs_1[0], .pName = "main", .pSpecializationInfo = nullptr }),
+			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = SMs_1[1], .pName = "main", .pSpecializationInfo = nullptr }),
+		};
+		VK::CreatePipeline_VsFs_Input(Pipelines[1], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI, VK_TRUE, VIBDs, VIADs, PSSCIs_1);
 
 		for (auto& i : Threads) { i.join(); }
 		Threads.clear();
@@ -367,7 +407,7 @@ public:
 	virtual void PopulateSecondaryCommandBuffer(const size_t i) override {
 		const auto RP = RenderPasses[0];
 		const auto SCB = SecondaryCommandBuffers[i];
-		const auto PL = Pipelines[0];
+		const auto PL0 = Pipelines[0], PL1 = Pipelines[1];
 		const auto PLL = PipelineLayouts[0];
 		const auto DS = DescriptorSets[i];
 
@@ -396,13 +436,25 @@ public:
 
 			const std::array Offsets = { VkDeviceSize(0) };
 
-			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL);
-			const std::array VBs = { VertexBuffers[0].Buffer };
-			const std::array NBs = { VertexBuffers[1].Buffer };
-			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs)), data(VBs), data(Offsets));
-			vkCmdBindVertexBuffers(SCB, 1, static_cast<uint32_t>(size(NBs)), data(NBs), data(Offsets));
-			vkCmdBindIndexBuffer(SCB, IndexBuffers[0].Buffer, 0, VK_INDEX_TYPE_UINT32);
-			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[0].Buffer, 0, 1, 0);
+			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL0);
+			{
+				const std::array VBs = { VertexBuffers[0].Buffer };
+				const std::array NBs = { VertexBuffers[1].Buffer };
+				vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs)), data(VBs), data(Offsets));
+				vkCmdBindVertexBuffers(SCB, 1, static_cast<uint32_t>(size(NBs)), data(NBs), data(Offsets));
+				vkCmdBindIndexBuffer(SCB, IndexBuffers[0].Buffer, 0, VK_INDEX_TYPE_UINT32);
+				vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[0].Buffer, 0, 1, 0);
+			}
+
+			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
+			{
+				const std::array VBs = { VertexBuffers[2].Buffer };
+				const std::array NBs = { VertexBuffers[3].Buffer };
+				vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs)), data(VBs), data(Offsets));
+				vkCmdBindVertexBuffers(SCB, 1, static_cast<uint32_t>(size(NBs)), data(NBs), data(Offsets));
+				vkCmdBindIndexBuffer(SCB, IndexBuffers[1].Buffer, 0, VK_INDEX_TYPE_UINT32);
+				vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[1].Buffer, 0, 1, 0);
+			}
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(SCB));
 	}
 	virtual void PopulateCommandBuffer(const size_t i) override {
@@ -436,15 +488,20 @@ public:
 
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-				if (i < _countof(WorldBuffer.Instances)) {
-					const auto Rb = Scene->RigidBodies[i];
-					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::BOX) {
-						const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
-						const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
-						const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->Vertices[0].X();
-
-						WorldBuffer.Instances[i].World = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
+			for (auto i = 0, i0 = 0, i1 = 0; i < size(Scene->RigidBodies); ++i) {
+				const auto Rb = Scene->RigidBodies[i];
+				const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
+				const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
+				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE::BOX) {
+					const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->Vertices[0].X();
+					if (i0 < _countof(WorldBuffer.Instances0)) {
+						WorldBuffer.Instances0[i0++].World = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
+					}
+				}
+				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE) {
+					const auto Scl = static_cast<const Physics::ShapeSphere*>(Rb->Shape)->Radius;
+					if (i1 < _countof(WorldBuffer.Instances1)) {
+						WorldBuffer.Instances1[i1++].World = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
 					}
 				}
 			}
@@ -466,9 +523,12 @@ public:
 	}
 
 protected:
-	std::vector<uint32_t> Indices;
-	std::vector<glm::vec3> Vertices;
-	std::vector<glm::vec3> Normals;
+	struct MESH {
+		std::vector<uint32_t> Indices;
+		std::vector<glm::vec3> Vertices;
+		std::vector<glm::vec3> Normals;
+	};
+	std::vector<MESH> Meshes;
 
 	Physics::Scene* Scene = nullptr;
 
@@ -476,7 +536,8 @@ protected:
 		glm::mat4 World;
 	};
 	struct WORLD_BUFFER {
-		INSTANCE Instances[64];
+		INSTANCE Instances0[64];
+		INSTANCE Instances1[64];
 	};
 	WORLD_BUFFER WorldBuffer;
 	struct VIEW_PROJECTION_BUFFER {

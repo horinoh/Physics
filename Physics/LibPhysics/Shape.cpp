@@ -2,7 +2,7 @@
 #include "Convex.h"
 #include "Log.h"
 
-void Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& MeshVert) 
+Physics::ShapeConvex& Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& MeshVert)
 {
 	Convex::BuildConvexHull(MeshVert, Vertices, Indices);
 
@@ -25,6 +25,8 @@ void Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& MeshVert)
 	LOG(data(InertiaTensor.ToString()));
 
 	InvInertiaTensor = InertiaTensor.Inverse();
+
+	return *this;
 }
 void Physics::CreateVertices_Box(std::vector<Math::Vec3>& Dst, const float W, const float H, const float D)
 {

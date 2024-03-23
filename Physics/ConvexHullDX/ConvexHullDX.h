@@ -212,12 +212,12 @@ public:
 			}
 		}
 
-		Meshes.emplace_back();
-		Load(ASSET_PATH / "Box.glb");
-
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);
 		const auto CL = COM_PTR_GET(DirectCommandLists[0]);
 		const auto CQ = COM_PTR_GET(GraphicsCommandQueue);
+
+		Meshes.emplace_back();
+		Load(ASSET_PATH / "Box.glb");
 
 #ifdef USE_MESH
 		const auto Mesh = Meshes[0];
@@ -590,12 +590,12 @@ public:
 					const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
 
 					if (0.0f == Rb->InvMass) {
-						if (i < _countof(WorldBuffer.Instances1)) {
+						if (i1 < _countof(WorldBuffer.Instances1)) {
 							DirectX::XMStoreFloat4x4(&WorldBuffer.Instances1[i1++].World, DirectX::XMMatrixScaling(20.0f, 20.0f, 20.0f) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 						}
 					}
 					else {
-						if (i < _countof(WorldBuffer.Instances0)) {
+						if (i0 < _countof(WorldBuffer.Instances0)) {
 							DirectX::XMStoreFloat4x4(&WorldBuffer.Instances0[i0++].World, DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 						}
 					}

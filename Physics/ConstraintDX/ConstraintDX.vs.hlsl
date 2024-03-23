@@ -35,7 +35,6 @@ OUT main(IN In)
 	const float4x4 WVP = mul(VPB.ViewProjection, W);
 
 	Out.Position = mul(WVP, float4(In.Position, 1.0f));
-	//Out.Normal = mul(transpose((float3x3)W), In.Normal);
 	Out.Normal = mul((float3x3)W, In.Normal);
 
 	return Out;

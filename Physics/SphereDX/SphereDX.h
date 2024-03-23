@@ -440,13 +440,12 @@ public:
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-				if (i < _countof(WorldBuffer.Instances)) {
-					const auto Rb = Scene->RigidBodies[i];
-					if (Rb->Shape->GetShapeTyoe() == Physics::Shape::SHAPE::SPHERE) {
-						const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
-						const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
-						const auto Scl = static_cast<const Physics::ShapeSphere*>(Rb->Shape)->Radius;
-
+				const auto Rb = Scene->RigidBodies[i];
+				const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
+				const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
+				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE) {
+					const auto Scl = static_cast<const Physics::ShapeSphere*>(Rb->Shape)->Radius;
+					if (i < _countof(WorldBuffer.Instances)) {
 						DirectX::XMStoreFloat4x4(&WorldBuffer.Instances[i].World, DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 					}
 				}

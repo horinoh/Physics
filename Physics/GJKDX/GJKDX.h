@@ -209,9 +209,10 @@ public:
 		for (auto& i : Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
-		std::vector<Math::Vec3> Diamond;
-		Physics::CreateVertices_Diamond(Diamond);
-		std::ranges::copy(Diamond, std::back_inserter(Vec3s));
+		std::vector<Math::Vec3> ShapeVert;
+		Physics::CreateVertices_Diamond(ShapeVert);
+		//Physics::CreateVertices_Box(ShapeVert);
+		std::ranges::copy(ShapeVert, std::back_inserter(Vec3s));
 #endif
 
 		auto Convex = static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(new Physics::ShapeConvex()));
