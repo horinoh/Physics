@@ -218,7 +218,7 @@ namespace Physics
 		std::vector<Collision::TriInds> Indices;
 	};
 
-	void CreateVertices_Box(std::vector<Math::Vec3>& Dst, const float W = 1.0f, const float H = 1.0f, const float D = 1.0f);
+	void CreateVertices_Box(std::vector<Math::Vec3>& Dst, const float W = 0.5f, const float H = 0.5f, const float D = 0.5f);
 	void CreateVertices_Diamond(std::vector<Math::Vec3>& Dst);
 }
 

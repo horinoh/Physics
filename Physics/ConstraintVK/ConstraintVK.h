@@ -121,7 +121,7 @@ public:
 			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
 			static_cast<Physics::ShapeSphere*>(Scene->Shapes.emplace_back(new Physics::ShapeSphere(Radius)))->Init();
 
-			//!< コンストレイント
+			//!< 距離コンストレイント
 			{
 				constexpr auto Radius = 0.5f;
 

@@ -41,7 +41,6 @@ Math::Mat<12, 12> Physics::Constraint::CreateInverseMassMatrix(const Physics::Ri
 
 	return InvM;
 }
-
 //!< V = (V_A) ... A ‚Ì‘¬“x
 //!<     (W_A) ... A ‚ÌŠp‘¬“x
 //!<     (V_B) ... B ‚Ì‘¬“x
@@ -72,6 +71,8 @@ Math::Vec<12> Physics::Constraint::CreateVelocties(const Physics::RigidBody* RbA
 
 	return V;
 }
+
+//!< QA * QB = Left(QA) * QB = QA * Right(QB) ‚Æ‚È‚é‚æ‚¤‚ÈA4x4 s—ñ Left, Right ‚ð‹‚ß‚é
 Math::Mat4 Physics::Constraint::Left(const Math::Quat& lhs)
 {
 	return Math::Mat4(Math::Vec4(lhs.W(), -lhs.X(), -lhs.Y(), -lhs.Z()), 
@@ -86,7 +87,6 @@ Math::Mat4 Physics::Constraint::Right(const Math::Quat& lhs)
 		Math::Vec4(lhs.Y(), -lhs.Z(), lhs.W(), lhs.X()),
 		Math::Vec4(lhs.Z(), lhs.Y(), -lhs.X(), lhs.W())).Transpose();
 }
-
 void Physics::Constraint::ApplyImpulse(const Math::Vec<12>& Impulse)
 {
 	RigidBodyA->ApplyLinearImpulse(Math::Vec3({ Impulse[0], Impulse[1], Impulse[2] }));
@@ -152,7 +152,6 @@ void Physics::ConstraintDistance::PostSolve()
 	constexpr auto Eps = std::numeric_limits<float>::epsilon();
 	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Eps, Eps);
 }
-
 Physics::ConstraintDistance& Physics::ConstraintDistance::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor)
 {
 	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
@@ -164,6 +163,351 @@ Physics::ConstraintDistance& Physics::ConstraintDistance::Init(const Physics::Ri
 	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
 
 	return *this;
+}
+
+void Physics::ConstraintHinge::PreSolve(const float DeltaSec) 
+{
+	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
+	const auto WAnchorB = RigidBodyB->ToWorld(AnchorB);
+
+	const auto AB = WAnchorB - WAnchorA;
+	const auto BA = WAnchorA - WAnchorB;
+	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
+	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+
+	//!< ‹——£
+	const auto J1 = -AB * 2.0f;
+	Jacobian[0][0] = J1.X();
+	Jacobian[0][1] = J1.Y();
+	Jacobian[0][2] = J1.Z();
+	const auto J2 = RA.Cross(J1);
+	Jacobian[0][3] = J2.X();
+	Jacobian[0][4] = J2.Y();
+	Jacobian[0][5] = J2.Z();
+	const auto J3 = -BA * 2.0f;
+	Jacobian[0][6] = J3.X();
+	Jacobian[0][7] = J3.Y();
+	Jacobian[0][8] = J3.Z();
+	const auto J4 = RB.Cross(J3);
+	Jacobian[0][9] = J4.X();
+	Jacobian[0][10] = J4.Y();
+	Jacobian[0][11] = J4.Z();
+
+	const auto& QA = RigidBodyA->Rotation;
+	const auto& QB = RigidBodyB->Rotation;
+	const auto InvInitQ = InitialQuat.Inverse();
+	const auto InvQA = QA.Inverse();
+
+	//!< ƒqƒ“ƒWŽ²‚É‚’¼‚È U, V
+	Math::Vec3 U, V;
+	AxisA.GetOrtho(U, V);
+
+	const auto P = Math::Mat4(Math::Vec4::Zero(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::AxisW());
+	//!< (‚±‚±‚Å‚Í) “]’u‚·‚éˆÓ–¡‚ª‚È‚¢‚ªAˆê‰ž‚â‚Á‚Ä‚¨‚­
+	const auto PT = P.Transpose();
+
+	const auto MatA = P * Left(InvQA) * Right(QB * InvInitQ) * PT * -0.5f;
+	const auto MatB = P * Left(InvQA) * Right(QB * InvInitQ) * PT * 0.5f;
+
+	{
+		const auto J1 = Math::Vec3::Zero();
+		Jacobian[1][0] = J1.X();
+		Jacobian[1][1] = J1.Y();
+		Jacobian[1][2] = J1.Z();
+		const auto J2 = MatA * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
+		Jacobian[1][3] = J2.Y();
+		Jacobian[1][4] = J2.Z();
+		Jacobian[1][5] = J2.W();
+		const auto J3 = Math::Vec3::Zero();
+		Jacobian[1][6] = J3.X();
+		Jacobian[1][7] = J3.Y();
+		Jacobian[1][8] = J3.Z();
+		const auto J4 = MatB * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
+		Jacobian[1][9] = J4.Y();
+		Jacobian[1][10] = J4.Z();
+		Jacobian[1][11] = J4.W();
+	}
+	{
+		const auto J1 = Math::Vec3::Zero();
+		Jacobian[2][0] = J1.X();
+		Jacobian[2][1] = J1.Y();
+		Jacobian[2][2] = J1.Z();
+		const auto J2 = MatA * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
+		Jacobian[2][3] = J2.Y();
+		Jacobian[2][4] = J2.Z();
+		Jacobian[2][5] = J2.W();
+		const auto J3 = Math::Vec3::Zero();
+		Jacobian[2][6] = J3.X();
+		Jacobian[2][7] = J3.Y();
+		Jacobian[2][8] = J3.Z();
+		const auto J4 = MatB * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
+		Jacobian[2][9] = J4.Y();
+		Jacobian[2][10] = J4.Z();
+		Jacobian[2][11] = J4.W();
+	}
+	
+	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
+
+	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
+	Baumgarte = 0.05f * C / DeltaSec;
+}
+void Physics::ConstraintHinge::Solve()
+{
+	const auto JT = Jacobian.Transpose();
+	const auto A = Jacobian * GetInverseMassMatrix() * JT;
+	auto B = -Jacobian * GetVelocties(); B[0] -= Baumgarte;
+
+	auto Lambda = GaussSiedel(A, B);
+
+	ApplyImpulse(JT * Lambda);
+
+	CachedLambda += Lambda;
+}
+void Physics::ConstraintHinge::PostSolve()
+{
+	constexpr auto Limit = 20.0f;
+	for (auto i = 0; i < 3;++i) {
+		if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
+		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
+	}
+}
+
+void Physics::ConstraintLimitedHinge::PreSolve(const float DeltaSec)
+{
+	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
+	const auto WAnchorB = RigidBodyB->ToWorld(AnchorB);
+
+	const auto AB = WAnchorB - WAnchorA;
+	const auto BA = WAnchorA - WAnchorB;
+	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
+	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+
+	const auto J1 = -AB * 2.0f;
+	Jacobian[0][0] = J1.X();
+	Jacobian[0][1] = J1.Y();
+	Jacobian[0][2] = J1.Z();
+	const auto J2 = RA.Cross(J1);
+	Jacobian[0][3] = J2.X();
+	Jacobian[0][4] = J2.Y();
+	Jacobian[0][5] = J2.Z();
+	const auto J3 = -BA * 2.0f;
+	Jacobian[0][6] = J3.X();
+	Jacobian[0][7] = J3.Y();
+	Jacobian[0][8] = J3.Z();
+	const auto J4 = RB.Cross(J3);
+	Jacobian[0][9] = J4.X();
+	Jacobian[0][10] = J4.Y();
+	Jacobian[0][11] = J4.Z();
+	
+	const auto& QA = RigidBodyA->Rotation;
+	const auto& QB = RigidBodyB->Rotation;
+	const auto InvInitQ = InitialQuat.Inverse();
+	const auto InvQA = QA.Inverse();
+
+	Math::Vec3 U, V;
+	AxisA.GetOrtho(U, V);
+
+	const auto P = Math::Mat4(Math::Vec4::Zero(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::AxisW());
+	const auto PT = P.Transpose();
+
+	const auto MatA = P * Left(InvQA) * Right(QB * InvInitQ) * PT * -0.5f;
+	const auto MatB = P * Left(InvQA) * Right(QB * InvInitQ) * PT * 0.5f;
+
+	//!< Šp“x‚ð‹‚ßA”j’]‚µ‚Ä‚¢‚é‚©‚Ç‚¤‚©’²¸
+	const auto qrr = InvQA * QB * InvInitQ;
+	Angle = 2.0f * asinf(Math::Vec3(qrr.X(), qrr.Y(), qrr.Z()).Dot(AxisA)) * 180.0f / std::numbers::pi_v<float>;
+	//Angle = TO_DEGREE(2.0f * asinf(Math::Vec3(qrr.X(), qrr.Y(), qrr.Z()).Dot(AxisA)));
+	IsAngleViolated = std::fabsf(Angle) > 45.0f;
+
+	{
+		const auto J1 = Math::Vec3::Zero();
+		Jacobian[1][0] = J1.X();
+		Jacobian[1][1] = J1.Y();
+		Jacobian[1][2] = J1.Z();
+		const auto J2 = MatA * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
+		Jacobian[1][3] = J2.Y();
+		Jacobian[1][4] = J2.Z();
+		Jacobian[1][5] = J2.W();
+		const auto J3 = Math::Vec3::Zero();
+		Jacobian[1][6] = J3.X();
+		Jacobian[1][7] = J3.Y();
+		Jacobian[1][8] = J3.Z();
+		const auto J4 = MatB * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
+		Jacobian[1][9] = J4.Y();
+		Jacobian[1][10] = J4.Z();
+		Jacobian[1][11] = J4.W();
+	}
+	{
+		const auto J1 = Math::Vec3::Zero();
+		Jacobian[2][0] = J1.X();
+		Jacobian[2][1] = J1.Y();
+		Jacobian[2][2] = J1.Z();
+		const auto J2 = MatA * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
+		Jacobian[2][3] = J2.Y();
+		Jacobian[2][4] = J2.Z();
+		Jacobian[2][5] = J2.W();
+		const auto J3 = Math::Vec3::Zero();
+		Jacobian[2][6] = J3.X();
+		Jacobian[2][7] = J3.Y();
+		Jacobian[2][8] = J3.Z();
+		const auto J4 = MatB * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
+		Jacobian[2][9] = J4.Y();
+		Jacobian[2][10] = J4.Z();
+		Jacobian[2][11] = J4.W();
+	}
+	if (IsAngleViolated) {
+		const auto J1 = Math::Vec3::Zero();
+		Jacobian[3][0] = J1.X();
+		Jacobian[3][1] = J1.Y();
+		Jacobian[3][2] = J1.Z();
+		const auto J2 = MatA * Math::Vec4(0.0f, AxisA.X(), AxisA.Y(), AxisA.Z());
+		Jacobian[3][3] = J2.Y();
+		Jacobian[3][4] = J2.Z();
+		Jacobian[3][5] = J2.W();
+		const auto J3 = Math::Vec3::Zero();
+		Jacobian[3][6] = J3.X();
+		Jacobian[3][7] = J3.Y();
+		Jacobian[3][8] = J3.Z();
+		const auto J4 = MatB * Math::Vec4(0.0f, AxisA.X(), AxisA.Y(), AxisA.Z());
+		Jacobian[3][9] = J4.Y();
+		Jacobian[3][10] = J4.Z();
+		Jacobian[3][11] = J4.W();
+	}
+	else {
+		Jacobian[3][0] = Jacobian[3][1] = Jacobian[3][2] = 
+			Jacobian[3][3] = Jacobian[3][4] = Jacobian[3][5] = 
+			Jacobian[3][6] = Jacobian[3][7] = Jacobian[3][8] = 
+			Jacobian[3][9] = Jacobian[3][10] = Jacobian[3][11] = 0.0f;
+	}
+
+	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
+
+	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
+	Baumgarte = 0.05f * C / DeltaSec;
+}
+void Physics::ConstraintLimitedHinge::Solve()
+{
+	const auto JT = Jacobian.Transpose();
+	const auto A = Jacobian * GetInverseMassMatrix() * JT;
+	auto B = -Jacobian * GetVelocties(); B[0] -= Baumgarte;
+
+	auto Lambda = GaussSiedel(A, B);
+
+	//!< Šp“x§ŒÀ‚É‚æ‚èAƒgƒ‹ƒN‚ð§ŒÀ‚·‚é
+	if (IsAngleViolated) {
+		if (Angle > 0.0f) {
+			Lambda[3] = (std::min)(Lambda[3], 0.0f);
+		}
+		if (Angle < 0.0f) {
+			Lambda[3] = (std::max)(Lambda[3], 0.0f);
+		}
+	}
+
+	ApplyImpulse(JT * Lambda);
+
+	CachedLambda += Lambda;
+}
+void Physics::ConstraintLimitedHinge::PostSolve()
+{
+	if (CachedLambda[0] * 0.0f != CachedLambda[0] * 0.0f) { CachedLambda[0] = 0.0f; }
+	constexpr auto Limit = 20.0f;
+	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Limit, Limit);
+	CachedLambda[1] = CachedLambda[2] = CachedLambda[3] = 0.0f;
+}
+
+void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
+{
+	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
+	const auto WAnchorB = RigidBodyB->ToWorld(AnchorB);
+
+	const auto AB = WAnchorB - WAnchorA;
+	const auto BA = WAnchorA - WAnchorB;
+	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
+	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+
+	//!< ‹——£
+	const auto J1 = -AB * 2.0f;
+	Jacobian[0][0] = J1.X();
+	Jacobian[0][1] = J1.Y();
+	Jacobian[0][2] = J1.Z();
+	const auto J2 = RA.Cross(J1);
+	Jacobian[0][3] = J2.X();
+	Jacobian[0][4] = J2.Y();
+	Jacobian[0][5] = J2.Z();
+	const auto J3 = -BA * 2.0f;
+	Jacobian[0][6] = J3.X();
+	Jacobian[0][7] = J3.Y();
+	Jacobian[0][8] = J3.Z();
+	const auto J4 = RB.Cross(J3);
+	Jacobian[0][9] = J4.X();
+	Jacobian[0][10] = J4.Y();
+	Jacobian[0][11] = J4.Z();
+
+	const auto& QA = RigidBodyA->Rotation;
+	const auto& QB = RigidBodyB->Rotation;
+	const auto InvInitQ = InitialQuat.Inverse();
+	const auto InvQA = QA.Inverse();
+
+	const auto P = Math::Mat4(Math::Vec4::Zero(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::AxisW());
+	//!< (‚±‚±‚Å‚Í) “]’u‚·‚éˆÓ–¡‚ª‚È‚¢‚ªAˆê‰ž‚â‚Á‚Ä‚¨‚­
+	const auto PT = P.Transpose();
+
+	const auto MatA = P * Left(InvQA) * Right(QB * InvInitQ) * PT * -0.5f;
+	const auto MatB = P * Left(InvQA) * Right(QB * InvInitQ) * PT * 0.5f;
+
+	{
+		const auto J1 = Math::Vec3::Zero();
+		Jacobian[1][0] = J1.X();
+		Jacobian[1][1] = J1.Y();
+		Jacobian[1][2] = J1.Z();
+		const auto J2 = -0.5f * MatA * Math::Vec4(0.0f, AxisA.X(), AxisA.Y(), AxisA.Z());
+		Jacobian[1][3] = J2.Y();
+		Jacobian[1][4] = J2.Z();
+		Jacobian[1][5] = J2.W();
+		const auto J3 = Math::Vec3::Zero();
+		Jacobian[1][6] = J3.X();
+		Jacobian[1][7] = J3.Y();
+		Jacobian[1][8] = J3.Z();
+		const auto J4 = 0.5f * MatB * Math::Vec4(0.0f, AxisA.X(), AxisA.Y(), AxisA.Z());
+		Jacobian[1][9] = J4.Y();
+		Jacobian[1][10] = J4.Z();
+		Jacobian[1][11] = J4.W();
+	}
+
+	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
+
+	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
+	Baumgarte = 0.05f * C / DeltaSec;
+}
+void Physics::ConstraintBallSocket::Solve() 
+{
+	const auto JT = Jacobian.Transpose();
+	const auto A = Jacobian * GetInverseMassMatrix() * JT;
+	auto B = -Jacobian * GetVelocties(); B[0] -= Baumgarte;
+
+	auto Lambda = GaussSiedel(A, B);
+
+	ApplyImpulse(JT * Lambda);
+
+	CachedLambda += Lambda;
+}
+void Physics::ConstraintBallSocket::PostSolve()
+{
+	constexpr auto Limit = 20.0f;
+	for (auto i = 0; i < 2; ++i) {
+		if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
+		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
+	}
+}
+
+void Physics::ConstraintLimitedBallSocket::PreSolve(const float DeltaSec)
+{
+}
+void Physics::ConstraintLimitedBallSocket::Solve()
+{
+}
+void Physics::ConstraintLimitedBallSocket::PostSolve()
+{
 }
 
 void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
@@ -266,13 +610,12 @@ void Physics::ConstraintPenetration::Solve()
 
 	ApplyImpulse(JT * Lambda);
 }
-
 Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Collision::Contact& Ct)
 {
 	RigidBodyA = Ct.RigidBodyA;
 	AnchorA = RigidBodyA->ToLocal(Ct.PointA);
 
-	RigidBodyB = Ct.RigidBodyB;	
+	RigidBodyB = Ct.RigidBodyB;
 	AnchorB = RigidBodyB->ToLocal(Ct.PointB);
 
 	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
@@ -282,143 +625,6 @@ Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Colli
 	Friction = RigidBodyA->Friction * RigidBodyB->Friction;
 
 	return *this;
-}
-
-void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
-{
-	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
-	const auto WAnchorB = RigidBodyB->ToWorld(AnchorB);
-
-	const auto AB = WAnchorB - WAnchorA;
-	const auto BA = WAnchorA - WAnchorB;
-	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
-
-	const auto QA = RigidBodyA->Rotation;
-	const auto QB = RigidBodyB->Rotation;
-	const auto InVQ = Q.Inverse();
-	const auto InvQA = QA.Inverse();
-
-	Math::Vec3 U, V;
-	AxisA.GetOrtho(U, V);
-
-	const auto P = Math::Mat4(Math::Vec4::Zero(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::AxisW());
-	//!< (‚±‚±‚Å‚Í) “]’u‚·‚éˆÓ–¡‚ª‚È‚¢‚ªAˆê‰ž‚â‚Á‚Ä‚¨‚­
-	const auto PT = P.Transpose();
-
-	const auto MatA = P * Left(InvQA) * Right(QB * InVQ) * PT * -0.5f;
-	const auto MatB = P * Left(InvQA) * Right(QB * InVQ) * PT * 0.5f;
-
-	//!< Šp“x‚ð‹‚ß‚éA‚Ü‚½”j’]‚µ‚Ä‚¢‚é‚©‚Ç‚¤‚©’²¸
-	const auto qrr = InvQA * QB * InVQ;
-	const auto RelativeAngle = 2.0f * asinf(Math::Vec3(qrr.X(), qrr.Y(), qrr.Z()).Dot(AxisA)) * 180.0f / std::numbers::pi_v<float>;
-	IsAngleViolated = std::fabsf(RelativeAngle) > 45.0f;
-
-	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
-
-	const auto J1 = -AB * 2.0f;
-	Jacobian[0][0] = J1.X();
-	Jacobian[0][1] = J1.Y();
-	Jacobian[0][2] = J1.Z();
-	const auto J2 = RA.Cross(J1);
-	Jacobian[0][3] = J2.X();
-	Jacobian[0][4] = J2.Y();
-	Jacobian[0][5] = J2.Z();
-	const auto J3 = -BA * 2.0f;
-	Jacobian[0][6] = J3.X();
-	Jacobian[0][7] = J3.Y();
-	Jacobian[0][8] = J3.Z();
-	const auto J4 = RB.Cross(J3);
-	Jacobian[0][9] = J4.X();
-	Jacobian[0][10] = J4.Y();
-	Jacobian[0][11] = J4.Z();
-	
-	{
-		const auto J1 = Math::Vec3::Zero();
-		Jacobian[1][0] = J1.X();
-		Jacobian[1][1] = J1.Y();
-		Jacobian[1][2] = J1.Z();
-		const auto J2 = MatA * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
-		Jacobian[1][3] = J2.Y();
-		Jacobian[1][4] = J2.Z();
-		Jacobian[1][5] = J2.W();
-		const auto J3 = Math::Vec3::Zero();
-		Jacobian[1][6] = J3.X();
-		Jacobian[1][7] = J3.Y();
-		Jacobian[1][8] = J3.Z();
-		const auto J4 = MatB * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
-		Jacobian[1][9] = J4.Y();
-		Jacobian[1][10] = J4.Z();
-		Jacobian[1][11] = J4.W();
-	}
-	{
-		const auto J1 = Math::Vec3::Zero();
-		Jacobian[2][0] = J1.X();
-		Jacobian[2][1] = J1.Y();
-		Jacobian[2][2] = J1.Z();
-		const auto J2 = MatA * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
-		Jacobian[2][3] = J2.Y();
-		Jacobian[2][4] = J2.Z();
-		Jacobian[2][5] = J2.W();
-		const auto J3 = Math::Vec3::Zero();
-		Jacobian[2][6] = J3.X();
-		Jacobian[2][7] = J3.Y();
-		Jacobian[2][8] = J3.Z();
-		const auto J4 = MatB * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
-		Jacobian[2][9] = J4.Y();
-		Jacobian[2][10] = J4.Z();
-		Jacobian[2][11] = J4.W();
-	}
-	if (IsAngleViolated) {
-		const auto J1 = Math::Vec3::Zero();
-		Jacobian[3][0] = J1.X();
-		Jacobian[3][1] = J1.Y();
-		Jacobian[3][2] = J1.Z();
-		const auto J2 = MatA * Math::Vec4(0.0f, AxisA.X(), AxisA.Y(), AxisA.Z());
-		Jacobian[3][3] = J2.Y();
-		Jacobian[3][4] = J2.Z();
-		Jacobian[3][5] = J2.W();
-		const auto J3 = Math::Vec3::Zero();
-		Jacobian[3][6] = J3.X();
-		Jacobian[3][7] = J3.Y();
-		Jacobian[3][8] = J3.Z();
-		const auto J4 = MatB * Math::Vec4(0.0f, AxisA.X(), AxisA.Y(), AxisA.Z());
-		Jacobian[3][9] = J4.Y();
-		Jacobian[3][10] = J4.Z();
-		Jacobian[3][11] = J4.W();
-	}
-
-	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
-	Baumgarte = 0.05f * C / DeltaSec;
-}
-void Physics::ConstraintHinge::Solve()
-{
-	const auto JT = Jacobian.Transpose();
-	const auto A = Jacobian * GetInverseMassMatrix() * JT;
-	auto B = -Jacobian * GetVelocties(); B[0] -= Baumgarte;
-
-	auto Lambda = GaussSiedel(A, B);
-
-	//!< Šp“x§ŒÀ‚É‚æ‚èAƒgƒ‹ƒN‚ð§ŒÀ‚·‚é
-	if (IsAngleViolated) {
-		if (RelativeAngle > 0.0f) {
-			Lambda[3] = (std::min)(Lambda[3], 0.0f);
-		}
-		if (RelativeAngle < 0.0f) {
-			Lambda[3] = (std::max)(Lambda[3], 0.0f);
-		}
-	}
-
-	ApplyImpulse(JT * Lambda);
-
-	CachedLambda += Lambda;
-}
-void Physics::ConstraintHinge::PostSolve()
-{
-	if (CachedLambda[0] * 0.0f != CachedLambda[0] * 0.0f) { CachedLambda[0] = 0.0f; }
-	constexpr auto Limit = 20.0f;
-	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Limit, Limit);
-	CachedLambda[1] = CachedLambda[2] = CachedLambda[3] = 0.0f;
 }
 
 Physics::Manifold::Manifold(const Collision::Contact& Ct) : RigidBodyA(Ct.RigidBodyA), RigidBodyB(Ct.RigidBodyB) { Add(Ct); }

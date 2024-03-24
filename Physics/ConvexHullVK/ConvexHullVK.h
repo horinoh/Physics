@@ -195,9 +195,9 @@ public:
 		for (auto& i : Meshes.back().Vertices) { Vec3s.emplace_back(Math::Vec3({i.x, i.y, i.z})); }
 #else
 		//!< ダイアモンド形状
-		std::vector<Math::Vec3> Diamond;
-		Physics::CreateVertices_Diamond(Diamond);
-		std::ranges::copy(Diamond, std::back_inserter(Vec3s));
+		std::vector<Math::Vec3> ShapeVert;
+		Physics::CreateVertices_Diamond(ShapeVert);
+		std::ranges::copy(ShapeVert, std::back_inserter(Vec3s));
 #endif
 		PlaceRigidBodies(Vec3s);
 		const auto Convex = static_cast<const Physics::ShapeConvex*>(Scene->Shapes.front());

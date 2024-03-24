@@ -50,14 +50,87 @@ namespace Physics
 	protected:
 		//!< ヤコビ行列 (n * 12)
 		//!<	n : コンストレイント数
-		//!<	12 : 6 軸 (移動と回転に 3 軸ずつ) の自由度  * 2 オブジェクト
+		//!<	12 : 6(移動3、回転3)軸の自由度 * 2 オブジェクト
 		//!< 距離 (n == 1)
 		Math::Mat<1, 12> Jacobian;
 		Math::Vec<1> CachedLambda;
 		float Baumgarte = 0.0f;
 	};
 
-	class ConstraintPenetration : public Constraint 
+	class ConstraintHinge : public Constraint
+	{
+	public:
+		virtual void PreSolve(const float DeltaSec) override;
+		virtual void Solve() override;
+		virtual void PostSolve() override;
+
+	protected:
+		//!< 距離、ヒンジ軸に垂直な U, V (n == 3)
+		Math::Mat<3, 12> Jacobian;
+		Math::Vec<3> CachedLambda;
+		float Baumgarte = 0.0f;
+
+		//!< A, B の初期位置における InitQ = QA^-1 * QB をここに設定する
+		Math::Quat InitialQuat;
+		//!< 任意の時点の Q = QA^-1 * QB * InitQ.Inverse() とすると、初期位置からの回転角 Theta = 2.0f * asin(Q.Dot(Hinge));
+	};
+
+	class ConstraintLimitedHinge : public Constraint
+	{
+	public:
+		virtual void PreSolve(const float DeltaSec) override;
+		virtual void Solve() override;
+		virtual void PostSolve() override;
+
+	protected:
+		//!< 距離、ヒンジ軸に垂直な U, V、角度制限 (n == 4)
+		Math::Mat<4, 12> Jacobian;
+		Math::Vec<4> CachedLambda;
+		float Baumgarte = 0.0f;
+
+		Math::Quat InitialQuat;
+
+		bool IsAngleViolated;
+		float Angle;
+	};
+
+	class ConstraintBallSocket : public Constraint
+	{
+	public:
+		virtual void PreSolve(const float DeltaSec) override;
+		virtual void Solve() override;
+		virtual void PostSolve() override;
+
+	protected:
+		//!< 距離、軸 (n == 2)
+		Math::Mat<2, 12> Jacobian;
+		Math::Vec<2> CachedLambda;
+		float Baumgarte = 0.0f;
+
+		Math::Quat InitialQuat;
+	};
+
+	class ConstraintLimitedBallSocket : public Constraint
+	{
+	public:
+		virtual void PreSolve(const float DeltaSec) override;
+		virtual void Solve() override;
+		virtual void PostSolve() override;
+
+	protected:
+		Math::Mat<4, 12> Jacobian;
+		Math::Vec<4> CachedLambda;
+		float Baumgarte = 0.0f;
+
+		Math::Quat InitialQuat;
+
+		bool IsAngleUViolated;
+		bool IsAngleVViolated;
+		float AngleU;
+		float AngleV;
+	};
+
+	class ConstraintPenetration : public Constraint
 	{
 	public:
 		ConstraintPenetration() {}
@@ -77,24 +150,6 @@ namespace Physics
 		Math::Vec3 Normal;
 		float Friction = 0.0f;
 	};
-
-	class ConstraintHinge : public Constraint
-	{
-	public:
-		virtual void PreSolve(const float DeltaSec) override;
-		virtual void Solve() override;
-		virtual void PostSolve() override;
-
-	protected:
-		Math::Mat<4, 12> Jacobian;
-		Math::Vec<4> CachedLambda;
-		float Baumgarte = 0.0f;
-
-		Math::Quat Q;	
-		bool IsAngleViolated;
-		float RelativeAngle;
-	};
-
 	class Manifold 
 	{
 	public:
