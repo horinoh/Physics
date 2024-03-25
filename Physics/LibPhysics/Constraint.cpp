@@ -13,7 +13,7 @@
 //!<     (     I_A    0    0) ... A ‚ÌŠµ«ƒeƒ“ƒ\ƒ‹‚Ì‹ts—ñ (3x3)
 //!<     (   0   0  M_B    0) ... B ‚ÌŽ¿—Ê‚Ì‹t”‚ª‘ÎŠp¬•ª
 //!<     (   0   0    0  I_B) ... B ‚ÌŠµ«ƒeƒ“ƒ\ƒ‹‚Ì‹ts—ñ
-Math::Mat<12, 12> Physics::Constraint::CreateInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
+Math::Mat<12, 12> Physics::ConstraintAnchor::CreateInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
 {
 	Math::Mat<12, 12> InvM;
 
@@ -45,7 +45,7 @@ Math::Mat<12, 12> Physics::Constraint::CreateInverseMassMatrix(const Physics::Ri
 //!<     (W_A) ... A ‚ÌŠp‘¬“x
 //!<     (V_B) ... B ‚Ì‘¬“x
 //!<     (W_B) ... B ‚ÌŠp‘¬“x
-Math::Vec<12> Physics::Constraint::CreateVelocties(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
+Math::Vec<12> Physics::ConstraintAnchor::CreateVelocties(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
 {
 	auto V = Math::Vec<12>();
 
@@ -72,7 +72,7 @@ Math::Vec<12> Physics::Constraint::CreateVelocties(const Physics::RigidBody* RbA
 	return V;
 }
 
-void Physics::Constraint::ApplyImpulse(const Math::Vec<12>& Impulse)
+void Physics::ConstraintAnchor::ApplyImpulse(const Math::Vec<12>& Impulse)
 {
 	RigidBodyA->ApplyLinearImpulse(Math::Vec3({ Impulse[0], Impulse[1], Impulse[2] }));
 	RigidBodyA->ApplyAngularImpulse(Math::Vec3({ Impulse[3], Impulse[4], Impulse[5] }));
@@ -211,6 +211,23 @@ void Physics::ConstraintHinge::PostSolve()
 		if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
 		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
 	}
+}
+Physics::ConstraintHinge& Physics::ConstraintHinge::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis)
+{
+	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
+	AnchorA = RigidBodyA->ToLocal(Anchor);
+
+	RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
+	AnchorB = RigidBodyB->ToLocal(Anchor);
+
+	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
+
+	AxisA = RigidBodyA->Rotation.Inverse().Rotate(Axis);
+
+	//!< A, B ‚Ì‰ŠúˆÊ’u‚É‚¨‚¯‚é QA^-1 * QB ‚ð‚±‚±‚ÉÝ’è‚·‚é
+	InitialQuat = RigidBodyA->Rotation.Inverse() * RigidBodyB->Rotation;
+
+	return *this;
 }
 
 void Physics::ConstraintLimitedHinge::PreSolve(const float DeltaSec)

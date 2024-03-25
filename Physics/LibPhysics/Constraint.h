@@ -18,6 +18,12 @@ namespace Physics
 		virtual void Solve() {};
 		virtual void PostSolve() {}
 
+	protected:
+		Physics::RigidBody* RigidBodyA = nullptr;
+	};
+	class ConstraintAnchor : public Constraint
+	{
+	public:
 		static Math::Mat<12, 12> CreateInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
 		static Math::Vec<12> CreateVelocties(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
 
@@ -26,17 +32,22 @@ namespace Physics
 		void ApplyImpulse(const Math::Vec<12>& Impulse);
 
 	protected:
-		Physics::RigidBody* RigidBodyA = nullptr;
 		Math::Vec3 AnchorA;
-		Math::Vec3 AxisA;
 
 		Physics::RigidBody* RigidBodyB = nullptr;
 		Math::Vec3 AnchorB;
-		Math::Vec3 AxisB;
 
 		Math::Mat<12, 12> InvMass;
 	};
-	class ConstraintDistance : public Constraint 
+	class ConstraintAxis : public ConstraintAnchor
+	{
+	public:
+	protected:
+		Math::Vec3 AxisA;
+		Math::Vec3 AxisB;
+	};
+
+	class ConstraintDistance : public ConstraintAnchor
 	{
 	public:
 		virtual void PreSolve(const float DeltaSec) override;
@@ -55,12 +66,14 @@ namespace Physics
 		float Baumgarte = 0.0f;
 	};
 
-	class ConstraintHinge : public Constraint
+	class ConstraintHinge : public ConstraintAxis
 	{
 	public:
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
 		virtual void PostSolve() override;
+
+		ConstraintHinge& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis);
 
 	protected:
 		//!< ‹——£Aƒqƒ“ƒWŽ²‚É‚’¼‚È U, V (n == 3)
@@ -68,12 +81,11 @@ namespace Physics
 		Math::Vec<3> CachedLambda;
 		float Baumgarte = 0.0f;
 
-		//!< A, B ‚Ì‰ŠúˆÊ’u‚É‚¨‚¯‚é InitQ = QA^-1 * QB ‚ð‚±‚±‚ÉÝ’è‚·‚é
-		Math::Quat InitialQuat;
 		//!< ”CˆÓ‚ÌŽž“_‚Ì Q = QA^-1 * QB * InitQ.Inverse() ‚Æ‚·‚é‚ÆA‰ŠúˆÊ’u‚©‚ç‚Ì‰ñ“]Šp Theta = 2.0f * asin(Q.Dot(Hinge));
+		Math::Quat InitialQuat;
 	};
 
-	class ConstraintLimitedHinge : public Constraint
+	class ConstraintLimitedHinge : public ConstraintAxis
 	{
 	public:
 		virtual void PreSolve(const float DeltaSec) override;
@@ -92,7 +104,7 @@ namespace Physics
 		float Angle;
 	};
 
-	class ConstraintBallSocket : public Constraint
+	class ConstraintBallSocket : public ConstraintAxis
 	{
 	public:
 		virtual void PreSolve(const float DeltaSec) override;
@@ -108,7 +120,7 @@ namespace Physics
 		Math::Quat InitialQuat;
 	};
 
-	class ConstraintLimitedBallSocket : public Constraint
+	class ConstraintLimitedBallSocket : public ConstraintAxis
 	{
 	public:
 		virtual void PreSolve(const float DeltaSec) override;
@@ -139,7 +151,7 @@ namespace Physics
 		float Timer = 0.0f;
 	};
 
-	class ConstraintPenetration : public Constraint
+	class ConstraintPenetration : public ConstraintAnchor
 	{
 	public:
 		ConstraintPenetration() {}
