@@ -382,6 +382,16 @@ namespace Math
 	class Mat
 	{
 	public:
+		template<typename...A> Mat(A...Args) {
+			auto i = 0;
+			for (auto v : std::initializer_list<Vec<N>>{ Args... }) {
+#ifdef _DEBUG
+				if (i >= M) { break; }
+#endif
+				Rows[i++] = v;
+			}
+		}
+
 		inline static Mat Identity() {
 			Mat r;
 			for (auto i = 0; i < M; ++i) {
@@ -467,6 +477,8 @@ namespace Math
 
 		inline Mat& ToZero() { return (*this = Zero()); }
 		inline Mat& ToIdentity() { return (*this = Identity()); }
+
+		inline size_t Size() const { return std::size(Rows); }
 
 	private:
 		std::array<Vec<N>, M> Rows;

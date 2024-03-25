@@ -114,11 +114,11 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 		if (0.0f != RbA->InvMass || 0.0f != RbB->InvMass) {
 			Collision::Contact Ct;
 			if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
-				//if (0.0f == Ct.TimeOfImpact) {
-				if (0.0f == Ct.TimeOfImpact && (RbA->LinearVelocity-RbB->LinearVelocity).LengthSq() < 0.01f) {
+				if (0.0f == Ct.TimeOfImpact 
+					&& (RbA->LinearVelocity-RbB->LinearVelocity).LengthSq() < 0.01f
+					) {
 					//!< Ã“IÕ“Ë
 					Manifolds.Add(Ct);
-					//Contacts.emplace_back(Ct);
 				}
 				else {
 					//!< “®“IÕ“Ë

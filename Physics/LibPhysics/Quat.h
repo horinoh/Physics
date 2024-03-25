@@ -17,6 +17,22 @@ namespace Math
 		}
 
 		inline static Quat Identity() { return { 0.0f, 0.0f, 0.0f, 1.0f }; }
+		inline static Mat4 ToLMat4(const Quat& rhs) {
+			return {
+				{ rhs.W(), -rhs.Z(), rhs.Y(), rhs.X() },
+				{ rhs.Z(), rhs.W(), -rhs.X(), rhs.Y() },
+				{ -rhs.Y(), rhs.X(), rhs.W(), rhs.Z() },
+				{ -rhs.X(), -rhs.Y(), -rhs.Z(), rhs.W() },
+			};
+		}
+		inline static Mat4 ToRMat4(const Quat& rhs) {
+			return {
+				{ rhs.W(), rhs.Z(), -rhs.Y(), rhs.X() },
+				{ -rhs.Z(), rhs.W(), rhs.X(), rhs.Y() },
+				{ rhs.Y(), -rhs.X(), rhs.W(), rhs.Z() },
+				{ -rhs.X(), -rhs.Y(), -rhs.Z(), rhs.W() },
+			};
+		}
 
 		inline bool NearlyEqual(const Quat& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
 			return std::ranges::equal(Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
@@ -55,6 +71,10 @@ namespace Math
 		}
 		inline Vec3 ToVec3() const { return static_cast<Vec3>(*this); }
 		inline Mat3 ToMat3() const { return static_cast<Mat3>(*this); }
+	
+		//!< A * B = L(A) * B = R(B) * A ‚Æ‚È‚é‚æ‚¤‚È 4x4 s—ñ
+		inline Mat4 ToLMat4() const { return ToLMat4(*this); }
+		inline Mat4 ToRMat4() const { return ToRMat4(*this); }
 
 		inline float Dot(const Quat& rhs) const {
 			return std::inner_product(std::begin(Comps), std::end(Comps), std::begin(rhs.Comps), 0.0f);

@@ -3,6 +3,9 @@
 #include <iostream>
 #include <numbers>
 
+#define TO_RADIAN(x) ((x) * std::numbers::pi_v<float> / 180.0f)
+#define TO_DEGREE(x) ((x) * 180.0f / std::numbers::pi_v<float>)
+
 namespace Math 
 {
 	using Component2 = std::array<float, 2>;

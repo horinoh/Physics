@@ -72,21 +72,6 @@ Math::Vec<12> Physics::Constraint::CreateVelocties(const Physics::RigidBody* RbA
 	return V;
 }
 
-//!< QA * QB = Left(QA) * QB = QA * Right(QB) となるような、4x4 行列 Left, Right を求める
-Math::Mat4 Physics::Constraint::Left(const Math::Quat& lhs)
-{
-	return Math::Mat4(Math::Vec4(lhs.W(), -lhs.X(), -lhs.Y(), -lhs.Z()), 
-		Math::Vec4(lhs.X(), lhs.W(), -lhs.Z(), lhs.Y()), 
-		Math::Vec4(lhs.Y(), lhs.Z(), lhs.W(), -lhs.X()), 
-		Math::Vec4(lhs.Z(), -lhs.Y(), lhs.X(), lhs.W())).Transpose();
-}
-Math::Mat4 Physics::Constraint::Right(const Math::Quat& lhs)
-{
-	return Math::Mat4(Math::Vec4(lhs.W(), -lhs.X(), -lhs.Y(), -lhs.Z()),
-		Math::Vec4(lhs.X(), lhs.W(), lhs.Z(), -lhs.Y()),
-		Math::Vec4(lhs.Y(), -lhs.Z(), lhs.W(), lhs.X()),
-		Math::Vec4(lhs.Z(), lhs.Y(), -lhs.X(), lhs.W())).Transpose();
-}
 void Physics::Constraint::ApplyImpulse(const Math::Vec<12>& Impulse)
 {
 	RigidBodyA->ApplyLinearImpulse(Math::Vec3({ Impulse[0], Impulse[1], Impulse[2] }));
@@ -108,21 +93,10 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 
 	//!< ヤコビ行列を作成
 	const auto J1 = -AB * 2.0f;
-	Jacobian[0][0] = J1.X();
-	Jacobian[0][1] = J1.Y();
-	Jacobian[0][2] = J1.Z();
 	const auto J2 = RA.Cross(J1);
-	Jacobian[0][3] = J2.X();
-	Jacobian[0][4] = J2.Y();
-	Jacobian[0][5] = J2.Z();
 	const auto J3 = -BA * 2.0f;
-	Jacobian[0][6] = J3.X();
-	Jacobian[0][7] = J3.Y();
-	Jacobian[0][8] = J3.Z();
 	const auto J4 = RB.Cross(J3);
-	Jacobian[0][9] = J4.X();
-	Jacobian[0][10] = J4.Y();
-	Jacobian[0][11] = J4.Z();
+	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 
 	//!< 前のフレームの力 (CachedLambda) を今フレームの計算前に適用することで、少ないフレームで安定状態へ持っていく (Warm starting)
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
@@ -177,21 +151,10 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 
 	//!< 距離
 	const auto J1 = -AB * 2.0f;
-	Jacobian[0][0] = J1.X();
-	Jacobian[0][1] = J1.Y();
-	Jacobian[0][2] = J1.Z();
 	const auto J2 = RA.Cross(J1);
-	Jacobian[0][3] = J2.X();
-	Jacobian[0][4] = J2.Y();
-	Jacobian[0][5] = J2.Z();
 	const auto J3 = -BA * 2.0f;
-	Jacobian[0][6] = J3.X();
-	Jacobian[0][7] = J3.Y();
-	Jacobian[0][8] = J3.Z();
 	const auto J4 = RB.Cross(J3);
-	Jacobian[0][9] = J4.X();
-	Jacobian[0][10] = J4.Y();
-	Jacobian[0][11] = J4.Z();
+	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 
 	const auto& QA = RigidBodyA->Rotation;
 	const auto& QB = RigidBodyB->Rotation;
@@ -206,44 +169,22 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	//!< (ここでは) 転置する意味がないが、一応やっておく
 	const auto PT = P.Transpose();
 
-	const auto MatA = P * Left(InvQA) * Right(QB * InvInitQ) * PT * -0.5f;
-	const auto MatB = P * Left(InvQA) * Right(QB * InvInitQ) * PT * 0.5f;
+	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitQ).ToRMat4() * PT * 0.5f;
+	const auto MatA = -MatB;
 
 	{
 		const auto J1 = Math::Vec3::Zero();
-		Jacobian[1][0] = J1.X();
-		Jacobian[1][1] = J1.Y();
-		Jacobian[1][2] = J1.Z();
 		const auto J2 = MatA * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
-		Jacobian[1][3] = J2.Y();
-		Jacobian[1][4] = J2.Z();
-		Jacobian[1][5] = J2.W();
 		const auto J3 = Math::Vec3::Zero();
-		Jacobian[1][6] = J3.X();
-		Jacobian[1][7] = J3.Y();
-		Jacobian[1][8] = J3.Z();
 		const auto J4 = MatB * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
-		Jacobian[1][9] = J4.Y();
-		Jacobian[1][10] = J4.Z();
-		Jacobian[1][11] = J4.W();
+		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
 	{
 		const auto J1 = Math::Vec3::Zero();
-		Jacobian[2][0] = J1.X();
-		Jacobian[2][1] = J1.Y();
-		Jacobian[2][2] = J1.Z();
 		const auto J2 = MatA * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
-		Jacobian[2][3] = J2.Y();
-		Jacobian[2][4] = J2.Z();
-		Jacobian[2][5] = J2.W();
 		const auto J3 = Math::Vec3::Zero();
-		Jacobian[2][6] = J3.X();
-		Jacobian[2][7] = J3.Y();
-		Jacobian[2][8] = J3.Z();
 		const auto J4 = MatB * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
-		Jacobian[2][9] = J4.Y();
-		Jacobian[2][10] = J4.Z();
-		Jacobian[2][11] = J4.W();
+		Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
 	
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
@@ -266,7 +207,7 @@ void Physics::ConstraintHinge::Solve()
 void Physics::ConstraintHinge::PostSolve()
 {
 	constexpr auto Limit = 20.0f;
-	for (auto i = 0; i < 3;++i) {
+	for (auto i = 0; i < CachedLambda.Size();++i) {
 		if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
 		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
 	}
@@ -283,22 +224,11 @@ void Physics::ConstraintLimitedHinge::PreSolve(const float DeltaSec)
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	const auto J1 = -AB * 2.0f;
-	Jacobian[0][0] = J1.X();
-	Jacobian[0][1] = J1.Y();
-	Jacobian[0][2] = J1.Z();
 	const auto J2 = RA.Cross(J1);
-	Jacobian[0][3] = J2.X();
-	Jacobian[0][4] = J2.Y();
-	Jacobian[0][5] = J2.Z();
 	const auto J3 = -BA * 2.0f;
-	Jacobian[0][6] = J3.X();
-	Jacobian[0][7] = J3.Y();
-	Jacobian[0][8] = J3.Z();
 	const auto J4 = RB.Cross(J3);
-	Jacobian[0][9] = J4.X();
-	Jacobian[0][10] = J4.Y();
-	Jacobian[0][11] = J4.Z();
-	
+	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+
 	const auto& QA = RigidBodyA->Rotation;
 	const auto& QB = RigidBodyB->Rotation;
 	const auto InvInitQ = InitialQuat.Inverse();
@@ -310,74 +240,38 @@ void Physics::ConstraintLimitedHinge::PreSolve(const float DeltaSec)
 	const auto P = Math::Mat4(Math::Vec4::Zero(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::AxisW());
 	const auto PT = P.Transpose();
 
-	const auto MatA = P * Left(InvQA) * Right(QB * InvInitQ) * PT * -0.5f;
-	const auto MatB = P * Left(InvQA) * Right(QB * InvInitQ) * PT * 0.5f;
+	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitQ).ToRMat4() * PT * 0.5f;
+	const auto MatA = -MatB;
 
 	//!< 角度を求め、破綻しているかどうか調査
 	const auto qrr = InvQA * QB * InvInitQ;
-	Angle = 2.0f * asinf(Math::Vec3(qrr.X(), qrr.Y(), qrr.Z()).Dot(AxisA)) * 180.0f / std::numbers::pi_v<float>;
-	//Angle = TO_DEGREE(2.0f * asinf(Math::Vec3(qrr.X(), qrr.Y(), qrr.Z()).Dot(AxisA)));
+	//Angle = 2.0f * asinf(Math::Vec3(qrr.X(), qrr.Y(), qrr.Z()).Dot(AxisA)) * 180.0f / std::numbers::pi_v<float>;
+	Angle = TO_DEGREE(2.0f * asinf(Math::Vec3(qrr.X(), qrr.Y(), qrr.Z()).Dot(AxisA)));
 	IsAngleViolated = std::fabsf(Angle) > 45.0f;
 
 	{
 		const auto J1 = Math::Vec3::Zero();
-		Jacobian[1][0] = J1.X();
-		Jacobian[1][1] = J1.Y();
-		Jacobian[1][2] = J1.Z();
 		const auto J2 = MatA * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
-		Jacobian[1][3] = J2.Y();
-		Jacobian[1][4] = J2.Z();
-		Jacobian[1][5] = J2.W();
 		const auto J3 = Math::Vec3::Zero();
-		Jacobian[1][6] = J3.X();
-		Jacobian[1][7] = J3.Y();
-		Jacobian[1][8] = J3.Z();
 		const auto J4 = MatB * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
-		Jacobian[1][9] = J4.Y();
-		Jacobian[1][10] = J4.Z();
-		Jacobian[1][11] = J4.W();
+		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
 	{
 		const auto J1 = Math::Vec3::Zero();
-		Jacobian[2][0] = J1.X();
-		Jacobian[2][1] = J1.Y();
-		Jacobian[2][2] = J1.Z();
 		const auto J2 = MatA * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
-		Jacobian[2][3] = J2.Y();
-		Jacobian[2][4] = J2.Z();
-		Jacobian[2][5] = J2.W();
 		const auto J3 = Math::Vec3::Zero();
-		Jacobian[2][6] = J3.X();
-		Jacobian[2][7] = J3.Y();
-		Jacobian[2][8] = J3.Z();
 		const auto J4 = MatB * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
-		Jacobian[2][9] = J4.Y();
-		Jacobian[2][10] = J4.Z();
-		Jacobian[2][11] = J4.W();
+		Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
 	if (IsAngleViolated) {
 		const auto J1 = Math::Vec3::Zero();
-		Jacobian[3][0] = J1.X();
-		Jacobian[3][1] = J1.Y();
-		Jacobian[3][2] = J1.Z();
 		const auto J2 = MatA * Math::Vec4(0.0f, AxisA.X(), AxisA.Y(), AxisA.Z());
-		Jacobian[3][3] = J2.Y();
-		Jacobian[3][4] = J2.Z();
-		Jacobian[3][5] = J2.W();
 		const auto J3 = Math::Vec3::Zero();
-		Jacobian[3][6] = J3.X();
-		Jacobian[3][7] = J3.Y();
-		Jacobian[3][8] = J3.Z();
 		const auto J4 = MatB * Math::Vec4(0.0f, AxisA.X(), AxisA.Y(), AxisA.Z());
-		Jacobian[3][9] = J4.Y();
-		Jacobian[3][10] = J4.Z();
-		Jacobian[3][11] = J4.W();
+		Jacobian[3] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
 	else {
-		Jacobian[3][0] = Jacobian[3][1] = Jacobian[3][2] = 
-			Jacobian[3][3] = Jacobian[3][4] = Jacobian[3][5] = 
-			Jacobian[3][6] = Jacobian[3][7] = Jacobian[3][8] = 
-			Jacobian[3][9] = Jacobian[3][10] = Jacobian[3][11] = 0.0f;
+		Jacobian[3].ToZero();
 	}
 
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
@@ -427,21 +321,10 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 
 	//!< 距離
 	const auto J1 = -AB * 2.0f;
-	Jacobian[0][0] = J1.X();
-	Jacobian[0][1] = J1.Y();
-	Jacobian[0][2] = J1.Z();
 	const auto J2 = RA.Cross(J1);
-	Jacobian[0][3] = J2.X();
-	Jacobian[0][4] = J2.Y();
-	Jacobian[0][5] = J2.Z();
 	const auto J3 = -BA * 2.0f;
-	Jacobian[0][6] = J3.X();
-	Jacobian[0][7] = J3.Y();
-	Jacobian[0][8] = J3.Z();
 	const auto J4 = RB.Cross(J3);
-	Jacobian[0][9] = J4.X();
-	Jacobian[0][10] = J4.Y();
-	Jacobian[0][11] = J4.Z();
+	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 
 	const auto& QA = RigidBodyA->Rotation;
 	const auto& QB = RigidBodyB->Rotation;
@@ -452,26 +335,15 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 	//!< (ここでは) 転置する意味がないが、一応やっておく
 	const auto PT = P.Transpose();
 
-	const auto MatA = P * Left(InvQA) * Right(QB * InvInitQ) * PT * -0.5f;
-	const auto MatB = P * Left(InvQA) * Right(QB * InvInitQ) * PT * 0.5f;
+	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitQ).ToRMat4() * PT * 0.5f;
+	const auto MatA = -MatB;
 
 	{
 		const auto J1 = Math::Vec3::Zero();
-		Jacobian[1][0] = J1.X();
-		Jacobian[1][1] = J1.Y();
-		Jacobian[1][2] = J1.Z();
 		const auto J2 = -0.5f * MatA * Math::Vec4(0.0f, AxisA.X(), AxisA.Y(), AxisA.Z());
-		Jacobian[1][3] = J2.Y();
-		Jacobian[1][4] = J2.Z();
-		Jacobian[1][5] = J2.W();
 		const auto J3 = Math::Vec3::Zero();
-		Jacobian[1][6] = J3.X();
-		Jacobian[1][7] = J3.Y();
-		Jacobian[1][8] = J3.Z();
 		const auto J4 = 0.5f * MatB * Math::Vec4(0.0f, AxisA.X(), AxisA.Y(), AxisA.Z());
-		Jacobian[1][9] = J4.Y();
-		Jacobian[1][10] = J4.Z();
-		Jacobian[1][11] = J4.W();
+		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
 
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
@@ -494,7 +366,7 @@ void Physics::ConstraintBallSocket::Solve()
 void Physics::ConstraintBallSocket::PostSolve()
 {
 	constexpr auto Limit = 20.0f;
-	for (auto i = 0; i < 2; ++i) {
+	for (auto i = 0; i < CachedLambda.Size(); ++i) {
 		if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
 		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
 	}
@@ -509,7 +381,11 @@ void Physics::ConstraintLimitedBallSocket::Solve()
 void Physics::ConstraintLimitedBallSocket::PostSolve()
 {
 }
-
+void Physics::ConstraintMover::PreSolve(const float DeltaSec)
+{
+	RigidBodyA->LinearVelocity[1] = std::cosf(Timer) * 4.0f;
+	Timer += DeltaSec;
+}
 void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 {
 	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
@@ -527,58 +403,25 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 	V = RigidBodyA->Rotation.Rotate(V);
 
 	const auto J1 = -N;
-	Jacobian[0][0] = J1.X();
-	Jacobian[0][1] = J1.Y();
-	Jacobian[0][2] = J1.Z();
 	const auto J2 = RA.Cross(J1);
-	Jacobian[0][3] = J2.X();
-	Jacobian[0][4] = J2.Y();
-	Jacobian[0][5] = J2.Z();
 	const auto J3 = N;
-	Jacobian[0][6] = J3.X();
-	Jacobian[0][7] = J3.Y();
-	Jacobian[0][8] = J3.Z();
 	const auto J4 = RB.Cross(J3);
-	Jacobian[0][9] = J4.X();
-	Jacobian[0][10] = J4.Y();
-	Jacobian[0][11] = J4.Z();
+	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 
 	if (Friction > 0.0f) {
 		{
 			const auto J1 = -U;
-			Jacobian[1][0] = J1.X();
-			Jacobian[1][1] = J1.Y();
-			Jacobian[1][2] = J1.Z();
 			const auto J2 = RA.Cross(J1);
-			Jacobian[1][3] = J2.X();
-			Jacobian[1][4] = J2.Y();
-			Jacobian[1][5] = J2.Z();
 			const auto J3 = U;
-			Jacobian[1][6] = J3.X();
-			Jacobian[1][7] = J3.Y();
-			Jacobian[1][8] = J3.Z();
 			const auto J4 = RB.Cross(J3);
-			Jacobian[1][9] = J4.X();
-			Jacobian[1][10] = J4.Y();
-			Jacobian[1][11] = J4.Z();
+			Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 		}
 		{
 			const auto J1 = -V;
-			Jacobian[2][0] = J1.X();
-			Jacobian[2][1] = J1.Y();
-			Jacobian[2][2] = J1.Z();
 			const auto J2 = RA.Cross(J1);
-			Jacobian[2][3] = J2.X();
-			Jacobian[2][4] = J2.Y();
-			Jacobian[2][5] = J2.Z();
 			const auto J3 = V;
-			Jacobian[2][6] = J3.X();
-			Jacobian[2][7] = J3.Y();
-			Jacobian[2][8] = J3.Z();
 			const auto J4 = RB.Cross(J3);
-			Jacobian[2][9] = J4.X();
-			Jacobian[2][10] = J4.Y();
-			Jacobian[2][11] = J4.Z();
+			Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 		}
 	}
 
@@ -663,14 +506,14 @@ void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 }
 void Physics::Manifold::RemoveExpired()
 {
-	//!< #TODO
 	constexpr auto Eps2 = 0.02f * 0.02f;
 	const auto Range = std::ranges::remove_if(Constraints, [&](const auto& i) {
-		const auto AB = i.first.PointB - i.first.PointA;
-		//const auto N = i.first.RigidBodyA->Rotation.Rotate(i.first.Normal);
-		const auto N = -i.first.RigidBodyA->Rotation.Rotate(i.first.Normal);
-		const auto PenDepth = N.Dot(AB);
-		return PenDepth > 0.0f || (AB - N * PenDepth).LengthSq() >= Eps2;
+		const auto& Ct = i.first;
+		//!< A ローカルで考える
+		const auto AB = Ct.RigidBodyA->ToLocal(Ct.PointB - Ct.PointA);
+		const auto N = Ct.RigidBodyA->Rotation.Rotate(Ct.Normal);
+		const auto PenetrateDepth = N.Dot(AB);
+		return PenetrateDepth > 0.0f || (AB - N * PenetrateDepth).LengthSq() >= Eps2;
 	});
 	Constraints.erase(std::cbegin(Range), std::cend(Range));
 }

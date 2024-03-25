@@ -157,52 +157,52 @@ void Collision::Resolve(const Contact& Ct)
 	const auto TotalInvMass = Ct.RigidBodyA->InvMass + Ct.RigidBodyB->InvMass;
 	{
 		//!< 半径 (重心 -> 衝突点)
-		const auto RadiusA = Ct.PointA - Ct.RigidBodyA->GetWorldSpaceCenterOfMass();
-		const auto RadiusB = Ct.PointB - Ct.RigidBodyB->GetWorldSpaceCenterOfMass();
+		const auto RA = Ct.PointA - Ct.RigidBodyA->GetWorldSpaceCenterOfMass();
+		const auto RB = Ct.PointB - Ct.RigidBodyB->GetWorldSpaceCenterOfMass();
 		{
 			//!< 逆慣性テンソル (ワールドスペース)
 			const auto WorldInvInertiaA = Ct.RigidBodyA->GetWorldSpaceInverseInertiaTensor();
 			const auto WorldInvInertiaB = Ct.RigidBodyB->GetWorldSpaceInverseInertiaTensor();
 
-			//!< (A 視点の)速度 A -> B
-			const auto VelA = Ct.RigidBodyA->LinearVelocity + Ct.RigidBodyA->AngularVelocity.Cross(RadiusA);
-			const auto VelB = Ct.RigidBodyB->LinearVelocity + Ct.RigidBodyB->AngularVelocity.Cross(RadiusB);
-			const auto VelAB = VelB - VelA;
+			//!< (A 視点の) 相対速度 A -> B
+			const auto VelA = Ct.RigidBodyA->LinearVelocity + Ct.RigidBodyA->AngularVelocity.Cross(RA);
+			const auto VelB = Ct.RigidBodyB->LinearVelocity + Ct.RigidBodyB->AngularVelocity.Cross(RB);
+			const auto VelAB = VelA - VelB;
 			//!< 速度の法線成分
-			const auto NrmVelAB = Ct.Normal * VelAB.Dot(Ct.Normal);
+			const auto NVelAB = Ct.Normal * VelAB.Dot(Ct.Normal);
 
 			//!< 法線方向 力積J (運動量変化)
 			{
 				//!< 両者の弾性係数を掛けただけの簡易な実装とする
 				const auto TotalElasticity = 1.0f + Ct.RigidBodyA->Elasticity * Ct.RigidBodyB->Elasticity;
 				{
-					const auto AngularJA = (WorldInvInertiaA * RadiusA.Cross(Ct.Normal)).Cross(RadiusA);
-					const auto AngularJB = (WorldInvInertiaB * RadiusB.Cross(Ct.Normal)).Cross(RadiusB);
+					const auto AngularJA = (WorldInvInertiaA * RA.Cross(Ct.Normal)).Cross(RA);
+					const auto AngularJB = (WorldInvInertiaB * RB.Cross(Ct.Normal)).Cross(RB);
 					const auto AngularFactor = (AngularJA + AngularJB).Dot(Ct.Normal);
 
-					const auto J = NrmVelAB * TotalElasticity / (TotalInvMass + AngularFactor);
+					const auto J = NVelAB * TotalElasticity / (TotalInvMass + AngularFactor);
 
-					Ct.RigidBodyA->ApplyImpulse(Ct.PointA, J);
-					Ct.RigidBodyB->ApplyImpulse(Ct.PointB, -J);
+					Ct.RigidBodyA->ApplyImpulse(Ct.PointA, -J);
+					Ct.RigidBodyB->ApplyImpulse(Ct.PointB, J);
 				}
 			}
 
 			//!< 接線方向 力積J (摩擦力)
 			{
 				//!< 速度の接線成分
-				const auto TanVelAB = VelAB - NrmVelAB;
+				const auto TanVelAB = VelAB - NVelAB;
 				const auto Tangent = TanVelAB.Normalize();
 
 				const auto TotalFriction = Ct.RigidBodyA->Friction * Ct.RigidBodyB->Friction;
 				{
-					const auto AngularJA = (WorldInvInertiaA * RadiusA.Cross(Tangent)).Cross(RadiusA);
-					const auto AngularJB = (WorldInvInertiaB * RadiusB.Cross(Tangent)).Cross(RadiusB);
+					const auto AngularJA = (WorldInvInertiaA * RA.Cross(Tangent)).Cross(RA);
+					const auto AngularJB = (WorldInvInertiaB * RB.Cross(Tangent)).Cross(RB);
 					const auto AngularFactor = (AngularJA + AngularJB).Dot(Tangent);
 
 					const auto J = TanVelAB * TotalFriction / (TotalInvMass + AngularFactor);
 
-					Ct.RigidBodyA->ApplyImpulse(Ct.PointA, J);
-					Ct.RigidBodyB->ApplyImpulse(Ct.PointB, -J);
+					Ct.RigidBodyA->ApplyImpulse(Ct.PointA, -J);
+					Ct.RigidBodyB->ApplyImpulse(Ct.PointB, J);
 				}
 			}
 		}

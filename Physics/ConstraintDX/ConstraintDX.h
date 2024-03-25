@@ -126,7 +126,7 @@ public:
 				constexpr auto Radius = 0.5f;
 
 				const auto JntRootPos = Math::Vec3(0.0f, 6.0f, 0.0f);
-				constexpr auto JntLen = 1.25f;
+				constexpr auto JntLen = 1.1f;
 				constexpr auto JntCount = 5;
 
 				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
@@ -145,6 +145,51 @@ public:
 
 					RbA = RbB;
 				}
+			}
+			//!< 移動コンストレイント
+			{
+				const auto Pos = Math::Vec3(0.0f, 0.0f, -5.0f);
+
+				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				Rb->Position = Pos;
+				Rb->Init(Scene->Shapes.back());
+				//Rb->InvMass = 0.0f;
+
+				auto Jnt = new Physics::ConstraintMover();
+				Jnt->Init(Rb);
+				Scene->Constraints.emplace_back(Jnt);
+			}
+			{
+				const auto Pos = Math::Vec3(7.5f, 6.0f, 0.0f);
+
+				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				Rb->Position = Pos;
+				Rb->Init(Scene->Shapes.back());
+				Rb->InvMass = 0.0f;
+			}
+			{
+				const auto Pos = Math::Vec3(15.0f, 6.0f, 0.0f);
+
+				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				Rb->Position = Pos;
+				Rb->Init(Scene->Shapes.back());
+				Rb->InvMass = 0.0f;
+			}
+			{
+				const auto Pos = Math::Vec3(-7.5f, 6.0f, 0.0f);
+
+				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				Rb->Position = Pos;
+				Rb->Init(Scene->Shapes.back());
+				Rb->InvMass = 0.0f;
+			}
+			{
+				const auto Pos = Math::Vec3(-15.0f, 6.0f, 0.0f);
+
+				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				Rb->Position = Pos;
+				Rb->Init(Scene->Shapes.back());
+				Rb->InvMass = 0.0f;
 			}
 		}
 

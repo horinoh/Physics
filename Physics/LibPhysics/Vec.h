@@ -319,6 +319,15 @@ namespace Math
 	public:
 		Vec() { std::ranges::fill(Comps, 0.0f); }
 		Vec(const float rhs) { std::ranges::fill(Comps, rhs); }
+		template<typename...A> Vec(A...Args) {
+			auto i = 0;
+			for (auto f : std::initializer_list<float>{ Args... }) {
+#ifdef _DEBUG
+				if (i >= N) { break; }
+#endif
+				Comps[i++] = f;
+			}
+		}
 
 		inline static Vec Zero() { return Vec(); }
 		inline static Vec One() { return Vec(1.0f); }
@@ -390,6 +399,8 @@ namespace Math
 
 		inline Vec& ToZero() { return (*this = Zero()); }
 		inline Vec& ToNormalized() { return (*this = Normalize()); }
+
+		inline size_t Size() const { return std::size(Comps); }
 
 	private:
 		std::array<float, N> Comps;

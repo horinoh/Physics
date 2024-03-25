@@ -15,13 +15,11 @@ namespace Physics
 	{
 	public:
 		virtual void PreSolve(const float DeltaSec) = 0;
-		virtual void Solve() = 0;
+		virtual void Solve() {};
 		virtual void PostSolve() {}
 
 		static Math::Mat<12, 12> CreateInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
 		static Math::Vec<12> CreateVelocties(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
-		static Math::Mat4 Left(const Math::Quat& lhs);
-		static Math::Mat4 Right(const Math::Quat& lhs);
 
 		inline const Math::Mat<12, 12>& GetInverseMassMatrix() const { return InvMass; }
 		Math::Vec<12> GetVelocties() const { return CreateVelocties(RigidBodyA, RigidBodyB); }
@@ -128,6 +126,17 @@ namespace Physics
 		bool IsAngleVViolated;
 		float AngleU;
 		float AngleV;
+	};
+
+	class ConstraintMover : public Constraint
+	{
+	public:
+		virtual void PreSolve(const float DeltaSec) override;
+
+		ConstraintMover& Init(const Physics::RigidBody* Rb) { RigidBodyA = const_cast<Physics::RigidBody*>(Rb); return *this; }
+
+	protected:
+		float Timer = 0.0f;
 	};
 
 	class ConstraintPenetration : public Constraint
