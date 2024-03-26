@@ -177,14 +177,14 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 		const auto J2 = MatA * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
-		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.Y(), J2.Z(), J2.W(), J3.X(), J3.Y(), J3.Z(), J4.Y(), J4.Z(), J4.W() };
 	}
 	{
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
-		Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.Y(), J2.Z(), J2.W(), J3.X(), J3.Y(), J3.Z(), J4.Y(), J4.Z(), J4.W() };
 	}
 	
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
@@ -260,10 +260,10 @@ void Physics::ConstraintLimitedHinge::PreSolve(const float DeltaSec)
 	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitQ).ToRMat4() * PT * 0.5f;
 	const auto MatA = -MatB;
 
-	//!< Šp“x‚ð‹‚ßA”j’]‚µ‚Ä‚¢‚é‚©‚Ç‚¤‚©’²¸
-	const auto qrr = InvQA * QB * InvInitQ;
-	//Angle = 2.0f * asinf(Math::Vec3(qrr.X(), qrr.Y(), qrr.Z()).Dot(AxisA)) * 180.0f / std::numbers::pi_v<float>;
-	Angle = TO_DEGREE(2.0f * asinf(Math::Vec3(qrr.X(), qrr.Y(), qrr.Z()).Dot(AxisA)));
+	//!< Œ»Ý‚Ì‰ñ“]
+	const auto Cur = InvQA * QB * InvInitQ;
+	//!< ‰ŠúˆÊ’u‚©‚ç‚Ì‰ñ“]Šp“x‚ð‹‚ßA”j’]‚µ‚Ä‚¢‚é‚©‚Ç‚¤‚©’²¸
+	Angle = TO_DEGREE(2.0f * asinf(Cur.ToVec3().Dot(AxisA)));
 	IsAngleViolated = std::fabsf(Angle) > 45.0f;
 
 	{
@@ -271,21 +271,21 @@ void Physics::ConstraintLimitedHinge::PreSolve(const float DeltaSec)
 		const auto J2 = MatA * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(0.0f, U.X(), U.Y(), U.Z());
-		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.Y(), J2.Z(), J2.W(), J3.X(), J3.Y(), J3.Z(), J4.Y(), J4.Z(), J4.W() };
 	}
 	{
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(0.0f, V.X(), V.Y(), V.Z());
-		Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.Y(), J2.Z(), J2.W(), J3.X(), J3.Y(), J3.Z(), J4.Y(), J4.Z(), J4.W() };
 	}
 	if (IsAngleViolated) {
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(0.0f, AxisA.X(), AxisA.Y(), AxisA.Z());
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(0.0f, AxisA.X(), AxisA.Y(), AxisA.Z());
-		Jacobian[3] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[3] = { J1.X(), J1.Y(), J1.Z(), J2.Y(), J2.Z(), J2.W(), J3.X(), J3.Y(), J3.Z(), J4.Y(), J4.Z(), J4.W() };
 	}
 	else {
 		Jacobian[3].ToZero();

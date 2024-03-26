@@ -148,12 +148,12 @@ public:
 			}
 			//!< 移動コンストレイント
 			{
-				const auto Pos = Math::Vec3(0.0f, 0.0f, -5.0f);
+				const auto Pos = Math::Vec3(0.0f, -4.0f, 0.0f);
 
 				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 				Rb->Position = Pos;
+				Rb->InvMass = 0.0f;
 				Rb->Init(Scene->Shapes.back());
-				//Rb->InvMass = 0.0f;
 
 				auto Mv = new Physics::ConstraintMover();
 				Mv->Init(Rb);

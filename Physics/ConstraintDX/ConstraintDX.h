@@ -148,24 +148,35 @@ public:
 			}
 			//!< 移動コンストレイント
 			{
-				const auto Pos = Math::Vec3(0.0f, 0.0f, -5.0f);
+				const auto Pos = Math::Vec3(0.0f, -4.0f, 0.0f);
 
 				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 				Rb->Position = Pos;
+				Rb->InvMass = 0.0f;
 				Rb->Init(Scene->Shapes.back());
-				//Rb->InvMass = 0.0f;
 
-				auto Jnt = new Physics::ConstraintMover();
-				Jnt->Init(Rb);
-				Scene->Constraints.emplace_back(Jnt);
+				auto Mv = new Physics::ConstraintMover();
+				Mv->Init(Rb);
+				Scene->Constraints.emplace_back(Mv);
 			}
+			//!< ヒンジコンストレイント
 			{
 				const auto Pos = Math::Vec3(7.5f, 6.0f, 0.0f);
 
-				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-				Rb->Position = Pos;
-				Rb->Init(Scene->Shapes.back());
-				Rb->InvMass = 0.0f;
+				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				RbA->Position = Pos;
+				//RbA->Rotation = Math::Quat(Math::Vec3(1, 1, 1).Normalize(), TO_RADIAN(45.0f));
+				RbA->Init(Scene->Shapes.back());
+				RbA->InvMass = 0.0f;
+
+				auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				RbB->Position = RbA->Position + Math::Vec3::AxisZ();
+				//RbB->Rotation = Math::Quat(Math::Vec3(0, 1, 1).Normalize(), TO_RADIAN(90.0f));
+				RbB->Init(Scene->Shapes.back());
+
+				auto Jnt = new Physics::ConstraintHinge();
+				Jnt->Init(RbA, RbB, RbA->Position, Math::Vec3::AxisX());
+				Scene->Constraints.emplace_back(Jnt);
 			}
 			{
 				const auto Pos = Math::Vec3(15.0f, 6.0f, 0.0f);
@@ -207,6 +218,7 @@ public:
 		//	Rb->Init(Scene->Shapes[0]);
 		//}
 	}
+
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
 		DX::OnCreate(hWnd, hInstance, Title);
 

@@ -6,6 +6,8 @@
 #include "RigidBody.h"
 #include "Constraint.h"
 
+#include "Log.h"
+
 Physics::Scene::~Scene() 
 {
 	for (auto i : Shapes) {
@@ -170,6 +172,15 @@ void Physics::Scene::Update(const float DeltaSec)
 	{
 		std::vector<CollidablePair> CollidablePairs;
 		BroadPhase(DeltaSec, CollidablePairs);
+#ifdef _DEBUG
+		//auto Cnt = 0;
+		//for (auto i = 0; i < std::size(RigidBodies); ++i) { 
+		//	for (auto j = i + 1; j < std::size(RigidBodies); ++j) {
+		//		Cnt++;
+		//	}
+		//}
+		//LOG(data(std::format("Collidable / BruteForce = {} / {}\n", std::size(CollidablePairs), Cnt)));
+#endif
 		NarrowPhase(DeltaSec, CollidablePairs, Contacts);
 	}
 #endif
@@ -189,7 +200,7 @@ void Physics::Scene::Update(const float DeltaSec)
 		}
 
 		//!< Õ“Ë‚Ì‰ðŒˆ
-		Resolve(i);
+		ResolveContact(i);
 
 		AccumTime += Delta;
 	}

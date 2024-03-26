@@ -143,5 +143,5 @@ namespace Collision
 	}
 
 	//!< Õ“ËŽž‚Ì—ÍÏ‚Ì“K—p
-	void Resolve(const Contact& Ct);
+	void ResolveContact(const Contact& Ct);
 }

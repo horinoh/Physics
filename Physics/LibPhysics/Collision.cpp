@@ -152,7 +152,7 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 	}
 	return false;
 }
-void Collision::Resolve(const Contact& Ct)
+void Collision::ResolveContact(const Contact& Ct)
 {
 	const auto TotalInvMass = Ct.RigidBodyA->InvMass + Ct.RigidBodyB->InvMass;
 	{
