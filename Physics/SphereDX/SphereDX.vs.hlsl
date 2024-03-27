@@ -11,7 +11,7 @@ struct INSTANCE
 };
 struct WORLD_BUFFER
 {
-	INSTANCE Instances[64];
+	INSTANCE Instances[256];
 };
 ConstantBuffer<WORLD_BUFFER> WB : register(b0, space0);
 struct VIEW_PROJECTION_BUFFER

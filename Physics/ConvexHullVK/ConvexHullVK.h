@@ -10,7 +10,7 @@
 
 #define USE_MESH
 #ifdef USE_MESH
-//#define USE_MESH_HULL
+#define USE_MESH_HULL
 #endif
 
 class ConvexHullVK : public Gltf::SDK, public VK
@@ -120,17 +120,21 @@ public:
 	void PlaceRigidBodies(const std::vector<Math::Vec3>& Vertices) {
 		//!< 動的オブジェクト配置
 		{
-			constexpr auto Radius = 2.0f;
+			constexpr auto Offset = 3.0f * 1.5f;
 			constexpr auto Y = 10.0f;
 
 			static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(new Physics::ShapeConvex()))->Init(Vertices);
-			
+
+#ifdef _DEBUG
 			const auto n = 3;
+#else
+			const auto n = 5;
+#endif
 			const auto n2 = n >> 1;
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
 					auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Offset, Y, static_cast<float>(z - n2) * Offset);
 					Rb->Rotation = Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(90.0f));
 					Rb->Init(Scene->Shapes.back());
 				}
@@ -138,13 +142,17 @@ public:
 		}
 		//!< 静的オブジェクト配置
 		{
-			constexpr auto Radius = 20.0f;
-			constexpr auto Y = -Radius;
+			constexpr auto Y = -20.0f;
 
-			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
+			//!< 拡大する
+			std::vector<Math::Vec3> ExpandedVertices(std::size(Vertices));
+			std::ranges::transform(Vertices, std::back_inserter(ExpandedVertices), [&](const auto& i) { return i * FloorScale; });
+
+			static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(new Physics::ShapeConvex()))->Init(ExpandedVertices);
 
 			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 			Rb->Position = Math::Vec3::AxisY() * Y;
+			Rb->Rotation = Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(270.0f));
 			Rb->InvMass = 0;
 			Rb->Elasticity = 0.99f;
 			Rb->Init(Scene->Shapes.back());
@@ -605,22 +613,15 @@ public:
 				const auto Rb = Scene->RigidBodies[i];
 				const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 				const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
-
-				if (0.0f == Rb->InvMass) {
-					if (i1 < _countof(WorldBuffer.Instances1)) {
-						WorldBuffer.Instances1[i1++].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot) * glm::scale(glm::mat4(1.0f), glm::vec3(20.0f));
-					}
-				}
-				else {
-					if (i0 < _countof(WorldBuffer.Instances0)) {
-						WorldBuffer.Instances0[i0++].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
-					}
+				const auto Scl = 0.0f == Rb->InvMass ? glm::scale(glm::mat4(1.0f), glm::vec3(FloorScale)) : glm::mat4(1.0f);
+				if (i0 < _countof(WorldBuffer.Instances0)) {
+					WorldBuffer.Instances0[i0++].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot) * Scl;
 				}
 			}
 		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
-		const auto Pos = glm::vec3(0.0f, 15.0f, 30.0f);
+		const auto Pos = glm::vec3(0.0f, 15.0f, 40.0f);
 		const auto Tag = glm::vec3(0.0f);
 		const auto Up = glm::vec3(0.0f, 1.0f, 0.0f);
 		const auto View = glm::lookAt(Pos, Tag, Up);
@@ -635,6 +636,8 @@ public:
 	}
 
 protected:
+	const float FloorScale = 30.0f;
+
 	struct MESH {
 		std::vector<uint32_t> Indices;
 		std::vector<glm::vec3> Vertices;

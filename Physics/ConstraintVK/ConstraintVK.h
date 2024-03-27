@@ -123,8 +123,6 @@ public:
 
 			//!< 距離コンストレイント
 			{
-				constexpr auto Radius = 0.5f;
-
 				const auto JntRootPos = Math::Vec3(0.0f, 6.0f, 0.0f);
 				constexpr auto JntLen = 1.1f;
 				constexpr auto JntCount = 5;
@@ -132,7 +130,7 @@ public:
 				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 				RbA->Position = JntRootPos;
 				RbA->InvMass = 0;
-				RbA->Init(Scene->Shapes.back());
+				RbA->Init(Scene->Shapes[1]);
 
 				for (auto i = 0; i < JntCount; ++i) {
 					auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
@@ -153,41 +151,70 @@ public:
 				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 				Rb->Position = Pos;
 				Rb->InvMass = 0.0f;
-				Rb->Init(Scene->Shapes.back());
+				Rb->Init(Scene->Shapes[1]);
 
-				auto Mv = new Physics::ConstraintMover();
-				Mv->Init(Rb);
-				Scene->Constraints.emplace_back(Mv);
+				{
+					auto Jnt = new Physics::ConstraintMoverUpDown();
+					Jnt->Init(Rb);
+					Scene->Constraints.emplace_back(Jnt);
+				}
+				{
+					auto Jnt = new Physics::ConstraintMoverRotate();
+					Jnt->Init(Rb);
+					Scene->Constraints.emplace_back(Jnt);
+				}
 			}
 			//!< ヒンジコンストレイント
 			{
-				const auto Pos = Math::Vec3(7.5f, 6.0f, 0.0f);
+				const auto JntRootPos = Math::Vec3(7.5f, 6.0f, 0.0f);
+				constexpr auto JntLen = 1.2f;
+				constexpr auto JntCount = 5;
 
 				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-				RbA->Position = Pos;
-				//RbA->Rotation = Math::Quat(Math::Vec3(1, 1, 1).Normalize(), TO_RADIAN(45.0f));
-				RbA->Init(Scene->Shapes.back());
-				RbA->InvMass = 0.0f;
+				RbA->Position = JntRootPos;
+				RbA->InvMass = 0;
+				RbA->Init(Scene->Shapes[0]);
 
-				auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-				RbB->Position = RbA->Position + Math::Vec3::AxisZ();
-				//RbB->Rotation = Math::Quat(Math::Vec3(0, 1, 1).Normalize(), TO_RADIAN(90.0f));
-				RbB->Init(Scene->Shapes.back());
+				for (auto i = 0; i < JntCount; ++i) {
+					auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+					RbB->Position = RbA->Position + Math::Vec3::AxisZ() * JntLen;
 
-				auto Jnt = new Physics::ConstraintHinge();
-				Jnt->Init(RbA, RbB, RbA->Position, Math::Vec3::AxisX());
-				Scene->Constraints.emplace_back(Jnt);
+					RbB->Init(Scene->Shapes[0]);
+
+					auto Jnt = new Physics::ConstraintHinge();
+					Jnt->Init(RbA, RbB, RbA->Position, Math::Vec3::AxisX());
+					Scene->Constraints.emplace_back(Jnt);
+
+					RbA = RbB;
+				}
+			}
+			//!< 角度制限ヒンジコンストレイント
+			{
+				const auto JntRootPos = Math::Vec3(-7.5f, 6.0f, 0.0f);
+
+				constexpr auto JntLen = 1.2f;
+				constexpr auto JntCount = 5;
+
+				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				RbA->Position = JntRootPos;
+				RbA->InvMass = 0;
+				RbA->Init(Scene->Shapes[0]);
+
+				for (auto i = 0; i < JntCount; ++i) {
+					auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+					RbB->Position = RbA->Position + Math::Vec3::AxisX() * JntLen;
+
+					RbB->Init(Scene->Shapes[0]);
+
+					auto Jnt = new Physics::ConstraintHingeLimited();
+					Jnt->Init(RbA, RbB, RbA->Position, Math::Vec3::AxisZ());
+					Scene->Constraints.emplace_back(Jnt);
+
+					RbA = RbB;
+				}
 			}
 			{
 				const auto Pos = Math::Vec3(15.0f, 6.0f, 0.0f);
-
-				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-				Rb->Position = Pos;
-				Rb->Init(Scene->Shapes.back());
-				Rb->InvMass = 0.0f;
-			}
-			{
-				const auto Pos = Math::Vec3(-7.5f, 6.0f, 0.0f);
 
 				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 				Rb->Position = Pos;
@@ -203,20 +230,6 @@ public:
 				Rb->InvMass = 0.0f;
 			}
 		}
-
-		//!< 静的オブジェクト配置
-		//{
-		//	constexpr auto Radius = 20.0f;
-		//	constexpr auto Y = -Radius;
-
-		//	static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
-
-		//	auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-		//	Rb->Position = Math::Vec3::AxisY() * Y;
-		//	Rb->InvMass = 0;
-		//	Rb->Elasticity = 0.99f;
-		//	Rb->Init(Scene->Shapes[0]);
-		//}
 	}
 
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {

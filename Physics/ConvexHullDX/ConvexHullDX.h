@@ -10,7 +10,7 @@
 
 #define USE_MESH
 #ifdef USE_MESH
-//#define USE_MESH_HULL
+#define USE_MESH_HULL
 #endif
 
 class ConvexHullDX : public Gltf::SDK, public DX
@@ -120,17 +120,21 @@ public:
 	void PlaceRigidBodies(const std::vector<Math::Vec3>& Vertices) {
 		//!< 動的オブジェクト配置
 		{
-			constexpr auto Radius = 2.0f;
+			constexpr auto Offset = 3.0f * 1.5f;
 			constexpr auto Y = 10.0f;
 
 			static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(new Physics::ShapeConvex()))->Init(Vertices);
-			
+
+#ifdef _DEBUG
 			const auto n = 3;
+#else
+			const auto n = 5;
+#endif
 			const auto n2 = n >> 1;
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
 					auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Offset, Y, static_cast<float>(z - n2) * Offset);
 					Rb->Rotation = Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(90.0f));
 					Rb->Init(Scene->Shapes.back());
 				}
@@ -138,13 +142,17 @@ public:
 		}
 		//!< 静的オブジェクト配置
 		{
-			constexpr auto Radius = 20.0f;
-			constexpr auto Y = -Radius;
+			constexpr auto Y = -20.0f;
 
-			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
+			//!< 拡大する
+			std::vector<Math::Vec3> ExpandedVertices(std::size(Vertices));
+			std::ranges::transform(Vertices, std::back_inserter(ExpandedVertices), [&](const auto& i) { return i * FloorScale; });
+
+			static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(new Physics::ShapeConvex()))->Init(ExpandedVertices);
 
 			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 			Rb->Position = Math::Vec3::AxisY() * Y;
+			Rb->Rotation = Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(270.0f));
 			Rb->InvMass = 0;
 			Rb->Elasticity = 0.99f;
 			Rb->Init(Scene->Shapes.back());
@@ -250,7 +258,7 @@ public:
 		UploadIndex_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Indices_CH), data(Indices_CH));
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA_CH = {
 			.IndexCountPerInstance = static_cast<UINT32>(size(Indices_CH)),
-			.InstanceCount = _countof(WorldBuffer.Instances1),
+			.InstanceCount = _countof(WorldBuffer.Instances0),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
 			.StartInstanceLocation = 0
@@ -583,28 +591,21 @@ public:
 
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
-			for (auto i = 0, i0=0, i1=0; i < size(Scene->RigidBodies); ++i) {
+			for (auto i = 0, i0 = 0, i1 = 0; i < size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances0)) {
 					const auto Rb = Scene->RigidBodies[i];
 					const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 					const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
-
-					if (0.0f == Rb->InvMass) {
-						if (i1 < _countof(WorldBuffer.Instances1)) {
-							DirectX::XMStoreFloat4x4(&WorldBuffer.Instances1[i1++].World, DirectX::XMMatrixScaling(20.0f, 20.0f, 20.0f) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
-						}
-					}
-					else {
-						if (i0 < _countof(WorldBuffer.Instances0)) {
-							DirectX::XMStoreFloat4x4(&WorldBuffer.Instances0[i0++].World, DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
-						}
+					const auto Scl = 0.0f == Rb->InvMass ? DirectX::XMMatrixScaling(FloorScale, FloorScale, FloorScale) : DirectX::XMMatrixScaling(1.0f, 1.0f, 1.0f);
+					if (i0 < _countof(WorldBuffer.Instances0)) {
+						DirectX::XMStoreFloat4x4(&WorldBuffer.Instances0[i0++].World, Scl * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 					}
 				}
 			}
 		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
-		const auto Pos = DirectX::XMVectorSet(0.0f, 15.0f, 30.0f, 1.0f);
+		const auto Pos = DirectX::XMVectorSet(0.0f, 15.0f, 40.0f, 1.0f);
 		const auto Tag = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 		const auto Up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 		const auto View = DirectX::XMMatrixLookAtRH(Pos, Tag, Up);
@@ -619,6 +620,8 @@ public:
 	}
 
 protected:
+	const float FloorScale = 30.0f;
+
 	struct MESH {
 		std::vector<UINT32> Indices;
 		std::vector<DirectX::XMFLOAT3> Vertices;

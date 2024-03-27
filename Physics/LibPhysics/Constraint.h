@@ -38,6 +38,10 @@ namespace Physics
 		Math::Vec3 AnchorB;
 
 		Math::Mat<12, 12> InvMass;
+
+		//!< 適正な位置へ戻すような力を適用する事で位置ドリフトを修正 (Baumgarte stabilization)
+		//!< 一気にやるとシステムにエネルギーを追加しすぎる為、数フレームかけて適用する
+		float Baumgarte = 0.0f;
 	};
 	class ConstraintAxis : public ConstraintAnchor
 	{
@@ -45,6 +49,9 @@ namespace Physics
 	protected:
 		Math::Vec3 AxisA;
 		Math::Vec3 AxisB;
+
+		//!< ある瞬間の回転を CurRot = QA.Inverse() * QB * InitRot.Inverse() とすると、初期位置からの回転角は Theta = 2.0f * asin(CurRot.Dot(Hinge)) で求まる
+		Math::Quat InvInitRot;
 	};
 
 	class ConstraintDistance : public ConstraintAnchor
@@ -63,7 +70,6 @@ namespace Physics
 		//!< 距離 (n == 1)
 		Math::Mat<1, 12> Jacobian;
 		Math::Vec<1> CachedLambda;
-		float Baumgarte = 0.0f;
 	};
 
 	class ConstraintHinge : public ConstraintAxis
@@ -79,29 +85,25 @@ namespace Physics
 		//!< 距離、ヒンジ軸に垂直な U, V (n == 3)
 		Math::Mat<3, 12> Jacobian;
 		Math::Vec<3> CachedLambda;
-		float Baumgarte = 0.0f;
-
-		//!< 任意の時点の Q = QA^-1 * QB * InitQ.Inverse() とすると、初期位置からの回転角 Theta = 2.0f * asin(Q.Dot(Hinge));
-		Math::Quat InitialQuat;
 	};
 
-	class ConstraintLimitedHinge : public ConstraintAxis
+	class ConstraintHingeLimited : public ConstraintAxis
 	{
 	public:
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
 		virtual void PostSolve() override;
 
+		ConstraintHingeLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float LimAng = 45.0f);
+
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V、角度制限 (n == 4)
 		Math::Mat<4, 12> Jacobian;
 		Math::Vec<4> CachedLambda;
-		float Baumgarte = 0.0f;
-
-		Math::Quat InitialQuat;
 
 		bool IsAngleViolated;
 		float Angle;
+		float LimitAngle;
 	};
 
 	class ConstraintBallSocket : public ConstraintAxis
@@ -115,7 +117,6 @@ namespace Physics
 		//!< 距離、軸 (n == 2)
 		Math::Mat<2, 12> Jacobian;
 		Math::Vec<2> CachedLambda;
-		float Baumgarte = 0.0f;
 
 		Math::Quat InitialQuat;
 	};
@@ -130,7 +131,6 @@ namespace Physics
 	protected:
 		Math::Mat<4, 12> Jacobian;
 		Math::Vec<4> CachedLambda;
-		float Baumgarte = 0.0f;
 
 		Math::Quat InitialQuat;
 
@@ -143,10 +143,19 @@ namespace Physics
 	class ConstraintMover : public Constraint
 	{
 	public:
-		virtual void PreSolve(const float DeltaSec) override;
-
 		ConstraintMover& Init(const Physics::RigidBody* Rb) { RigidBodyA = const_cast<Physics::RigidBody*>(Rb); return *this; }
-
+	protected:
+	};
+	class ConstraintMoverRotate : public ConstraintMover
+	{
+	public:
+		virtual void PreSolve(const float DeltaSec) override;
+	protected:
+	};
+	class ConstraintMoverUpDown : public ConstraintMover
+	{
+	public:
+		virtual void PreSolve(const float DeltaSec) override;
 	protected:
 		float Timer = 0.0f;
 	};
@@ -166,7 +175,6 @@ namespace Physics
 		//!< 法線 N、接面 U, V (n == 3)
 		Math::Mat<3, 12> Jacobian;
 		Math::Vec<3> CachedLambda;
-		float Baumgarte = 0.0f;
 
 		Math::Vec3 Normal;
 		float Friction = 0.0f;

@@ -11,7 +11,7 @@ struct INSTANCE
 };
 layout (set = 0, binding = 0) uniform WORLD_BUFFER
 {
-	INSTANCE Instances[64];
+	INSTANCE Instances[256];
 } WB;
 
 layout (set = 0, binding = 1) uniform VIEW_PROJECTION_BUFFER
