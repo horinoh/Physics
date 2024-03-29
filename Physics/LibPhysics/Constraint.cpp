@@ -455,26 +455,24 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 	//!< ƒ[ƒ‹ƒh‚Å‚Ì‘Š‘Î‰ñ“]Ž²
 	const auto WRelAxis = RigidBodyA->Rotation.Rotate(RelRot.XYZ());
 	const auto C = AB.Dot(AB);
-	Baumgarte3 = { 0.05f * C / DeltaSec, 0.05f * U.Dot(WRelAxis) / DeltaSec, 0.05f * V.Dot(WRelAxis) / DeltaSec };
+	Baumgarte = { 0.05f * C / DeltaSec, 0.05f * U.Dot(WRelAxis) / DeltaSec, 0.05f * V.Dot(WRelAxis) / DeltaSec };
 }
 void Physics::ConstraintMotor::Solve() 
 {
-	const auto WAxis = RigidBodyA->Rotation.Rotate(AxisA) * Speed; 
-
-	Math::Vec<12> WDT;
-	WDT[3] = -WAxis[0];
-	WDT[4] = -WAxis[1];
-	WDT[5] = -WAxis[2];
-	WDT[9] = WAxis[0];
-	WDT[10] = WAxis[1];
-	WDT[11] = WAxis[2];
-	
 	const auto JT = Jacobian.Transpose();
 	const auto A = Jacobian * GetInverseMassMatrix() * JT;
-	auto B = -Jacobian * (GetVelocties() - WDT); 
-	B[0] -= Baumgarte3[0];
-	B[1] -= Baumgarte3[1];
-	B[2] -= Baumgarte3[2];
+	Math::Vec<12> Vel;
+	{
+		const auto WAxis = RigidBodyA->Rotation.Rotate(AxisA) * Speed;
+		Vel[3] = -WAxis[0];
+		Vel[4] = -WAxis[1];
+		Vel[5] = -WAxis[2];
+		Vel[9] = WAxis[0];
+		Vel[10] = WAxis[1];
+		Vel[11] = WAxis[2];
+	}
+	//!< —^‚¦‚½‚¢‘¬“x‚ðŒ¸ŽZ‚µ‚Ä‚©‚ç“K—p‚·‚é‚±‚Æ‚ÅA–Ú“I‚Ì‘¬“x‚É‚È‚é‚æ‚¤‚È—ÍÏ‚ð—^‚¦‚é‚æ‚¤‚É‚È‚é
+	auto B = -Jacobian * (GetVelocties() - Vel); B[0] -= Baumgarte[0]; B[1] -= Baumgarte[1]; B[2] -= Baumgarte[2];
 
 	const auto Lambda = GaussSiedel(A, B);
 

@@ -213,20 +213,29 @@ public:
 					RbA = RbB;
 				}
 			}
+			//!< モーターコンストレイント
 			{
 				const auto Pos = Math::Vec3(15.0f, 6.0f, 0.0f);
 
-				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-				Rb->Position = Pos;
-				Rb->Init(Scene->Shapes.back());
-				Rb->InvMass = 0.0f;
+				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				RbA->Position = Pos;
+				RbA->Init(Scene->Shapes[1]);
+				RbA->InvMass = 0.0f;
+
+				auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				RbB->Position = Pos - Math::Vec3::AxisY() * 1.2f;
+				RbB->Init(Scene->Shapes[0]);
+
+				auto Jnt = new Physics::ConstraintMotor();
+				Jnt->Init(RbA, RbB, RbA->Position, Math::Vec3::AxisY(), 2.0f);
+				Scene->Constraints.emplace_back(Jnt);
 			}
 			{
 				const auto Pos = Math::Vec3(-15.0f, 6.0f, 0.0f);
 
 				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 				Rb->Position = Pos;
-				Rb->Init(Scene->Shapes.back());
+				Rb->Init(Scene->Shapes[1]);
 				Rb->InvMass = 0.0f;
 			}
 		}

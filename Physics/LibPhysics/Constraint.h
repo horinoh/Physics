@@ -51,10 +51,6 @@ namespace Physics
 		Math::Vec3 AnchorB;
 
 		MassMatrix InvMass;
-
-		//!< 適正な位置へ戻すような力を適用する事で位置ドリフトを修正 (Baumgarte stabilization)
-		//!< 一気にやるとシステムにエネルギーを追加しすぎる為、数フレームかけて適用する
-		float Baumgarte = 0.0f;
 	};
 	class ConstraintAxis : public ConstraintAnchor
 	{
@@ -81,6 +77,10 @@ namespace Physics
 		//!< 距離 (n == 1)
 		Math::Mat<1, 12> Jacobian;
 		Math::Vec<1> CachedLambda;
+
+		//!< 適正な位置へ戻すような力を適用する事で位置ドリフトを修正 (Baumgarte stabilization)
+		//!< 一気にやるとシステムにエネルギーを追加しすぎる為、数フレームかけて適用する
+		float Baumgarte = 0.0f;
 	};
 
 	class ConstraintHinge : public ConstraintAxis
@@ -96,6 +96,8 @@ namespace Physics
 		//!< 距離、ヒンジ軸に垂直な U, V (n == 3)
 		Math::Mat<3, 12> Jacobian;
 		Math::Vec<3> CachedLambda;
+
+		float Baumgarte = 0.0f;
 	};
 
 	class ConstraintHingeLimited : public ConstraintAxis
@@ -111,6 +113,8 @@ namespace Physics
 		//!< 距離、ヒンジ軸に垂直な U, V、角度制限 (n == 4)
 		Math::Mat<4, 12> Jacobian;
 		Math::Vec<4> CachedLambda;
+
+		float Baumgarte = 0.0f;
 
 		bool IsAngleViolated;
 		float Angle;
@@ -129,7 +133,7 @@ namespace Physics
 		Math::Mat<2, 12> Jacobian;
 		Math::Vec<2> CachedLambda;
 
-		Math::Quat InitialQuat;
+		float Baumgarte = 0.0f;
 	};
 
 	class ConstraintBallSocketLimited : public ConstraintAxis
@@ -143,7 +147,7 @@ namespace Physics
 		Math::Mat<4, 12> Jacobian;
 		Math::Vec<4> CachedLambda;
 
-		Math::Quat InitialQuat;
+		float Baumgarte = 0.0f;
 
 		bool IsAngleUViolated;
 		bool IsAngleVViolated;
@@ -178,10 +182,10 @@ namespace Physics
 		ConstraintMotor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float Spd);
 
 	protected:
-		//!< (n == 4)
+		//!< 距離、ヒンジ軸に垂直な U, V、ヒンジ軸 (n == 4)
 		Math::Mat<4, 12> Jacobian;
 
-		Math::Vec3 Baumgarte3;
+		Math::Vec3 Baumgarte;
 
 		float Speed;
 	};
@@ -201,6 +205,8 @@ namespace Physics
 		//!< 法線 N、接面の U, V (n == 3)
 		Math::Mat<3, 12> Jacobian;
 		Math::Vec<3> CachedLambda;
+
+		float Baumgarte = 0.0f;
 
 		Math::Vec3 Normal;
 		float Friction = 0.0f;
