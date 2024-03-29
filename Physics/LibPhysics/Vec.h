@@ -55,7 +55,7 @@ namespace Math
 		inline operator const float* () const { return data(Comps); }
 
 		inline float Dot(const Vec2& rhs) const { 
-			return std::inner_product(std::begin(Comps), std::end(Comps), std::begin(rhs.Comps), 0.0f);
+			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
 		}
 		inline float LengthSq() const { return Dot(*this); }
 		inline float Length() const { return sqrtf(LengthSq()); }
@@ -152,7 +152,7 @@ namespace Math
 		inline operator const float* () const { return data(Comps); }
 
 		inline float Dot(const Vec3& rhs) const { 
-			return std::inner_product(std::begin(Comps), std::end(Comps), std::begin(rhs.Comps), 0.0f);
+			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
 		}
 		inline float LengthSq() const { return Dot(*this); }
 		inline float Length() const { return sqrt(LengthSq()); }
@@ -163,7 +163,9 @@ namespace Math
 			}
 			return *this;
 		}
-		inline Vec3 Cross(const Vec3& rhs) const { return Vec3(Y() * rhs.Z() - rhs.Y() * Z(), rhs.X() * Z() - X() * rhs.Z(), X() * rhs.Y() - rhs.X() * Y()); }
+		inline Vec3 Cross(const Vec3& rhs) const {
+			return Vec3(Y() * rhs.Z() - rhs.Y() * Z(), rhs.X() * Z() - X() * rhs.Z(), X() * rhs.Y() - rhs.X() * Y()); 
+		}
 		//!< ‚’¼‚È 2 Ž²‚ðŽæ“¾
 		void GetOrtho(Vec3& U, Vec3& V) const {
 			const auto N = Normalize();
@@ -261,7 +263,7 @@ namespace Math
 		inline operator const float* () const { return data(Comps); }
 
 		inline float Dot(const Vec4& rhs) const { 
-			return std::inner_product(std::begin(Comps), std::end(Comps), std::begin(rhs.Comps), 0.0f);
+			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
 		}
 		inline float LengthSq() const { return Dot(*this); }
 		inline float Length() const { return sqrtf(LengthSq()); }
@@ -323,7 +325,7 @@ namespace Math
 		Vec(const float rhs) { std::ranges::fill(Comps, rhs); }
 		template<typename...A> Vec(A...Args) {
 			auto i = 0;
-			for (auto f : std::initializer_list<float>{ Args... }) {
+			for (const auto f : std::initializer_list<float>{ Args... }) {
 #ifdef _DEBUG
 				if (i >= N) { break; }
 #endif
@@ -364,7 +366,7 @@ namespace Math
 		inline operator const float* () const { return data(Comps); }
 
 		inline float Dot(const Vec& rhs) const { 
-			return std::inner_product(std::begin(Comps), std::end(Comps), std::begin(rhs.Comps), 0.0f);
+			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
 		}
 		inline float LengthSq() const { return Dot(*this); }
 		inline float Length() const { return sqrtf(LengthSq()); }

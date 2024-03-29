@@ -101,7 +101,13 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 				Ct.TimeOfImpact = TOI;
 
 				//!< 法線 A -> B
+#if 0
+				//!< 法線が小さすぎる場合があるので、拡大してから正規化するテスト
+				constexpr auto Scale = 100.0f;
+				Ct.Normal = ((OnB - OnA) * Scale).Normalize();
+#else
 				Ct.Normal = (OnB - OnA).Normalize();
+#endif
 				//!< シンプレックスを拡張しているので、その分をキャンセルする
 				OnA -= Ct.Normal * Bias;
 				OnB += Ct.Normal * Bias;
@@ -169,18 +175,19 @@ void Collision::ResolveContact(const Contact& Ct)
 			const auto VelB = Ct.RigidBodyB->LinearVelocity + Ct.RigidBodyB->AngularVelocity.Cross(RB);
 			const auto VelAB = VelA - VelB;
 			//!< 速度の法線成分
-			const auto NVelAB = Ct.Normal * VelAB.Dot(Ct.Normal);
+			const auto& Nrm = Ct.Normal;
+			const auto NVelAB = Nrm * VelAB.Dot(Nrm);
 
 			//!< 法線方向 力積J (運動量変化)
 			{
 				//!< 両者の弾性係数を掛けただけの簡易な実装とする
 				const auto TotalElasticity = 1.0f + Ct.RigidBodyA->Elasticity * Ct.RigidBodyB->Elasticity;
 				{
-					const auto AngularJA = (WorldInvInertiaA * RA.Cross(Ct.Normal)).Cross(RA);
-					const auto AngularJB = (WorldInvInertiaB * RB.Cross(Ct.Normal)).Cross(RB);
-					const auto AngularFactor = (AngularJA + AngularJB).Dot(Ct.Normal);
+					const auto AngJA = (WorldInvInertiaA * RA.Cross(Nrm)).Cross(RA);
+					const auto AngJB = (WorldInvInertiaB * RB.Cross(Nrm)).Cross(RB);
+					const auto AngFactor = (AngJA + AngJB).Dot(Nrm);
 
-					const auto J = NVelAB * TotalElasticity / (TotalInvMass + AngularFactor);
+					const auto J = NVelAB * TotalElasticity / (TotalInvMass + AngFactor);
 
 					Ct.RigidBodyA->ApplyImpulse(Ct.PointA, -J);
 					Ct.RigidBodyB->ApplyImpulse(Ct.PointB, J);
@@ -190,16 +197,16 @@ void Collision::ResolveContact(const Contact& Ct)
 			//!< 接線方向 力積J (摩擦力)
 			{
 				//!< 速度の接線成分
-				const auto TanVelAB = VelAB - NVelAB;
-				const auto Tangent = TanVelAB.Normalize();
+				const auto TVelAB = VelAB - NVelAB;
+				const auto Tan = TVelAB.Normalize();
 
 				const auto TotalFriction = Ct.RigidBodyA->Friction * Ct.RigidBodyB->Friction;
 				{
-					const auto AngularJA = (WorldInvInertiaA * RA.Cross(Tangent)).Cross(RA);
-					const auto AngularJB = (WorldInvInertiaB * RB.Cross(Tangent)).Cross(RB);
-					const auto AngularFactor = (AngularJA + AngularJB).Dot(Tangent);
+					const auto AngJA = (WorldInvInertiaA * RA.Cross(Tan)).Cross(RA);
+					const auto AngJB = (WorldInvInertiaB * RB.Cross(Tan)).Cross(RB);
+					const auto AngFactor = (AngJA + AngJB).Dot(Tan);
 
-					const auto J = TanVelAB * TotalFriction / (TotalInvMass + AngularFactor);
+					const auto J = TVelAB * TotalFriction / (TotalInvMass + AngFactor);
 
 					Ct.RigidBodyA->ApplyImpulse(Ct.PointA, -J);
 					Ct.RigidBodyB->ApplyImpulse(Ct.PointB, J);

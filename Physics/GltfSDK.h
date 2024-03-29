@@ -251,14 +251,14 @@ namespace Gltf {
 				std::cout << ")" << std::endl;
 			}
 
-			for (auto i : Node.children) {
+			for (const auto& i : Node.children) {
 				Process(Document.nodes.Get(i));
 			}
 		}
 		virtual void Process(const Microsoft::glTF::Scene& Scene) {
 			std::cout << "Scene [" << Scene.id << "] : " << Scene.name << std::endl;
 
-			for (auto i : Scene.nodes) {
+			for (const auto& i : Scene.nodes) {
 				Process(Document.nodes.Get(i));
 			}
 		}

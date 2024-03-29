@@ -14,6 +14,19 @@ namespace Physics
 	class Constraint
 	{
 	public:
+		//!< 質量行列
+		//!< M = (M_A    0    0    0) ... A の質量の逆数が対角成分 (3x3)
+		//!<     (     I_A    0    0) ... A の慣性テンソルの逆行列 (3x3)
+		//!<     (   0   0  M_B    0) ... B の質量の逆数が対角成分
+		//!<     (   0   0    0  I_B) ... B の慣性テンソルの逆行列
+		using MassMatrix = Math::Mat<12, 12>;
+
+		//!< V = (V_A) ... A の速度
+		//!<     (W_A) ... A の角速度
+		//!<     (V_B) ... B の速度
+		//!<     (W_B) ... B の角速度
+		using Velocities = Math::Vec<12>;
+		
 		virtual void PreSolve(const float DeltaSec) = 0;
 		virtual void Solve() {};
 		virtual void PostSolve() {}
@@ -24,12 +37,12 @@ namespace Physics
 	class ConstraintAnchor : public Constraint
 	{
 	public:
-		static Math::Mat<12, 12> CreateInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
-		static Math::Vec<12> CreateVelocties(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
+		static MassMatrix CreateInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
+		static Velocities CreateVelocties(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
 
-		inline const Math::Mat<12, 12>& GetInverseMassMatrix() const { return InvMass; }
-		Math::Vec<12> GetVelocties() const { return CreateVelocties(RigidBodyA, RigidBodyB); }
-		void ApplyImpulse(const Math::Vec<12>& Impulse);
+		inline const MassMatrix& GetInverseMassMatrix() const { return InvMass; }
+		Velocities GetVelocties() const { return CreateVelocties(RigidBodyA, RigidBodyB); }
+		void ApplyImpulse(const Velocities& Impulse);
 
 	protected:
 		Math::Vec3 AnchorA;
@@ -37,7 +50,7 @@ namespace Physics
 		Physics::RigidBody* RigidBodyB = nullptr;
 		Math::Vec3 AnchorB;
 
-		Math::Mat<12, 12> InvMass;
+		MassMatrix InvMass;
 
 		//!< 適正な位置へ戻すような力を適用する事で位置ドリフトを修正 (Baumgarte stabilization)
 		//!< 一気にやるとシステムにエネルギーを追加しすぎる為、数フレームかけて適用する
@@ -64,9 +77,7 @@ namespace Physics
 		ConstraintDistance& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor);
 
 	protected:
-		//!< ヤコビ行列 (n * 12)
-		//!<	n : コンストレイント数
-		//!<	12 : 6(移動3、回転3)軸の自由度 * 2 オブジェクト
+		//!< ヤコビ行列 (n * 12) n == コンストレイント数, 12 == 6 (移動3、回転3) 軸の自由度 * 2 オブジェクト
 		//!< 距離 (n == 1)
 		Math::Mat<1, 12> Jacobian;
 		Math::Vec<1> CachedLambda;
@@ -121,7 +132,7 @@ namespace Physics
 		Math::Quat InitialQuat;
 	};
 
-	class ConstraintLimitedBallSocket : public ConstraintAxis
+	class ConstraintBallSocketLimited : public ConstraintAxis
 	{
 	public:
 		virtual void PreSolve(const float DeltaSec) override;
@@ -144,13 +155,11 @@ namespace Physics
 	{
 	public:
 		ConstraintMover& Init(const Physics::RigidBody* Rb) { RigidBodyA = const_cast<Physics::RigidBody*>(Rb); return *this; }
-	protected:
 	};
 	class ConstraintMoverRotate : public ConstraintMover
 	{
 	public:
 		virtual void PreSolve(const float DeltaSec) override;
-	protected:
 	};
 	class ConstraintMoverUpDown : public ConstraintMover
 	{
@@ -158,6 +167,23 @@ namespace Physics
 		virtual void PreSolve(const float DeltaSec) override;
 	protected:
 		float Timer = 0.0f;
+	};
+
+	class ConstraintMotor : public ConstraintAxis
+	{
+	public:
+		virtual void PreSolve(const float DeltaSec) override;
+		virtual void Solve() override;
+
+		ConstraintMotor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float Spd);
+
+	protected:
+		//!< (n == 4)
+		Math::Mat<4, 12> Jacobian;
+
+		Math::Vec3 Baumgarte3;
+
+		float Speed;
 	};
 
 	class ConstraintPenetration : public ConstraintAnchor
@@ -172,7 +198,7 @@ namespace Physics
 		ConstraintPenetration& Init(const Collision::Contact& Ct);
 
 	protected:
-		//!< 法線 N、接面 U, V (n == 3)
+		//!< 法線 N、接面の U, V (n == 3)
 		Math::Mat<3, 12> Jacobian;
 		Math::Vec<3> CachedLambda;
 

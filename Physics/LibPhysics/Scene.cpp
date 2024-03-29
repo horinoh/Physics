@@ -110,7 +110,7 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 	Contacts.clear();
 
 	//!< 潜在的衝突相手と、実際に衝突しているかを調べる
-	for (auto i : CollidablePairs) {
+	for (const auto& i : CollidablePairs) {
 		const auto RbA = RigidBodies[i.first];
 		const auto RbB = RigidBodies[i.second];
 		if (0.0f != RbA->InvMass || 0.0f != RbB->InvMass) {
@@ -188,7 +188,7 @@ void Physics::Scene::Update(const float DeltaSec)
 
 	//!< TOI 毎に時間をスライスして、シミュレーションを進める
 	auto AccumTime = 0.0f;
-	for (auto i : Contacts) {
+	for (const auto& i : Contacts) {
 		//!< 次の衝突までの時間
 		const auto Delta = i.TimeOfImpact - AccumTime;
 

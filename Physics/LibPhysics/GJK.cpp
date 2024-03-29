@@ -211,7 +211,7 @@ void Collision::SupportPoint::ToTetrahedron(const Physics::RigidBody* RbA, const
 }
 void Collision::SupportPoint::Expand(const float Bias, std::vector<Collision::SupportPoint::Points>& Sps)
 {
-	const auto Center = (Sps[0].GetC() + Sps[1].GetC() + Sps[2].GetC() + Sps[3].GetC()) * 0.25f;
+	const auto Center = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(), [](const auto& Acc, const auto& i) { return Acc + i.GetC(); }) / static_cast<float>(std::size(Sps));
 	std::ranges::transform(Sps, std::begin(Sps), [&](const auto& i) {
 		const auto Dir = (i.GetC() - Center).Normalize() * Bias;
 		return Collision::SupportPoint::Points(i.GetA() + Dir, i.GetB() - Dir);

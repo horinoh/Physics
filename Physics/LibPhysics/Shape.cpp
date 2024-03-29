@@ -1,5 +1,6 @@
 #include "Shape.h"
 #include "Convex.h"
+
 #include "Log.h"
 
 Physics::ShapeConvex& Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& MeshVert)

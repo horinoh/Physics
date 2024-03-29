@@ -59,6 +59,7 @@ namespace Math
 		inline float Y() const { return Comps[1]; }
 		inline float Z() const { return Comps[2]; }
 		inline float W() const { return Comps[3]; }
+		inline Vec3 XYZ() const { return { X(), Y(), Z() }; }
 		inline float operator[](const int i) const { return Comps[i]; }
 		inline operator const float* () const { return data(Comps); }
 		inline operator Vec3() const { return { X(), Y(), Z() }; }
@@ -77,7 +78,7 @@ namespace Math
 		inline Mat4 ToRMat4() const { return ToRMat4(*this); }
 
 		inline float Dot(const Quat& rhs) const {
-			return std::inner_product(std::begin(Comps), std::end(Comps), std::begin(rhs.Comps), 0.0f);
+			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
 		}
 		inline float LengthSq() const { return Dot(*this); }
 		inline float Length() const { return sqrtf(LengthSq()); }
