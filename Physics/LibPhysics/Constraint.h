@@ -44,6 +44,8 @@ namespace Physics
 		Velocities GetVelocties() const { return CreateVelocties(RigidBodyA, RigidBodyB); }
 		void ApplyImpulse(const Velocities& Impulse);
 
+		ConstraintAnchor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor);
+
 	protected:
 		Math::Vec3 AnchorA;
 
@@ -52,9 +54,13 @@ namespace Physics
 
 		MassMatrix InvMass;
 	};
-	class ConstraintAxis : public ConstraintAnchor
+	class ConstraintAnchorAxis : public ConstraintAnchor
 	{
 	public:
+		using Super = ConstraintAnchor;
+
+		ConstraintAnchorAxis& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis);
+
 	protected:
 		Math::Vec3 AxisA;
 		Math::Vec3 AxisB;
@@ -66,11 +72,16 @@ namespace Physics
 	class ConstraintDistance : public ConstraintAnchor
 	{
 	public:
+		using Super = ConstraintAnchor;
+
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
 		virtual void PostSolve() override;
 
-		ConstraintDistance& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor);
+		ConstraintDistance& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor) {
+			Super::Init(RbA, RbB, Anchor);
+			return *this;
+		}
 
 	protected:
 		//!< ヤコビ行列 (n * 12) n == コンストレイント数, 12 == 6 (移動3、回転3) 軸の自由度 * 2 オブジェクト
@@ -83,14 +94,19 @@ namespace Physics
 		float Baumgarte = 0.0f;
 	};
 
-	class ConstraintHinge : public ConstraintAxis
+	class ConstraintHinge : public ConstraintAnchorAxis
 	{
 	public:
+		using Super = ConstraintAnchorAxis;
+
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
 		virtual void PostSolve() override;
 
-		ConstraintHinge& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis);
+		ConstraintHinge& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis) {
+			Super::Init(RbA, RbB, Anchor, Axis);
+			return *this;
+		}
 
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V (n == 3)
@@ -100,14 +116,20 @@ namespace Physics
 		float Baumgarte = 0.0f;
 	};
 
-	class ConstraintHingeLimited : public ConstraintAxis
+	class ConstraintHingeLimited : public ConstraintAnchorAxis
 	{
 	public:
+		using Super = ConstraintAnchorAxis;
+
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
 		virtual void PostSolve() override;
 
-		ConstraintHingeLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float LimAng = 45.0f);
+		ConstraintHingeLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float LimAng = 45.0f) {
+			Super::Init(RbA, RbB, Anchor, Axis);
+			LimitAngle = LimAng;
+			return *this;
+		}
 
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V、角度制限 (n == 4)
@@ -121,12 +143,19 @@ namespace Physics
 		float LimitAngle;
 	};
 
-	class ConstraintBallSocket : public ConstraintAxis
+	class ConstraintBallSocket : public ConstraintAnchorAxis
 	{
 	public:
+		using Super = ConstraintAnchorAxis;
+
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
 		virtual void PostSolve() override;
+
+		ConstraintBallSocket& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis) {
+			Super::Init(RbA, RbB, Anchor, Axis);
+			return *this;
+		}
 
 	protected:
 		//!< 距離、軸 (n == 2)
@@ -136,12 +165,21 @@ namespace Physics
 		float Baumgarte = 0.0f;
 	};
 
-	class ConstraintBallSocketLimited : public ConstraintAxis
+	class ConstraintBallSocketLimited : public ConstraintAnchorAxis
 	{
 	public:
+		using Super = ConstraintAnchorAxis;
+
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
 		virtual void PostSolve() override;
+
+		ConstraintBallSocketLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float LimAngU = 45.0f, const float LimAngV = 45.0f) {
+			Super::Init(RbA, RbB, Anchor, Axis);
+			LimitAngleU = LimAngU;
+			LimitAngleV = LimAngV;
+			return *this;
+		}
 
 	protected:
 		Math::Mat<4, 12> Jacobian;
@@ -153,6 +191,8 @@ namespace Physics
 		bool IsAngleVViolated;
 		float AngleU;
 		float AngleV;
+		float LimitAngleU;
+		float LimitAngleV;
 	};
 
 	class ConstraintMover : public Constraint
@@ -163,23 +203,31 @@ namespace Physics
 	class ConstraintMoverRotate : public ConstraintMover
 	{
 	public:
+		using Super = ConstraintMover;
 		virtual void PreSolve(const float DeltaSec) override;
 	};
 	class ConstraintMoverUpDown : public ConstraintMover
 	{
 	public:
+		using Super = ConstraintMover;
 		virtual void PreSolve(const float DeltaSec) override;
 	protected:
 		float Timer = 0.0f;
 	};
 
-	class ConstraintMotor : public ConstraintAxis
+	class ConstraintMotor : public ConstraintAnchorAxis
 	{
 	public:
+		using Super = ConstraintAnchorAxis;
+
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
 
-		ConstraintMotor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float Spd);
+		ConstraintMotor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float Spd) {
+			Super::Init(RbA, RbB, Anchor, Axis);
+			Speed = Spd;
+			return *this;
+		}
 
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V、ヒンジ軸 (n == 4)
@@ -193,6 +241,8 @@ namespace Physics
 	class ConstraintPenetration : public ConstraintAnchor
 	{
 	public:
+		using Super = ConstraintAnchor;
+
 		ConstraintPenetration() {}
 		ConstraintPenetration(const Collision::Contact& Ct) { Init(Ct); }
 

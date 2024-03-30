@@ -178,7 +178,6 @@ public:
 				for (auto i = 0; i < JntCount; ++i) {
 					auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 					RbB->Position = RbA->Position + Math::Vec3::AxisZ() * JntLen;
-
 					RbB->Init(Scene->Shapes[0]);
 
 					auto Jnt = new Physics::ConstraintHinge();
@@ -191,7 +190,6 @@ public:
 			//!< 角度制限ヒンジコンストレイント
 			{
 				const auto JntRootPos = Math::Vec3(-7.5f, 6.0f, 0.0f);
-
 				constexpr auto JntLen = 1.2f;
 				constexpr auto JntCount = 5;
 
@@ -203,7 +201,6 @@ public:
 				for (auto i = 0; i < JntCount; ++i) {
 					auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 					RbB->Position = RbA->Position + Math::Vec3::AxisX() * JntLen;
-
 					RbB->Init(Scene->Shapes[0]);
 
 					auto Jnt = new Physics::ConstraintHingeLimited();
@@ -213,14 +210,37 @@ public:
 					RbA = RbB;
 				}
 			}
-			//!< モーターコンストレイント
+			//!< ボールソケットコンストレイント
 			{
 				const auto Pos = Math::Vec3(15.0f, 6.0f, 0.0f);
 
 				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 				RbA->Position = Pos;
-				RbA->Init(Scene->Shapes[1]);
 				RbA->InvMass = 0.0f;
+				RbA->Init(Scene->Shapes[1]);
+
+				auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				RbB->Position = Pos - Math::Vec3::AxisX() * 1.2f;
+				RbB->Init(Scene->Shapes[0]);
+
+				auto Jnt = new Physics::ConstraintBallSocket();
+				Jnt->Init(RbA, RbB, RbA->Position, Math::Vec3::AxisY());
+				Scene->Constraints.emplace_back(Jnt);
+
+				if (0) {
+					auto Jnt = new Physics::ConstraintMoverRotate();
+					Jnt->Init(RbB);
+					Scene->Constraints.emplace_back(Jnt);
+				}
+			}
+			//!< モーターコンストレイント
+			{
+				const auto Pos = Math::Vec3(-15.0f, 6.0f, 0.0f);
+
+				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				RbA->Position = Pos;
+				RbA->InvMass = 0.0f;
+				RbA->Init(Scene->Shapes[1]);
 
 				auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
 				RbB->Position = Pos - Math::Vec3::AxisY() * 1.2f;
@@ -229,14 +249,6 @@ public:
 				auto Jnt = new Physics::ConstraintMotor();
 				Jnt->Init(RbA, RbB, RbA->Position, Math::Vec3::AxisY(), 2.0f);
 				Scene->Constraints.emplace_back(Jnt);
-			}
-			{
-				const auto Pos = Math::Vec3(-15.0f, 6.0f, 0.0f);
-
-				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-				Rb->Position = Pos;
-				Rb->Init(Scene->Shapes[1]);
-				Rb->InvMass = 0.0f;
 			}
 		}
 	}

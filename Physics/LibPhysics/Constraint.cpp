@@ -52,6 +52,37 @@ void Physics::ConstraintAnchor::ApplyImpulse(const Physics::Constraint::Velociti
 	RigidBodyB->ApplyLinearImpulse({ Impulse[6], Impulse[7], Impulse[8] });
 	RigidBodyB->ApplyAngularImpulse({ Impulse[9], Impulse[10], Impulse[11] });
 }
+Physics::ConstraintAnchor& Physics::ConstraintAnchor::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor)
+{
+	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
+	RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
+
+	//!< 初期位置はローカルで保存しておく、(オブジェクトが動く事を考慮して) 都度ワールドへと変換して使う
+	AnchorA = RigidBodyA->ToLocal(Anchor);
+	AnchorB = RigidBodyB->ToLocal(Anchor);
+
+	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
+
+	return *this;
+}
+
+Physics::ConstraintAnchorAxis& Physics::ConstraintAnchorAxis::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis)
+{
+	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
+	RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
+
+	AnchorA = RigidBodyA->ToLocal(Anchor);
+	AnchorB = RigidBodyB->ToLocal(Anchor);
+
+	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
+
+	AxisA = RigidBodyA->Rotation.Inverse().Rotate(Axis);
+
+	//!< A, B の初期位置における QA.Inverse() * QB (の逆四元数を求めることにどうせなるので、ここでやってしまう)
+	InvInitRot = (RigidBodyA->Rotation.Inverse() * RigidBodyB->Rotation).Inverse();
+
+	return *this;
+}
 
 void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 {
@@ -65,11 +96,13 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	//!< ヤコビ行列を作成
-	const auto J1 = -AB * 2.0f;
-	const auto J2 = RA.Cross(J1);
-	const auto J3 = -BA * 2.0f;
-	const auto J4 = RB.Cross(J3);
-	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	{
+		const auto J1 = -AB * 2.0f;
+		const auto J2 = RA.Cross(J1);
+		const auto J3 = -BA * 2.0f;
+		const auto J4 = RB.Cross(J3);
+		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	}
 
 	//!< 前のフレームの力 (CachedLambda) を今フレームの計算前に適用することで、少ないフレームで安定状態へ持っていく (Warm starting)
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
@@ -97,19 +130,6 @@ void Physics::ConstraintDistance::PostSolve()
 	constexpr auto Eps = std::numeric_limits<float>::epsilon();
 	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Eps, Eps);
 }
-Physics::ConstraintDistance& Physics::ConstraintDistance::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor)
-{
-	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
-	RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
-
-	//!< 初期位置はローカルで保存しておく、(オブジェクトが動く事を考慮して) 都度ワールドへと変換して使う
-	AnchorA = RigidBodyA->ToLocal(Anchor);
-	AnchorB = RigidBodyB->ToLocal(Anchor);
-
-	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
-
-	return *this;
-}
 
 void Physics::ConstraintHinge::PreSolve(const float DeltaSec) 
 {
@@ -122,11 +142,13 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	//!< 距離
-	const auto J1 = -AB * 2.0f;
-	const auto J2 = RA.Cross(J1);
-	const auto J3 = -BA * 2.0f;
-	const auto J4 = RB.Cross(J3);
-	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	{
+		const auto J1 = -AB * 2.0f;
+		const auto J2 = RA.Cross(J1);
+		const auto J3 = -BA * 2.0f;
+		const auto J4 = RB.Cross(J3);
+		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	}
 
 	const auto& QA = RigidBodyA->Rotation;
 	const auto& QB = RigidBodyB->Rotation;
@@ -169,7 +191,7 @@ void Physics::ConstraintHinge::Solve()
 {
 	const auto JT = Jacobian.Transpose();
 	const auto A = Jacobian * GetInverseMassMatrix() * JT;
-	auto B = -Jacobian * GetVelocties(); B[0] -= Baumgarte;
+	const auto B = -Jacobian * GetVelocties() - Math::Vec<3>(Baumgarte, 0.0f, 0.0f);
 
 	const auto Lambda = GaussSiedel(A, B);
 
@@ -185,23 +207,6 @@ void Physics::ConstraintHinge::PostSolve()
 		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
 	}
 }
-Physics::ConstraintHinge& Physics::ConstraintHinge::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis)
-{
-	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
-	RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
-
-	AnchorA = RigidBodyA->ToLocal(Anchor);
-	AnchorB = RigidBodyB->ToLocal(Anchor);
-
-	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
-
-	AxisA = RigidBodyA->Rotation.Inverse().Rotate(Axis);
-
-	//!< A, B の初期位置における QA.Inverse() * QB (の逆四元数を求めることにどうせなるので、ここでやってしまう)
-	InvInitRot = (RigidBodyA->Rotation.Inverse() * RigidBodyB->Rotation).Inverse();
-
-	return *this;
-}
 
 void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 {
@@ -213,11 +218,13 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
-	const auto J1 = -AB * 2.0f;
-	const auto J2 = RA.Cross(J1);
-	const auto J3 = -BA * 2.0f;
-	const auto J4 = RB.Cross(J3);
-	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	{
+		const auto J1 = -AB * 2.0f;
+		const auto J2 = RA.Cross(J1);
+		const auto J3 = -BA * 2.0f;
+		const auto J4 = RB.Cross(J3);
+		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	}
 
 	const auto& QA = RigidBodyA->Rotation;
 	const auto& QB = RigidBodyB->Rotation;
@@ -273,7 +280,7 @@ void Physics::ConstraintHingeLimited::Solve()
 {
 	const auto JT = Jacobian.Transpose();
 	const auto A = Jacobian * GetInverseMassMatrix() * JT;
-	auto B = -Jacobian * GetVelocties(); B[0] -= Baumgarte;
+	const auto B = -Jacobian * GetVelocties() - Math::Vec<4>(Baumgarte, 0.0f, 0.0f, 0.0f);
 
 	auto Lambda = GaussSiedel(A, B);
 
@@ -298,25 +305,6 @@ void Physics::ConstraintHingeLimited::PostSolve()
 	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Limit, Limit);
 	CachedLambda[1] = CachedLambda[2] = CachedLambda[3] = 0.0f;
 }
-Physics::ConstraintHingeLimited& Physics::ConstraintHingeLimited::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float LimAng)
-{
-	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
-	RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
-
-	AnchorA = RigidBodyA->ToLocal(Anchor);
-	AnchorB = RigidBodyB->ToLocal(Anchor);
-
-	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
-
-	AxisA = RigidBodyA->Rotation.Inverse().Rotate(Axis);
-
-	InvInitRot = (RigidBodyA->Rotation.Inverse() * RigidBodyB->Rotation).Inverse();
-
-	LimitAngle = LimAng;
-
-	return *this;
-}
-
 
 void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 {
@@ -328,17 +316,19 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
-	const auto J1 = -AB * 2.0f;
-	const auto J2 = RA.Cross(J1);
-	const auto J3 = -BA * 2.0f;
-	const auto J4 = RB.Cross(J3);
-	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	{
+		const auto J1 = -AB * 2.0f;
+		const auto J2 = RA.Cross(J1);
+		const auto J3 = -BA * 2.0f;
+		const auto J4 = RB.Cross(J3);
+		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	}
 
 	const auto& QA = RigidBodyA->Rotation;
 	const auto& QB = RigidBodyB->Rotation;
 	const auto InvQA = QA.Inverse();
 
-	const auto P = Math::Mat4(Math::Vec4::Zero(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::AxisW());
+	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
 	const auto& PT = P; // P.Transpose();
 
 	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
@@ -361,7 +351,7 @@ void Physics::ConstraintBallSocket::Solve()
 {
 	const auto JT = Jacobian.Transpose();
 	const auto A = Jacobian * GetInverseMassMatrix() * JT;
-	auto B = -Jacobian * GetVelocties(); B[0] -= Baumgarte;
+	const auto B = -Jacobian * GetVelocties() - Math::Vec<2>(Baumgarte, 0.0f);
 
 	const auto Lambda = GaussSiedel(A, B);
 
@@ -380,17 +370,117 @@ void Physics::ConstraintBallSocket::PostSolve()
 
 void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 {
+	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
+	const auto WAnchorB = RigidBodyB->ToWorld(AnchorB);
+
+	const auto AB = WAnchorB - WAnchorA;
+	const auto BA = WAnchorA - WAnchorB;
+	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
+	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+
+	{
+		const auto J1 = -AB * 2.0f;
+		const auto J2 = RA.Cross(J1);
+		const auto J3 = -BA * 2.0f;
+		const auto J4 = RB.Cross(J3);
+		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	}
+
+	const auto& QA = RigidBodyA->Rotation;
+	const auto& QB = RigidBodyB->Rotation;
+	const auto InvQA = QA.Inverse();
+
+	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
+	const auto& PT = P; // P.Transpose();
+
+	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
+	const auto MatA = -MatB;
+
+	{
+		const auto J1 = Math::Vec3::Zero();
+		const auto J2 = -0.5f * MatA * Math::Vec4(AxisA);
+		const auto J3 = Math::Vec3::Zero();
+		const auto J4 = 0.5f * MatB * Math::Vec4(AxisA);
+		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	}
+
+	Math::Vec3 U, V;
+	AxisA.GetOrtho(U, V);
+
+	const auto CurRot = InvQA * QB * InvInitRot;
+	AngleU = TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(U)));
+	IsAngleUViolated = std::fabsf(AngleU) > LimitAngleU;
+	AngleV = TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(V)));
+	IsAngleVViolated = std::fabsf(AngleV) > LimitAngleV;
+
+	if (IsAngleUViolated) {
+		const auto J1 = Math::Vec3::Zero();
+		const auto J2 = MatA * Math::Vec4(U);
+		const auto J3 = Math::Vec3::Zero();
+		const auto J4 = MatB * Math::Vec4(U);
+		Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	}
+	else {
+		Jacobian[2].ToZero();
+	}
+	if (IsAngleVViolated) {
+		const auto J1 = Math::Vec3::Zero();
+		const auto J2 = MatA * Math::Vec4(V);
+		const auto J3 = Math::Vec3::Zero();
+		const auto J4 = MatB * Math::Vec4(V);
+		Jacobian[3] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	}
+	else {
+		Jacobian[3].ToZero();
+	}
+
+	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
+
+	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
+	Baumgarte = 0.05f * C / DeltaSec;
 }
 void Physics::ConstraintBallSocketLimited::Solve()
 {
+	const auto JT = Jacobian.Transpose();
+	const auto A = Jacobian * GetInverseMassMatrix() * JT;
+	const auto B = -Jacobian * GetVelocties() - Math::Vec<4>(Baumgarte, 0.0f, 0.0f, 0.0f);
+
+	auto Lambda = GaussSiedel(A, B);
+
+	if (IsAngleUViolated) {
+		if (AngleU > 0.0f) {
+			Lambda[2] = (std::min)(Lambda[2], 0.0f);
+		}
+		if (AngleU < 0.0f) {
+			Lambda[2] = (std::max)(Lambda[2], 0.0f);
+		}
+	}
+	if (IsAngleVViolated) {
+		if (AngleV > 0.0f) {
+			Lambda[3] = (std::min)(Lambda[3], 0.0f);
+		}
+		if (AngleU < 0.0f) {
+			Lambda[3] = (std::max)(Lambda[3], 0.0f);
+		}
+	}
+
+	ApplyImpulse(JT * Lambda);
+
+	CachedLambda += Lambda;
 }
 void Physics::ConstraintBallSocketLimited::PostSolve()
 {
+	constexpr auto Limit = 20.0f;
+	for (auto i = 0; i < CachedLambda.Size(); ++i) {
+		if (i > 0) CachedLambda[i] = 0.0f;
+		if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
+		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
+	}
 }
 
 void Physics::ConstraintMoverRotate::PreSolve(const float DeltaSec)
 {
-	RigidBodyA->AngularVelocity[1] = TO_RADIAN(30.0f);
+	RigidBodyA->AngularVelocity[1] = TO_RADIAN(60.0f);
 }
 void Physics::ConstraintMoverUpDown::PreSolve(const float DeltaSec)
 {
@@ -472,31 +562,12 @@ void Physics::ConstraintMotor::Solve()
 		Vel[11] = WAxis[2];
 	}
 	//!< 与えたい速度を減算してから適用することで、目的の速度になるような力積を与えるようになる
-	auto B = -Jacobian * (GetVelocties() - Vel); B[0] -= Baumgarte[0]; B[1] -= Baumgarte[1]; B[2] -= Baumgarte[2];
+	const auto B = -Jacobian * (GetVelocties() - Vel) - Math::Vec<4>(Baumgarte.X(), Baumgarte.Y(), Baumgarte.Z(), 0.0f);
 
 	const auto Lambda = GaussSiedel(A, B);
 
 	ApplyImpulse(JT * Lambda);
 }
-Physics::ConstraintMotor& Physics::ConstraintMotor::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float Spd) 
-{
-	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
-	RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
-
-	AnchorA = RigidBodyA->ToLocal(Anchor);
-	AnchorB = RigidBodyB->ToLocal(Anchor);
-
-	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
-
-	AxisA = RigidBodyA->Rotation.Inverse().Rotate(Axis);
-
-	InvInitRot = (RigidBodyA->Rotation.Inverse() * RigidBodyB->Rotation).Inverse();
-
-	Speed = Spd;
-
-	return *this;
-}
-
 
 void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 {
@@ -553,7 +624,8 @@ void Physics::ConstraintPenetration::Solve()
 {
 	const auto JT = Jacobian.Transpose();
 	const auto A = Jacobian * GetInverseMassMatrix() * JT;
-	auto B = -Jacobian * GetVelocties(); B[0] -= Baumgarte;
+	//auto B = -Jacobian * GetVelocties(); B[0] -= Baumgarte;
+	const auto B = -Jacobian * GetVelocties() - Math::Vec<3>(Baumgarte, 0.0f, 0.0f);
 
 	auto Lambda = GaussSiedel(A, B);
 
@@ -574,13 +646,8 @@ void Physics::ConstraintPenetration::Solve()
 }
 Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Collision::Contact& Ct)
 {
-	RigidBodyA = Ct.RigidBodyA;
-	RigidBodyB = Ct.RigidBodyB;
-
-	AnchorA = RigidBodyA->ToLocal(Ct.PointA);
+	Super::Init(Ct.RigidBodyA, Ct.RigidBodyB, Ct.PointA);
 	AnchorB = RigidBodyB->ToLocal(Ct.PointB);
-
-	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
 
 #if 1
 	Normal = RigidBodyA->Rotation.Rotate(Ct.Normal).Normalize();
