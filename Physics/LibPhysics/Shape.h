@@ -23,8 +23,8 @@ namespace Physics
 		[[nodiscard]] virtual Collision::AABB GetAABB(const Math::Vec3& Pos, const Math::Quat& Rot) const = 0;
 
 #pragma region GJK
-		//!< 指定の方向 (NDir : 正規化されていること) に一番遠い点を返す
-		[[nodiscard]] virtual Math::Vec3 GetSupportPoint(const Math::Vec3& Pos, const Math::Quat& Rot, const Math::Vec3& NDir, const float Bias) const = 0;
+		//!< 指定の方向 (UDir : 正規化されていること) に一番遠い点を返す
+		[[nodiscard]] virtual Math::Vec3 GetSupportPoint(const Math::Vec3& Pos, const Math::Quat& Rot, const Math::Vec3& UDir, const float Bias) const = 0;
 		//!< 指定の方向に最も速く動いている頂点の速度を返す (長いものは回転により衝突の可能性がある (速度が無くても))
 		[[nodiscard]] virtual float GetFastestPointSpeed(const Math::Vec3& AngVel, const Math::Vec3& Dir) const { return 0.0f; }
 #pragma endregion

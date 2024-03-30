@@ -39,14 +39,16 @@ namespace Collision
 		private:
 			std::array<Math::Vec3, 3> SPs;
 		};
-		[[nodiscard]] Points GetPoints(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& UDir, const float Bias);
+		[[nodiscard]] Points Get(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& UDir, const float Bias);
+		//!< n-シンプレックスが原点を含むかどうかを返す
+		//!< 過程で原点のシンプレックス上での重心座標、原点へのベクトルを求めている
 		static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<Points>& Sps, Math::Vec3& Dir, Math::Vec4& OutLambda)
 		{
-			constexpr auto Eps2 = 0.0001f * 0.00001f;
-
 			switch (size(Sps)) {
 			case 2:
+				//!< 原点のシンプレックス上での重心座標 (シンプレックス上にあるか) を返す
 				OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC());
+				//!< 原点へのベクトル
 				Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1]);
 				break;
 			case 3:
@@ -62,7 +64,8 @@ namespace Collision
 				break;
 			}
 
-			//!< 原点を含む -> 衝突
+			//!< 原点へのベクトルがほぼゼロ -> 原点を含む -> 衝突
+			constexpr auto Eps2 = 0.0001f * 0.00001f;
 			return Dir.LengthSq() < Eps2;
 		}
 
