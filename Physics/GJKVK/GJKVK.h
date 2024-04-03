@@ -252,7 +252,7 @@ public:
 		StagingIndex.Create(Device, PDMP, TotalSizeOf(Indices), data(Indices));
 		const VkDrawIndexedIndirectCommand DIIC = {
 			.indexCount = static_cast<uint32_t>(size(Indices)),
-			.instanceCount = _countof(WorldBuffer.RigidBodies),
+			.instanceCount = _countof(WorldBuffer.Instances),
 			.firstIndex = 0,
 			.vertexOffset = 0,
 			.firstInstance = 0
@@ -611,6 +611,9 @@ public:
 			if (Collision::Intersection::GJK_EPA(RbA, RbB, 0.01f, OnA, OnB)) {
 				WorldBuffer.Instances[0].Color = { 1.0f, 1.0f, 0.0f };
 				WorldBuffer.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
+			}
+			else {
+				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
 			}
 			WorldBuffer.Instances[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
 			WorldBuffer.Instances[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());

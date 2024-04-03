@@ -80,12 +80,15 @@ namespace Collision
 			return ((RayDir * ToPt.Dot(RayDir)) - ToPt).LengthSq();
 		}
 		[[nodiscard]] static float PointRay(const Math::Vec3& Pt, const Math::Vec3& RayPos, const Math::Vec3& RayDir) {
-			return sqrtf(PointRaySq(Pt, RayPos, RayDir));
+			return std::sqrtf(PointRaySq(Pt, RayPos, RayDir));
 		}
 		[[nodiscard]] static float PointTriangle(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C) {
 			return (Pt - A).Dot(Math::Vec3::UnitNormal(A, B, C));
 		}
-		[[nodiscard]] static bool IsFront(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C) { return PointTriangle(Pt, A, B, C) >= 0.0f; }
+		[[nodiscard]] static bool IsFront(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C) {
+			//!< 側だけ分かればよいので正規化する必要はない
+			return (Pt - A).Dot(Math::Vec3::Normal(A, B, C)) >= 0.0f;
+		}
 
 		//!< 指定の方向に一番遠い点のイテレータを返す 
 		[[nodiscard]] static auto Farthest(const std::vector<Math::Vec3>& Pts, const Math::Vec3& Dir) {

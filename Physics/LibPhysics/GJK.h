@@ -26,6 +26,7 @@ namespace Collision
 	namespace SupportPoint {
 		//!< サポートポイント : 特定の方向に最も遠い点
 		//!< A, B のサポートポイントの差が、(A, B のミンコフスキー差) C のサポートポイントとなる
+		//!< ミンコフスキー和の凸包 : Configuration Space Object (CSO)
 		class Points
 		{
 		public:
@@ -97,20 +98,23 @@ namespace Collision
 	{
 		using OnIntersectGJK = std::function<void(const Physics::RigidBody*, const Physics::RigidBody*, const std::vector<SupportPoint::Points>&, const float, Math::Vec3&, Math::Vec3&)>;
 		
-		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, OnIntersectGJK OnIntersect, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB);
-		
 		//!< EPA (Expanding Polytope Algorithm)
 		void EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB);
-		
-		[[nodiscard]] static bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB) 
+
+		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, OnIntersectGJK OnIntersect, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB);
+		[[nodiscard]] static bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
 		{
 			Math::Vec3 OnA, OnB;
-			return GJK(RbA, RbB, [](const Physics::RigidBody*, const Physics::RigidBody*, const std::vector<SupportPoint::Points>&, const float, Math::Vec3&, Math::Vec3&) {}, 0.001f, OnA, OnB);
+			return GJK(RbA, RbB, [](const Physics::RigidBody*, const Physics::RigidBody*, const std::vector<SupportPoint::Points>&, const float, Math::Vec3&, Math::Vec3&) {}, 0.0f, OnA, OnB);
 		}
 		[[nodiscard]] static bool GJK_EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB) 
 		{
 			return GJK(RbA, RbB, EPA, Bias, OnA, OnB);
 		}
+	}
+	namespace Closest 
+	{
+		void GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, Math::Vec3& OnA, Math::Vec3& OnB);
 	}
 	
 #ifdef _DEBUG

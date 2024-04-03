@@ -252,7 +252,7 @@ public:
 		UploadIndex.Create(COM_PTR_GET(Device), TotalSizeOf(Indices), data(Indices));
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = {
 			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)),
-			.InstanceCount = _countof(WorldBuffer.RigidBodies),
+			.InstanceCount = _countof(WorldBuffer.Instances),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
 			.StartInstanceLocation = 0
@@ -589,6 +589,9 @@ public:
 			if (Collision::Intersection::GJK_EPA(RbA, RbB, 0.01f, OnA, OnB)) {
 				WorldBuffer.Instances[0].Color = { 1.0f, 1.0f, 0.0f };
 				WorldBuffer.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
+			}
+			else {
+				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
 			}
 			DirectX::XMStoreFloat3(&WorldBuffer.Instances[0].ClosestPoint, DirectX::XMVectorSet(OnA.X(), OnA.Y(), OnA.Z(), 0.0f));
 			DirectX::XMStoreFloat3(&WorldBuffer.Instances[1].ClosestPoint, DirectX::XMVectorSet(OnB.X(), OnB.Y(), OnB.Z(), 0.0f));
