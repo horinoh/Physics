@@ -64,6 +64,7 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 		const auto SpA = static_cast<const Physics::ShapeSphere*>(RbA->Shape);
 		const auto SpB = static_cast<const Physics::ShapeSphere*>(RbB->Shape);
 		float T;
+		//!< TOI が直接求められる
 		if (Intersection::SphereShpere(SpA->Radius, SpB->Radius, RbA->Position, RbB->Position, RbA->LinearVelocity, RbB->LinearVelocity, DeltaSec, T)) {
 			Ct.TimeOfImpact = T;
 
@@ -75,8 +76,8 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 			Ct.Normal = (CPosB - CPosA).Normalize();
 
 			//!< 衝突点 (半径の分オフセット)
-			Ct.PointA = CPosA + Ct.Normal * SpA->Radius;
-			Ct.PointB = CPosB - Ct.Normal * SpB->Radius;
+			Ct.PointA = RbA->ToLocal(CPosA + Ct.Normal * SpA->Radius);
+			Ct.PointB = RbB->ToLocal(CPosB - Ct.Normal * SpB->Radius);
 
 			//!< 衝突剛体を覚えておく
 			Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
@@ -90,8 +91,10 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 		//!< ワーク
 		auto WRbA = *RbA, WRbB = *RbB;
 
+		//!< TOI が直接求まらないので、シミュレーションを進めることで求める (Conservative Advance)
 		auto DT = DeltaSec;
 		auto TOI = 0.0f;
+		//!< 上限
 		auto ItCount = 0;
 		while (DT > 0.0f) {
 			//!< 衝突点、最近接点
@@ -100,27 +103,26 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 			if (Intersection::GJK_EPA(&WRbA, &WRbB, Bias, OnA, OnB)) {
 				Ct.TimeOfImpact = TOI;
 
-				//!< 法線 A -> B
-#if 0
-				//!< 法線が小さすぎる場合があるので、拡大してから正規化するテスト
-				constexpr auto Scale = 100.0f;
-				Ct.Normal = ((OnB - OnA) * Scale).Normalize();
-#else
-				Ct.Normal = (OnB - OnA).Normalize();
-#endif
+				//!< 法線 A -> B #TODO
+				Ct.Normal = -(OnB - OnA).Normalize();
+
 				//!< シンプレックスを拡張しているので、その分をキャンセルする
 				OnA -= Ct.Normal * Bias;
 				OnB += Ct.Normal * Bias;
 
 				//!< 衝突点
-				Ct.PointA = OnA;
-				Ct.PointB = OnB;
+				Ct.PointA = RbA->ToLocal(OnA);
+				Ct.PointB = RbB->ToLocal(OnB);
 
 				//!< 衝突剛体を覚えておく
 				Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
 				Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
 
 				return true;
+			}
+			else {
+				//!< 衝突が無い場合は最近接点を求める
+				Closest::GJK(&WRbA, &WRbB, OnA, OnB);
 			}
 
 			//!< 移動せずその場で回転しているような場合、ループから抜け出さない事があるのでループに上限回数を設ける
@@ -160,11 +162,13 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 }
 void Collision::ResolveContact(const Contact& Ct)
 {
+	const auto WPointA = Ct.RigidBodyA->ToWorld(Ct.PointA);
+	const auto WPointB = Ct.RigidBodyB->ToWorld(Ct.PointB);
 	const auto TotalInvMass = Ct.RigidBodyA->InvMass + Ct.RigidBodyB->InvMass;
 	{
 		//!< 半径 (重心 -> 衝突点)
-		const auto RA = Ct.PointA - Ct.RigidBodyA->GetWorldSpaceCenterOfMass();
-		const auto RB = Ct.PointB - Ct.RigidBodyB->GetWorldSpaceCenterOfMass();
+		const auto RA = WPointA - Ct.RigidBodyA->GetWorldSpaceCenterOfMass();
+		const auto RB = WPointB - Ct.RigidBodyB->GetWorldSpaceCenterOfMass();
 		{
 			//!< 逆慣性テンソル (ワールドスペース)
 			const auto WorldInvInertiaA = Ct.RigidBodyA->GetWorldSpaceInverseInertiaTensor();
@@ -189,8 +193,8 @@ void Collision::ResolveContact(const Contact& Ct)
 
 					const auto J = NVelAB * TotalElasticity / (TotalInvMass + AngFactor);
 
-					Ct.RigidBodyA->ApplyImpulse(Ct.PointA, -J);
-					Ct.RigidBodyB->ApplyImpulse(Ct.PointB, J);
+					Ct.RigidBodyA->ApplyImpulse(WPointA, -J);
+					Ct.RigidBodyB->ApplyImpulse(WPointB, J);
 				}
 			}
 
@@ -208,8 +212,8 @@ void Collision::ResolveContact(const Contact& Ct)
 
 					const auto J = TVelAB * TotalFriction / (TotalInvMass + AngFactor);
 
-					Ct.RigidBodyA->ApplyImpulse(Ct.PointA, -J);
-					Ct.RigidBodyB->ApplyImpulse(Ct.PointB, J);
+					Ct.RigidBodyA->ApplyImpulse(WPointA, -J);
+					Ct.RigidBodyB->ApplyImpulse(WPointB, J);
 				}
 			}
 		}
@@ -218,7 +222,7 @@ void Collision::ResolveContact(const Contact& Ct)
 	//!< めり込みの追い出し (TOI == 0.0f の時点で衝突している場合)
 	if (0.0f == Ct.TimeOfImpact) {
 		//!< 質量により追い出し割合を考慮
-		const auto DistAB = Ct.PointB - Ct.PointA;
+		const auto DistAB = WPointB - WPointA;
 		Ct.RigidBodyA->Position += DistAB * (Ct.RigidBodyA->InvMass / TotalInvMass);
 		Ct.RigidBodyB->Position -= DistAB * (Ct.RigidBodyB->InvMass / TotalInvMass);
 	}

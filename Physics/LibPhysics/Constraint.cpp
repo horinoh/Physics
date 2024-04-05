@@ -52,16 +52,22 @@ void Physics::ConstraintAnchor::ApplyImpulse(const Physics::Constraint::Velociti
 	RigidBodyB->ApplyLinearImpulse({ Impulse[6], Impulse[7], Impulse[8] });
 	RigidBodyB->ApplyAngularImpulse({ Impulse[9], Impulse[10], Impulse[11] });
 }
-Physics::ConstraintAnchor& Physics::ConstraintAnchor::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor)
+Physics::ConstraintAnchor& Physics::ConstraintAnchor::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
 {
 	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
 	RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
 
+	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
+
+	return *this;
+}
+Physics::ConstraintAnchor& Physics::ConstraintAnchor::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor)
+{
+	Init(RbA, RbB);
+
 	//!< 初期位置はローカルで保存しておく、(オブジェクトが動く事を考慮して) 都度ワールドへと変換して使う
 	AnchorA = RigidBodyA->ToLocal(Anchor);
 	AnchorB = RigidBodyB->ToLocal(Anchor);
-
-	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
 
 	return *this;
 }
@@ -577,20 +583,10 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
-	//!< 法線に垂直な 2 軸を取得
-	Math::Vec3 U, V;
-	Normal.GetOrtho(U, V);
-#if 1
-	//!< N, U, V をワールドスペースへ
+	//!< 法線をワールドスペースへ
 	const auto N = RigidBodyA->Rotation.Rotate(Normal);
-	U = RigidBodyA->Rotation.Rotate(U);
-	V = RigidBodyA->Rotation.Rotate(V);
-#else
-	const auto& N = Normal;
-	//const auto N = RigidBodyA->Rotation.Rotate(Normal);
-	//U = RigidBodyA->Rotation.Rotate(U);
-	//V = RigidBodyA->Rotation.Rotate(V);
-#endif
+	Math::Vec3 U, V;
+	N.GetOrtho(U, V);
 
 	const auto J1 = -N;
 	const auto J2 = RA.Cross(J1);
@@ -624,7 +620,6 @@ void Physics::ConstraintPenetration::Solve()
 {
 	const auto JT = Jacobian.Transpose();
 	const auto A = Jacobian * GetInverseMassMatrix() * JT;
-	//auto B = -Jacobian * GetVelocties(); B[0] -= Baumgarte;
 	const auto B = -Jacobian * GetVelocties() - Math::Vec<3>(Baumgarte, 0.0f, 0.0f);
 
 	auto Lambda = GaussSiedel(A, B);
@@ -646,15 +641,13 @@ void Physics::ConstraintPenetration::Solve()
 }
 Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Collision::Contact& Ct)
 {
-	Super::Init(Ct.RigidBodyA, Ct.RigidBodyB, Ct.PointA);
-	AnchorB = RigidBodyB->ToLocal(Ct.PointB);
+	Super::Init(Ct.RigidBodyA, Ct.RigidBodyB);
 
-#if 1
-	Normal = RigidBodyA->Rotation.Rotate(Ct.Normal).Normalize();
-#else
+	AnchorA = Ct.PointA;
+	AnchorB = Ct.PointB;
+
 	//!< A ローカル
 	Normal = RigidBodyA->Rotation.Inverse().Rotate(Ct.Normal).Normalize();
-#endif
 
 	Friction = RigidBodyA->Friction * RigidBodyB->Friction;
 
@@ -700,8 +693,7 @@ void Physics::Manifold::RemoveExpired()
 	constexpr auto Eps2 = 0.02f * 0.02f;
 	const auto Range = std::ranges::remove_if(Constraints, [&](const auto& i) {
 		const auto& Ct = i.first;
-		//!< A ローカルで考える
-		const auto AB = Ct.RigidBodyA->ToLocal(Ct.PointB - Ct.PointA);
+		const auto AB = Ct.RigidBodyB->ToWorld(Ct.PointB) - Ct.RigidBodyA->ToWorld(Ct.PointA);
 		const auto N = Ct.RigidBodyA->Rotation.Rotate(Ct.Normal);
 		const auto PenetrateDepth = N.Dot(AB);
 		return PenetrateDepth > 0.0f || (AB - N * PenetrateDepth).LengthSq() >= Eps2;

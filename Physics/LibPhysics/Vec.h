@@ -59,11 +59,14 @@ namespace Math
 		}
 		inline float LengthSq() const { return Dot(*this); }
 		inline float Length() const { return sqrtf(LengthSq()); }
-		inline Vec2 Normalize() const {
+		inline Vec2 Normalize([[maybe_unused]] const bool AssertZero = false) const {
 			const auto Sq = LengthSq();
 			if (Sq > std::numeric_limits<float>::epsilon()) {
 				return *this / sqrt(Sq);
 			}
+#ifdef _DEBUG
+			if (AssertZero) { __debugbreak(); }
+#endif
 			return *this;
 		}
 
@@ -156,11 +159,14 @@ namespace Math
 		}
 		inline float LengthSq() const { return Dot(*this); }
 		inline float Length() const { return sqrt(LengthSq()); }
-		inline Vec3 Normalize() const {
+		inline Vec3 Normalize([[maybe_unused]] const bool AssertZero = false) const {
 			const auto Sq = LengthSq();
 			if (Sq > std::numeric_limits<float>::epsilon()) { 
 				return *this / sqrt(Sq); 
 			}
+#ifdef _DEBUG
+			if (AssertZero) { __debugbreak(); }
+#endif
 			return *this;
 		}
 		inline Vec3 Cross(const Vec3& rhs) const {
@@ -267,14 +273,16 @@ namespace Math
 		}
 		inline float LengthSq() const { return Dot(*this); }
 		inline float Length() const { return sqrtf(LengthSq()); }
-		inline Vec4 Normalize() const {
+		inline Vec4 Normalize([[maybe_unused]] const bool AssertZero = false) const {
 			const auto Sq = LengthSq();
 			if (Sq > std::numeric_limits<float>::epsilon()) {
 				return *this / sqrt(Sq);
 			}
+#ifdef _DEBUG
+			if (AssertZero) { __debugbreak(); }
+#endif
 			return *this;
 		}
-
 		inline Vec4& operator=(const Vec2& rhs) { 
 			Comps[0] = rhs.X(); Comps[1] = rhs.Y(); 
 			return *this;

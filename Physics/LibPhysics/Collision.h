@@ -60,9 +60,11 @@ namespace Collision
 		Physics::RigidBody* RigidBodyA = nullptr;
 		Physics::RigidBody* RigidBodyB = nullptr;
 
+		//!< ローカルスペース
 		Math::Vec3 PointA;
 		Math::Vec3 PointB;
 
+		//!< ワールドスペース A -> B
 		Math::Vec3 Normal;
 
 		Contact& Swap() {

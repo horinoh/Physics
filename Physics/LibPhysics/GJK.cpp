@@ -239,7 +239,7 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 		SupportPoint::Expand(Bias, Sps);
 	}
 
-	//!< サポートポイントから三角形のインデックスリストを生成
+	//!< 外側に法線が向くように4面分の三角形を形成
 	std::vector<Collision::TriInds> Tris;
 	for (uint32_t i = 0; i < 4; ++i) {
 		const auto j = (i + 1) % 4;
@@ -255,9 +255,11 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 		}
 	}
 
+	//!< 四面体の中心
 	const auto Center = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(), [](const auto& Acc, const auto& i) { return Acc + i.GetC(); }) / static_cast<float>(std::size(Sps));
 
-	//!< 原点に最も近い CSO の面を見つける為に、シンプレックスを拡張する 
+	//!< 原点に最も近い面を見つける為にシンプレックスを拡張する
+	//!< 原点の向きに限定して凸包を形成していく感じ
 	while (true) {
 		//!< 原点に最も近い三角形を取得
 		const auto& CTri = *SupportPoint::Distance::Closest(Math::Vec3::Zero(), Sps, Tris);
@@ -266,7 +268,7 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 		//!< 三角形の法線
 		const auto N = Math::Vec3::UnitNormal(A, B, C);
 
-		//!< 法線方向のサポートポイントを取得
+		//!< ミンコフスキー差の法線方向のサポートポイントを取得
 		const auto Pt = Collision::SupportPoint::Get(RbA, RbB, N, Bias);
 
 		//!< サポートポイントが既出の場合は、これ以上拡張できない
@@ -288,31 +290,23 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 			const auto Range = std::ranges::remove_if(Tris, [&](const auto& i) {
 				return Distance::IsFront(Pt.GetC(), Sps[i[0]].GetC(), Sps[i[1]].GetC(), Sps[i[2]].GetC());
 				});
-			//!< 削除できない場合は終了
-#if 0
-			if (std::ranges::cbegin(Range) == std::ranges::cend(Range)) {
-				__debugbreak();
-				break;
-			}
-#else
-			if (std::ranges::empty(Range)) {
-				break;
-			}
-#endif
 			Tris.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
+			//!< 削除できない場合は終了
+			if (std::ranges::empty(Range)) { break; }
 		}
 
 		{
 			//!< (削除した三角形と残った三角形の) 境界となるような (ユニークな) 辺を収集する、
 			std::vector<Collision::EdgeIndsCount> DanglingEdges;
 			Convex::CollectUniqueEdges(Tris, DanglingEdges);
-			//!< 無ければ終了
+			//!< そのような辺が無ければ終了
 			if (std::empty(DanglingEdges)) { break; }
 
 			//!< サポートポイントと境界辺からなる三角形群を追加
 			const auto A = static_cast<uint32_t>(std::size(Sps)) - 1;
 			std::ranges::transform(DanglingEdges, std::back_inserter(Tris), [&](const auto& i) {
 				const auto B = i.first[0], C = i.first[1];
+				//!< 法線が外側を向くように
 				if (!Distance::IsFront(Center, Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC())) {
 					return Collision::TriInds({ A, B, C });
 				}

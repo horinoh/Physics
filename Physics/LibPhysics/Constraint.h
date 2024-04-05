@@ -44,6 +44,7 @@ namespace Physics
 		Velocities GetVelocties() const { return CreateVelocties(RigidBodyA, RigidBodyB); }
 		void ApplyImpulse(const Velocities& Impulse);
 
+		ConstraintAnchor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
 		ConstraintAnchor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor);
 
 	protected:
