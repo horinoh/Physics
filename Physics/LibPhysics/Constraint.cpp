@@ -664,7 +664,8 @@ void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 	//!< Šù‘¶‚Æ‚Ù‚Ú“¯‚¶ÚGˆÊ’u‚Ìê‡‚Í‰½‚à‚µ‚È‚¢
 	constexpr auto Eps2 = 0.02f * 0.02f;
 	if (std::ranges::any_of(Constraints, [&](const auto& i) {
-		return (i.first.PointA - Ct.PointA).LengthSq() < Eps2 || (i.first.PointB - Ct.PointB).LengthSq() < Eps2;
+		return (i.first.RigidBodyA->ToWorld(i.first.PointA) - Ct.RigidBodyA->ToWorld(Ct.PointA)).LengthSq() < Eps2 ||
+			(i.first.RigidBodyB->ToWorld(i.first.PointB) - Ct.RigidBodyB->ToWorld(Ct.PointB)).LengthSq() < Eps2;
 	})) {
 		return;
 	}

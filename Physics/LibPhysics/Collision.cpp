@@ -3,6 +3,63 @@
 #include "Shape.h"
 #include "GJK.h"
 
+bool Collision::Intersection::AABBAABB(const AABB& AbA, const AABB& AbB,
+	const Math::Vec3& VelA, const Math::Vec3& VelB,
+	float& T)
+{
+	if (AABBAABB(AbA, AbB)) {
+		T = 0.0f;
+		return true;
+	}
+	const auto V = VelB - VelA;
+	constexpr auto Eps2 = 0.01f * 0.01f;
+	if (V.LengthSq() < Eps2) {
+		return false;
+	}
+	T = 0.0f;
+	auto T1 = 1.0f;
+	for (auto i = 0; i < 3; ++i) {
+		if (std::abs(V[i]) > std::numeric_limits<float>::epsilon()) {
+			if (V[i] < 0.0f) {
+				if (AbB.Max[i] < AbA.Min[i]) { return false; }
+				if (AbA.Max[i] < AbB.Min[i]) T = (std::max)((AbA.Max[i] - AbB.Min[i]) / V[i], T);
+				if (AbB.Max[i] > AbA.Min[i]) T1 = (std::min)((AbA.Min[i] - AbB.Max[i]) / V[i], T1);
+			}
+			else {
+				if (AbB.Min[i] < AbA.Max[i]) { return false; }
+				if (AbB.Max[i] < AbA.Min[i]) T = (std::max)((AbA.Min[i] - AbB.Max[i]) / V[i], T);
+				if (AbA.Max[i] > AbB.Min[i]) T1 = (std::min)((AbA.Max[i] - AbB.Min[i]) / V[i], T1);
+			}
+		}
+	}
+	return T < T1;
+}
+
+bool Collision::Intersection::AABBRay(const AABB& Ab,
+	const Math::Vec3& RayPos, const Math::Vec3& RayDir,
+	float& T) 
+{
+	T = 0.0f;
+	auto TMax = std::numeric_limits<float>::max();
+
+	for (auto i = 0; i < 3; ++i) {
+		if (std::abs(RayDir[i]) < std::numeric_limits<float>::epsilon()) {
+			if (RayPos[i] < Ab.Min[i] || RayPos[i] > Ab.Max[i]) { return false; }
+		}
+		else {
+			auto t1 = (Ab.Min[i] - RayPos[i]) / RayDir[i];
+			auto t2 = (Ab.Max[i] - RayPos[i]) / RayDir[i];
+			if (t1 > t2) {
+				std::swap(t1, t2);
+			}
+			T = std::max(T, t1);
+			TMax = std::min(TMax, t2);
+			if (T > TMax) { return false; }
+		}
+	}
+	return true;
+}
+
 bool Collision::Intersection::RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad, float& T0, float& T1)
 {
 	//!< 1)球	(x - SpPos)^2 = SpRad^2
@@ -31,9 +88,9 @@ bool Collision::Intersection::RaySphere(const Math::Vec3& RayPos, const Math::Ve
 bool Collision::Intersection::SphereShpere(const float RadA, const float RadB,
 	const Math::Vec3& PosA, const Math::Vec3& PosB,
 	const Math::Vec3& VelA, const Math::Vec3& VelB,
-	const float DeltaSec, float& T)
+	float& T)
 {
-	const auto Ray = (VelB - VelA) * DeltaSec;
+	const auto Ray = VelB - VelA;
 	const auto TotalRadius = RadA + RadB;
 
 	auto T0 = 0.0f, T1 = 0.0f;
@@ -51,9 +108,6 @@ bool Collision::Intersection::SphereShpere(const float RadA, const float RadB,
 		return false;
 	}
 
-	T0 *= DeltaSec;
-	//T1 *= DeltaSec;
-
 	T = (std::max)(T0, 0.0f);
 
 	return true;
@@ -65,8 +119,8 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 		const auto SpB = static_cast<const Physics::ShapeSphere*>(RbB->Shape);
 		float T;
 		//!< TOI が直接求められる
-		if (Intersection::SphereShpere(SpA->Radius, SpB->Radius, RbA->Position, RbB->Position, RbA->LinearVelocity, RbB->LinearVelocity, DeltaSec, T)) {
-			Ct.TimeOfImpact = T;
+		if (Intersection::SphereShpere(SpA->Radius, SpB->Radius, RbA->Position, RbB->Position, RbA->LinearVelocity * DeltaSec, RbB->LinearVelocity * DeltaSec, T)) {
+			Ct.TimeOfImpact = T * DeltaSec;
 
 			//!< 衝突時刻の(中心)位置
 			const auto CPosA = RbA->Position + RbA->LinearVelocity * T;
@@ -76,8 +130,16 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 			Ct.Normal = (CPosB - CPosA).Normalize();
 
 			//!< 衝突点 (半径の分オフセット)
+#ifdef WORLD_CONTACT_POINT
+			Ct.WPointA = CPosA + Ct.Normal * SpA->Radius;
+			Ct.WPointB = CPosB + Ct.Normal * SpB->Radius;
+			Ct.PointA = RbA->ToLocal(Ct.WPointA);
+			Ct.PointB = RbB->ToLocal(Ct.WPointB);
+#else
 			Ct.PointA = RbA->ToLocal(CPosA + Ct.Normal * SpA->Radius);
-			Ct.PointB = RbB->ToLocal(CPosB - Ct.Normal * SpB->Radius);
+			Ct.PointB = RbB->ToLocal(CPosB - Ct.Normal * SpB->Radius); 
+#endif
+
 
 			//!< 衝突剛体を覚えておく
 			Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
@@ -111,6 +173,10 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 				OnB += Ct.Normal * Bias;
 
 				//!< 衝突点
+#ifdef WORLD_CONTACT_POINT
+				Ct.WPointA = OnA;
+				Ct.WPointB = OnB;
+#endif
 				Ct.PointA = RbA->ToLocal(OnA);
 				Ct.PointB = RbB->ToLocal(OnB);
 

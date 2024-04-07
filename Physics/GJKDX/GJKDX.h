@@ -141,7 +141,7 @@ public:
 		constexpr auto Speed = 0.1f;
 		constexpr auto RotSpeed = 1.0f;
 		auto X = 0.0f, Y = 0.0f, Z = 0.0f;
-		static auto RotY = 0.0f;
+		static auto RotX = 0.0f, RotY = 0.0f;
 		switch (Param) {
 		case 'W':
 			Y += Speed;
@@ -155,12 +155,18 @@ public:
 		case 'D':
 			X += Speed;
 			break;
-
-		case VK_UP:
+		case 'Z':
 			Z -= Speed;
 			break;
-		case VK_DOWN:
+		case 'X':
 			Z += Speed;
+			break;
+
+		case VK_UP:
+			RotX -= RotSpeed;
+			break;
+		case VK_DOWN:
+			RotX += RotSpeed;
 			break;
 		case VK_LEFT:
 			RotY -= RotSpeed;
@@ -171,6 +177,8 @@ public:
 		default:
 			break;
 		}
+		while (RotX < 0.0f) { RotX += 360.0f; }
+		while (RotX > 360.0f) { RotX -= 360.0f; }
 		while (RotY < 0.0f) { RotY += 360.0f; }
 		while (RotY > 360.0f) { RotY -= 360.0f; }
 
@@ -183,7 +191,7 @@ public:
 					(std::clamp)(Rb->Position.Y() + Y, -5.0f, 5.0f),
 					(std::clamp)(Rb->Position.Z() + Z, -5.0f, 5.0f)
 				);
-				Rb->Rotation = Math::Quat(Math::Vec3::AxisY(), TO_RADIAN(RotY));
+				Rb->Rotation = Math::Quat(Math::Vec3::AxisY(), TO_RADIAN(RotY)) * Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(RotX));
 			}
 		}
 

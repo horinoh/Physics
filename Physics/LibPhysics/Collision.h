@@ -53,6 +53,9 @@ namespace Collision
 		float Value;
 		bool IsMin;
 	};
+
+//!< 不要な気がする
+//#define WORLD_CONTACT_POINT
 	struct Contact
 	{
 		float TimeOfImpact = 0.0f;
@@ -64,12 +67,21 @@ namespace Collision
 		Math::Vec3 PointA;
 		Math::Vec3 PointB;
 
+#ifdef WORLD_CONTACT_POINT
+		//!< ワールドスペース
+		Math::Vec3 WPointA;
+		Math::Vec3 WPointB;
+#endif
+
 		//!< ワールドスペース A -> B
 		Math::Vec3 Normal;
 
 		Contact& Swap() {
 			std::swap(RigidBodyA, RigidBodyB);
 			std::swap(PointA, PointB);
+#ifdef WORLD_CONTACT_POINT
+			std::swap(WPointA, WPointB);
+#endif
 			Normal = -Normal;
 			return *this;
 		}
@@ -77,6 +89,13 @@ namespace Collision
 
 	namespace Distance 
 	{
+		[[nodiscard]] static float AABBPointSq(const AABB& Ab,
+			const Math::Vec3& Pt) {
+			return Math::Vec3(std::max(std::max(Ab.Min.X() - Pt.X(), 0.0f), std::max(Pt.X() - Ab.Max.X(), 0.0f)),
+				std::max(std::max(Ab.Min.Y() - Pt.Y(), 0.0f), std::max(Pt.Y() - Ab.Max.Y(), 0.0f)),
+				std::max(std::max(Ab.Min.Z() - Pt.Z(), 0.0f), std::max(Pt.Z() - Ab.Max.Z(), 0.0f))).LengthSq();
+		}
+
 		[[nodiscard]] static float PointRaySq(const Math::Vec3& Pt, const Math::Vec3& RayPos, const Math::Vec3& RayDir) {
 			const auto ToPt = Pt - RayPos;
 			return ((RayDir * ToPt.Dot(RayDir)) - ToPt).LengthSq();
@@ -121,21 +140,43 @@ namespace Collision
 	namespace Intersection 
 	{
 		//!< AABB vs AABB
-		[[nodiscard]] static bool AABBAABB(const AABB& lhs, const AABB& rhs) {
-			if (lhs.Max.X() < rhs.Min.X() || rhs.Max.X() < lhs.Min.X() ||
-				lhs.Max.Y() < rhs.Min.Y() || rhs.Max.Y() < lhs.Min.Y() ||
-				lhs.Max.Z() < rhs.Min.Z() || rhs.Max.Z() < lhs.Min.Z()) {
+		[[nodiscard]] static bool AABBAABB(const AABB& AbA, const AABB& AbB) {
+			if (AbA.Max.X() < AbB.Min.X() || AbB.Max.X() < AbA.Min.X() ||
+				AbA.Max.Y() < AbB.Min.Y() || AbB.Max.Y() < AbA.Min.Y() ||
+				AbA.Max.Z() < AbB.Min.Z() || AbB.Max.Z() < AbA.Min.Z()) {
 				return false;
 			}
 			return true;
 		}
+		[[nodiscard]] bool AABBAABB(const AABB& AbA, const AABB& AbB,
+			const Math::Vec3& VelA, const Math::Vec3& VelB,
+			float& T);
+		[[nodiscard]] bool AABBRay(const AABB& Ab,
+			const Math::Vec3& RayPos, const Math::Vec3& RayDir,
+			float& T);
+		[[nodiscard]] static bool AABBSegment(const AABB& Ab,
+			const Math::Vec3& SegA, const Math::Vec3& SegB,
+			float& T) {
+			return AABBRay(Ab, SegA, (SegB - SegA), T) && T <= 1.0f; 
+		}
+		[[nodiscard]] static bool AABBSphere(const AABB& Ab,
+			const Math::Vec3& SpPos, const float SpRad) {
+			return Distance::AABBPointSq(Ab, SpPos) <= std::powf(SpRad, 2.0f);
+		}
+
+
 		//!< レイ vs 球
 		[[nodiscard]] bool RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad, float& T0, float& T1);
+	
 		//!< 球 vs 球
+		[[nodiscard]] static bool SphereShpere(const float RadA, const float RadB, const Math::Vec3& PosA, const Math::Vec3& PosB) {
+			return (PosB - PosA).LengthSq() <= std::powf(RadA + RadB, 2.0f); 
+		}
 		[[nodiscard]] bool SphereShpere(const float RadA, const float RadB,
 			const Math::Vec3& PosA, const Math::Vec3& PosB,
 			const Math::Vec3& VelA, const Math::Vec3& VelB,
-			const float DeltaSec, float& T);
+			float& T);
+
 		[[nodiscard]] bool RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct);
 	}
 
