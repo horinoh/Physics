@@ -137,6 +137,19 @@ public:
 			Z += Speed;
 			break;
 
+		case '1':
+			SetType0(COLLISION_TYPE::Sphere);
+			SetType1(COLLISION_TYPE::Sphere);
+			break;
+		case '2':
+			SetType0(COLLISION_TYPE::Box);
+			SetType1(COLLISION_TYPE::Box);
+			break;
+		case '3':
+			SetType0(COLLISION_TYPE::Cylinder);
+			SetType1(COLLISION_TYPE::Cylinder);
+			break;
+
 		case VK_UP:
 			RotX -= RotSpeed;
 			break;
@@ -157,25 +170,15 @@ public:
 		while (RotY < 0.0f) { RotY += 360.0f; }
 		while (RotY > 360.0f) { RotY -= 360.0f; }
 
-		//if (nullptr != Scene) {
-		//	if (0 < size(Scene->RigidBodies)) {
-		//		const auto Rb = Scene->RigidBodies[0];
-
-		//		Rb->Position = Math::Vec3(
-		//			(std::clamp)(Rb->Position.X() + X, -5.0f, 5.0f),
-		//			(std::clamp)(Rb->Position.Y() + Y, -5.0f, 5.0f),
-		//			(std::clamp)(Rb->Position.Z() + Z, -5.0f, 5.0f)
-		//		);
-		//		Rb->Rotation = Math::Quat(Math::Vec3::AxisY(), TO_RADIAN(RotY)) * Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(RotX));
-		//	}
-		//}
-
+		Position = Math::Vec3((std::clamp)(Position.X() + X, -5.0f, 5.0f), (std::clamp)(Position.Y() + Y, -5.0f, 5.0f), (std::clamp)(Position.Z() + Z, -5.0f, 5.0f));
+		Rotation = Math::Quat(Math::Vec3::AxisY(), TO_RADIAN(RotY)) * Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(RotX));
+		
 		Win::OnKeyDown(hWnd, hInstance, Param);
 	}
 
 	virtual void DrawFrame(const UINT i) override {
 		UpdateWorldBuffer();
-		CopyToHostVisibleDeviceMemory(Device, UniformBuffers[i].DeviceMemory, 0, sizeof(WorldBuffer), &WorldBuffer);
+		CopyToHostVisibleDeviceMemory(Device, UniformBuffers[i].DeviceMemory, 0, sizeof(WorldBuffers), &WorldBuffers[0]);
 	}
 
 	virtual void AllocateCommandBuffer() override {
@@ -188,43 +191,37 @@ public:
 		Load(ASSET_PATH / "Sphere.glb");
 		Meshes.emplace_back();
 		Load(ASSET_PATH / "Box.glb");
-
-		//for (auto i = 0; i < _countof(WorldBuffer.Instances); ++i) {
-		//	auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-		//	Rb->Position = 0 == i ? Math::Vec3::AxisZ() * 5.0f : Math::Vec3::Zero();
-		//	Rb->Rotation = Math::Quat::Identity();
-		//	Rb->InvMass = 0.0f;
-		//	Rb->Init(Scene->Shapes.back());
-		//}
+		Meshes.emplace_back();
+		Load(ASSET_PATH / "Cylinder.glb");
 
 		const auto& CB = CommandBuffers[0];
 		const auto PDMP = CurrentPhysicalDeviceMemoryProperties;
 
-		std::vector<VK::Scoped<StagingBuffer>> StagingVertices;
-		std::vector<VK::Scoped<StagingBuffer>> StagingIndices;
-		std::vector<VK::Scoped<StagingBuffer>> StagingIndirects;
+		std::vector<StagingBuffer> StagingVertices;
+		std::vector<StagingBuffer> StagingIndices;
+		std::vector<StagingBuffer> StagingIndirects;
 		std::vector<VkDrawIndexedIndirectCommand> DIICs;
 		for (const auto& i : Meshes) {
 			VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(i.Vertices));
-			StagingVertices.emplace_back(Device).Create(Device, PDMP, TotalSizeOf(i.Vertices), data(i.Vertices));
+			StagingVertices.emplace_back().Create(Device, PDMP, TotalSizeOf(i.Vertices), data(i.Vertices));
 
 			IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(i.Indices));
-			StagingIndices.emplace_back(Device).Create(Device, PDMP, TotalSizeOf(i.Indices), data(i.Indices));
+			StagingIndices.emplace_back().Create(Device, PDMP, TotalSizeOf(i.Indices), data(i.Indices));
 
 			DIICs.emplace_back(VkDrawIndexedIndirectCommand({
 				.indexCount = static_cast<uint32_t>(size(i.Indices)),
-				.instanceCount = _countof(WorldBuffer.Instances),
+				.instanceCount = _countof(WorldBuffers[0].Instances),
 				.firstIndex = 0,
 				.vertexOffset = 0,
 				.firstInstance = 0
 			}));
 			IndirectBuffers.emplace_back().Create(Device, PDMP, DIICs.back());
-			StagingIndirects.emplace_back(Device).Create(Device, PDMP, sizeof(DIICs.back()), &DIICs.back());
+			StagingIndirects.emplace_back().Create(Device, PDMP, sizeof(DIICs.back()), &DIICs.back());
 		}
 
 		const VkDrawIndirectCommand DIC_CP = {
 			.vertexCount = 1,
-			.instanceCount = _countof(WorldBuffer.Instances),
+			.instanceCount = _countof(WorldBuffers[0].Instances),
 			.firstVertex = 0,
 			.firstInstance = 0,
 		};
@@ -248,6 +245,10 @@ public:
 			IndirectBuffers[std::size(Meshes)].PopulateCopyCommand(CB, sizeof(DIC_CP), StagingIndirect_CP.Buffer);
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(CB));
 		VK::SubmitAndWait(GraphicsQueue, CB);
+
+		for (auto& i : StagingVertices) { i.Destroy(Device); }
+		for (auto& i : StagingIndices) { i.Destroy(Device); }
+		for (auto& i : StagingIndirects) { i.Destroy(Device); }
 	}
 	virtual void CreateUniformBuffer() override {
 		UpdateWorldBuffer();
@@ -255,8 +256,8 @@ public:
 
 		const auto PDMP = CurrentPhysicalDeviceMemoryProperties;
 		for (const auto& i : SwapchainBackBuffers) {
-			UniformBuffers.emplace_back().Create(Device, PDMP, sizeof(WorldBuffer));
-			CopyToHostVisibleDeviceMemory(Device, UniformBuffers.back().DeviceMemory, 0, sizeof(WorldBuffer), &WorldBuffer);
+			UniformBuffers.emplace_back().Create(Device, PDMP, sizeof(WorldBuffers));
+			CopyToHostVisibleDeviceMemory(Device, UniformBuffers.back().DeviceMemory, 0, sizeof(WorldBuffers), &WorldBuffers[0]);
 		}
 		for (const auto& i : SwapchainBackBuffers) {
 			UniformBuffers.emplace_back().Create(Device, PDMP, sizeof(ViewProjectionBuffer));
@@ -269,7 +270,7 @@ public:
 	}
 	virtual void CreatePipelineLayout() override {
 		CreateDescriptorSetLayout(DescriptorSetLayouts.emplace_back(), 0, {
-			VkDescriptorSetLayoutBinding({.binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .pImmutableSamplers = nullptr }),
+			VkDescriptorSetLayoutBinding({.binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .pImmutableSamplers = nullptr }),
 			VkDescriptorSetLayoutBinding({.binding = 1, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .pImmutableSamplers = nullptr }),
 			});
 		VK::CreatePipelineLayout(PipelineLayouts.emplace_back(), { DescriptorSetLayouts[0] }, {});
@@ -377,7 +378,7 @@ public:
 		VK::CreateDescriptorUpdateTemplate(DUT, VK_PIPELINE_BIND_POINT_GRAPHICS, {
 			VkDescriptorUpdateTemplateEntry({
 				.dstBinding = 0, .dstArrayElement = 0,
-				.descriptorCount = _countof(DescriptorUpdateInfo::DBI0), .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.descriptorCount = _countof(DescriptorUpdateInfo::DBI0), .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
 				.offset = offsetof(DescriptorUpdateInfo, DBI0), .stride = sizeof(DescriptorUpdateInfo)
 			}),
 			VkDescriptorUpdateTemplateEntry({
@@ -388,7 +389,7 @@ public:
 			}, DSL);
 		for (uint32_t i = 0; i < BackBufferCount; ++i) {
 			const DescriptorUpdateInfo DUI = {
-				VkDescriptorBufferInfo({.buffer = UniformBuffers[UB0Index + i].Buffer, .offset = 0, .range = VK_WHOLE_SIZE }),
+				VkDescriptorBufferInfo({.buffer = UniformBuffers[UB0Index + i].Buffer, .offset = 0, .range = sizeof(WorldBuffers[0])}),
 				VkDescriptorBufferInfo({.buffer = UniformBuffers[UB1Index + i].Buffer, .offset = 0, .range = VK_WHOLE_SIZE }),
 			};
 			vkUpdateDescriptorSetWithTemplate(Device, DescriptorSets[DSIndex + i], DUT, &DUI);
@@ -422,19 +423,25 @@ public:
 			.pInheritanceInfo = &CBII
 		};
 		VERIFY_SUCCEEDED(vkBeginCommandBuffer(SCB, &SCBBI)); {
+			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL0);
+
 			vkCmdSetViewport(SCB, 0, static_cast<uint32_t>(size(Viewports)), data(Viewports));
 			vkCmdSetScissor(SCB, 0, static_cast<uint32_t>(size(ScissorRects)), data(ScissorRects));
 
-			const std::array DSs = { DS };
-			const std::array<uint32_t, 0> DynamicOffsets = {};
-			vkCmdBindDescriptorSets(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PLL, 0, static_cast<uint32_t>(size(DSs)), data(DSs), static_cast<uint32_t>(size(DynamicOffsets)), data(DynamicOffsets));
+			VkMemoryRequirements MR;
+			vkGetBufferMemoryRequirements(Device, UniformBuffers[0].Buffer, &MR);
 
-			const std::array Offsets = { VkDeviceSize(0) };
-			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL0);
-			const std::array VBs = { VertexBuffers[0].Buffer };
-			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs)), data(VBs), data(Offsets));
-			vkCmdBindIndexBuffer(SCB, IndexBuffers[0].Buffer, 0, VK_INDEX_TYPE_UINT32);
-			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[0].Buffer, 0, 1, 0);
+			const std::array DSs = { DS };
+			for (auto j = 0; j < std::size(Meshes); ++j) {
+				const std::array DynamicOffsets = { static_cast<uint32_t>(RoundUp(sizeof(WorldBuffers[0]) * j, MR.alignment))};
+				vkCmdBindDescriptorSets(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PLL, 0, static_cast<uint32_t>(size(DSs)), data(DSs), static_cast<uint32_t>(size(DynamicOffsets)), data(DynamicOffsets));
+
+				const std::array VBs = { VertexBuffers[j].Buffer };
+				const std::array Offsets = { VkDeviceSize(0) };
+				vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs)), data(VBs), data(Offsets));
+				vkCmdBindIndexBuffer(SCB, IndexBuffers[j].Buffer, 0, VK_INDEX_TYPE_UINT32);
+				vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[j].Buffer, 0, 1, 0);
+			}
 
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
 			vkCmdDrawIndirect(SCB, IndirectBuffers[std::size(Meshes)].Buffer, 0, 1, 0);
@@ -470,35 +477,64 @@ public:
 	}
 
 	virtual void UpdateWorldBuffer() {
-		//if (nullptr != Scene) {
-		//	for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-		//		if (i < _countof(WorldBuffer.Instances)) {
-		//			const auto Rb = Scene->RigidBodies[i];
-		//			const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
-		//			const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
+		//!< カラーと最近接点をリセット
+		for (auto& i : WorldBuffers) {
+			i.Instances[0].Color = i.Instances[1].Color = { 1.0f, 1.0f, 1.0f };
+			i.Instances[0].ClosestPoint = i.Instances[1].ClosestPoint = { 0.0f, 0.0f, 0.0f };
+		}
 
-		//			WorldBuffer.Instances[i].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
-		//		}
-		//	}
-		//	for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
-		//		WorldBuffer.Instances[i].Color = { 1.0f, 1.0f, 1.0f };
-		//		WorldBuffer.Instances[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
-		//	}
-		//	const auto RbA = Scene->RigidBodies[0];
-		//	const auto RbB = Scene->RigidBodies[1];
-		//	Math::Vec3 OnA, OnB;
-		//	if (Collision::Intersection::GJK_EPA(RbA, RbB, 0.01f, OnA, OnB)) {
-		//		WorldBuffer.Instances[0].Color = { 1.0f, 1.0f, 0.0f };
-		//		WorldBuffer.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
-		//	}
-		//	else {
-		//		Collision::Closest::GJK(RbA, RbB, OnA, OnB);
-		//	}
-		//	WorldBuffer.Instances[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
-		//	WorldBuffer.Instances[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());
-		//	//LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
-		//	//LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
-		//}
+		//!< 操作対象の位置、回転
+		const auto Pos = glm::make_vec3(static_cast<float*>(Position));
+		const auto Rot = glm::make_quat(static_cast<float*>(Rotation));
+		for (auto i = 0; i < std::size(WorldBuffers); ++i) {
+			if (i == static_cast<uint8_t>(Type0)) {
+				WorldBuffers[i].Instances[0].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
+			}
+			if (i == static_cast<uint8_t>(Type1)) {
+				WorldBuffers[i].Instances[1].World = glm::mat4(1.0f);
+			}
+		}
+
+		constexpr auto Rad = 1.0f;
+		auto& WB0 = WorldBuffers[static_cast<uint8_t>(Type0)];
+		auto& WB1 = WorldBuffers[static_cast<uint8_t>(Type1)];
+		auto& WBCP = WorldBuffers[static_cast<uint8_t>(COLLISION_TYPE::Count) - 1];
+		switch (Type0)
+		{
+		case CollisionVK::COLLISION_TYPE::Sphere:
+			switch (Type1)
+			{
+			case CollisionVK::COLLISION_TYPE::Sphere:
+				if (Collision::Intersection::SphereShpere(Rad, Rad, Position, Math::Vec3::Zero())) {
+					WB0.Instances[0].Color = WB1.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
+				}
+				else {
+					const auto AB = -Position.Normalize();
+					const auto OnA = AB * Rad + Position;
+					const auto OnB = -AB * Rad;
+					WBCP.Instances[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
+					WBCP.Instances[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());
+				}
+				break;
+			case CollisionVK::COLLISION_TYPE::Box:
+				break;
+			case CollisionVK::COLLISION_TYPE::Cylinder:
+				break;
+			case CollisionVK::COLLISION_TYPE::Count:
+				break;
+			default:
+				break;
+			}
+			break;
+		case CollisionVK::COLLISION_TYPE::Box:
+			break;
+		case CollisionVK::COLLISION_TYPE::Cylinder:
+			break;
+		case CollisionVK::COLLISION_TYPE::Count:
+			break;
+		default:
+			break;
+		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
 		const auto Pos = glm::vec3(0.0f, 0.25f, 10.0f);
@@ -516,6 +552,35 @@ public:
 	}
 
 protected:
+	enum class COLLISION_TYPE : uint8_t {
+		Sphere,
+		Box,
+		Cylinder,
+
+		Count,
+	};
+	COLLISION_TYPE Type0 = COLLISION_TYPE::Sphere;
+	COLLISION_TYPE Type1 = COLLISION_TYPE::Sphere;
+	void SetType0(const COLLISION_TYPE Type) {
+		if (Type0 != Type) {
+			if (_countof(WorldBuffers) > static_cast<uint8_t>(Type0)) {
+				WorldBuffers[static_cast<uint8_t>(Type0)].Instances[0].World = glm::scale(glm::mat4(), glm::vec3(0.0f, 0.0f, 0.0f));
+			}
+			Type0 = Type;
+		}
+	}
+	void SetType1(const COLLISION_TYPE Type) {
+		if (Type1 != Type) {
+			if (_countof(WorldBuffers) > static_cast<uint8_t>(Type1)) {
+				WorldBuffers[static_cast<uint8_t>(Type1)].Instances[1].World = glm::scale(glm::mat4(), glm::vec3(0.0f, 0.0f, 0.0f));
+			}
+			Type1 = Type;
+		}
+	}
+
+	Math::Vec3 Position = Math::Vec3::AxisZ() * 5.0f;
+	Math::Quat Rotation;
+
 	struct MESH {
 		std::vector<uint32_t> Indices;
 		std::vector<glm::vec3> Vertices;
@@ -531,7 +596,8 @@ protected:
 	struct WORLD_BUFFER {
 		INSTANCE Instances[2];
 	};
-	WORLD_BUFFER WorldBuffer;
+	WORLD_BUFFER WorldBuffers[static_cast<uint8_t>(COLLISION_TYPE::Count)];
+
 	struct VIEW_PROJECTION_BUFFER {
 		glm::mat4 ViewProjection;
 	};
