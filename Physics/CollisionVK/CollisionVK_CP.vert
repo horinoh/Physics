@@ -14,13 +14,8 @@ layout (set = 0, binding = 0) uniform WORLD_BUFFER
 {
 	INSTANCE Instances[2];
 } WB;
-layout (set = 0, binding = 1) uniform VIEW_PROJECTION_BUFFER
-{
-	mat4 ViewProjection;
-} VPB;
 
 void main()
 {
-	gl_Position = VPB.ViewProjection * vec4(WB.Instances[gl_InstanceIndex].ClosestPoint, 1.0f);
-	gl_PointSize = 5.0f;
+	gl_Position = vec4(WB.Instances[gl_InstanceIndex].ClosestPoint, 1.0f);
 }

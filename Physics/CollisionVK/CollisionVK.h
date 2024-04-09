@@ -8,6 +8,8 @@
 #include "../GltfSDK.h"
 #include "Physics.h"
 
+#define USE_MULTI_VIEW
+
 class CollisionVK : public Gltf::SDK, public VK
 {
 public:
@@ -138,16 +140,13 @@ public:
 			break;
 
 		case '1':
-			SetType0(COLLISION_TYPE::Sphere);
-			SetType1(COLLISION_TYPE::Sphere);
+			SetColiTypes(COLLISION_TYPE::Sphere);
 			break;
 		case '2':
-			SetType0(COLLISION_TYPE::Box);
-			SetType1(COLLISION_TYPE::Box);
+			SetColiTypes(COLLISION_TYPE::Box);
 			break;
 		case '3':
-			SetType0(COLLISION_TYPE::Cylinder);
-			SetType1(COLLISION_TYPE::Cylinder);
+			SetColiTypes(COLLISION_TYPE::Cylinder);
 			break;
 
 		case VK_UP:
@@ -271,7 +270,7 @@ public:
 	virtual void CreatePipelineLayout() override {
 		CreateDescriptorSetLayout(DescriptorSetLayouts.emplace_back(), 0, {
 			VkDescriptorSetLayoutBinding({.binding = 0, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .pImmutableSamplers = nullptr }),
-			VkDescriptorSetLayoutBinding({.binding = 1, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .pImmutableSamplers = nullptr }),
+			VkDescriptorSetLayoutBinding({.binding = 1, .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1, .stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT, .pImmutableSamplers = nullptr }),
 			});
 		VK::CreatePipelineLayout(PipelineLayouts.emplace_back(), { DescriptorSetLayouts[0] }, {});
 	}
@@ -285,10 +284,12 @@ public:
 		const std::array SMs = {
 			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK.vert.spv"),
 			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK.frag.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK.geom.spv"),
 		};
 		const std::array PSSCIs = {
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs[0], .pName = "main", .pSpecializationInfo = nullptr }),
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = SMs[1], .pName = "main", .pSpecializationInfo = nullptr }),
+			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_GEOMETRY_BIT, .module = SMs[2], .pName = "main", .pSpecializationInfo = nullptr }),
 		};
 		const std::vector VIBDs = {
 			VkVertexInputBindingDescription({.binding = 0, .stride = sizeof(Meshes[0].Vertices[0]), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
@@ -308,15 +309,17 @@ public:
 			.depthBiasEnable = VK_FALSE, .depthBiasConstantFactor = 0.0f, .depthBiasClamp = 0.0f, .depthBiasSlopeFactor = 0.0f,
 			.lineWidth = 1.0f
 		};
-		VK::CreatePipeline_VsFs_Input(Pipelines[0], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI, VK_TRUE, VIBDs, VIADs, PSSCIs);
+		VK::CreatePipeline_VsFsGs_Input(Pipelines[0], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI, VK_TRUE, VIBDs, VIADs, PSSCIs);
 
 		const std::array SMs_CP = {
 			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK_CP.vert.spv"),
 			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK_CP.frag.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK_CP.geom.spv"),
 		};
 		const std::array PSSCIs_CP = {
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs_CP[0], .pName = "main", .pSpecializationInfo = nullptr }),
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = SMs_CP[1], .pName = "main", .pSpecializationInfo = nullptr }),
+			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_GEOMETRY_BIT, .module = SMs_CP[2], .pName = "main", .pSpecializationInfo = nullptr }),
 		};
 		const std::vector VIBDs_CP = {
 			VkVertexInputBindingDescription({.binding = 0, .stride = sizeof(glm::vec3), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX }),
@@ -336,7 +339,7 @@ public:
 			.depthBiasEnable = VK_FALSE, .depthBiasConstantFactor = 0.0f, .depthBiasClamp = 0.0f, .depthBiasSlopeFactor = 0.0f,
 			.lineWidth = 1.0f
 		};
-		VK::CreatePipeline_VsFs_Input(Pipelines[1], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_POINT_LIST, 0, PRSCI_CP, VK_TRUE, VIBDs_CP, VIADs_CP, PSSCIs_CP);
+		VK::CreatePipeline_VsFsGs_Input(Pipelines[1], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_POINT_LIST, 0, PRSCI_CP, VK_TRUE, VIBDs_CP, VIADs_CP, PSSCIs_CP);
 
 		for (auto& i : Threads) { i.join(); }
 		Threads.clear();
@@ -399,6 +402,24 @@ public:
 	virtual void CreateFramebuffer() override {
 		VK::CreateFrameBuffer_Depth(RenderPasses[0], DepthTextures[0].View);
 	}
+#ifdef USE_MULTI_VIEW
+	virtual void CreateViewport(const float Width, const float Height, const float MinDepth = 0.0f, const float MaxDepth = 1.0f) override {
+		const auto W = Width * 0.5f, H = Height * 0.5f;
+		Viewports = {
+			VkViewport({.x = 0.0f, .y = H, .width = W, .height = -H, .minDepth = MinDepth, .maxDepth = MaxDepth }),
+			VkViewport({.x = W, .y = H, .width = W, .height = -H, .minDepth = MinDepth, .maxDepth = MaxDepth }),
+			VkViewport({.x = 0.0f, .y = Height, .width = W, .height = -H, .minDepth = MinDepth, .maxDepth = MaxDepth }),
+			VkViewport({.x = W, .y = Height, .width = W, .height = -H, .minDepth = MinDepth, .maxDepth = MaxDepth }),	
+		};
+		const auto Ext2D = VkExtent2D({ .width = static_cast<uint32_t>(W), .height = static_cast<uint32_t>(H) });
+		ScissorRects = {
+			VkRect2D({ VkOffset2D({.x = 0, .y = 0 }), Ext2D }),
+			VkRect2D({ VkOffset2D({.x = static_cast<int32_t>(W), .y = 0 }), Ext2D }),
+			VkRect2D({ VkOffset2D({.x = 0, .y = static_cast<int32_t>(H) }), Ext2D }),
+			VkRect2D({ VkOffset2D({.x = static_cast<int32_t>(W), .y = static_cast<int32_t>(H) }), Ext2D }),
+		};
+	}
+#endif
 	virtual void PopulateSecondaryCommandBuffer(const size_t i) override {
 		const auto RP = RenderPasses[0];
 		const auto SCB = SecondaryCommandBuffers[i];
@@ -423,13 +444,13 @@ public:
 			.pInheritanceInfo = &CBII
 		};
 		VERIFY_SUCCEEDED(vkBeginCommandBuffer(SCB, &SCBBI)); {
-			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL0);
-
 			vkCmdSetViewport(SCB, 0, static_cast<uint32_t>(size(Viewports)), data(Viewports));
 			vkCmdSetScissor(SCB, 0, static_cast<uint32_t>(size(ScissorRects)), data(ScissorRects));
 
 			VkMemoryRequirements MR;
 			vkGetBufferMemoryRequirements(Device, UniformBuffers[0].Buffer, &MR);
+
+			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL0);
 
 			const std::array DSs = { DS };
 			for (auto j = 0; j < std::size(Meshes); ++j) {
@@ -442,6 +463,9 @@ public:
 				vkCmdBindIndexBuffer(SCB, IndexBuffers[j].Buffer, 0, VK_INDEX_TYPE_UINT32);
 				vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[j].Buffer, 0, 1, 0);
 			}
+
+			const std::array DynamicOffsets = { static_cast<uint32_t>(0) };
+			vkCmdBindDescriptorSets(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PLL, 0, static_cast<uint32_t>(size(DSs)), data(DSs), static_cast<uint32_t>(size(DynamicOffsets)), data(DynamicOffsets));
 
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
 			vkCmdDrawIndirect(SCB, IndirectBuffers[std::size(Meshes)].Buffer, 0, 1, 0);
@@ -480,29 +504,29 @@ public:
 		//!< カラーと最近接点をリセット
 		for (auto& i : WorldBuffers) {
 			i.Instances[0].Color = i.Instances[1].Color = { 1.0f, 1.0f, 1.0f };
-			i.Instances[0].ClosestPoint = i.Instances[1].ClosestPoint = { 0.0f, 0.0f, 0.0f };
+			i.Instances[0].ClosestPoint = i.Instances[1].ClosestPoint = { 0.0f, 10.0f, 0.0f };
 		}
 
 		//!< 操作対象の位置、回転
 		const auto Pos = glm::make_vec3(static_cast<float*>(Position));
 		const auto Rot = glm::make_quat(static_cast<float*>(Rotation));
 		for (auto i = 0; i < std::size(WorldBuffers); ++i) {
-			if (i == static_cast<uint8_t>(Type0)) {
+			if (i == static_cast<uint8_t>(ColiType0)) {
 				WorldBuffers[i].Instances[0].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
 			}
-			if (i == static_cast<uint8_t>(Type1)) {
+			if (i == static_cast<uint8_t>(ColiType1)) {
 				WorldBuffers[i].Instances[1].World = glm::mat4(1.0f);
 			}
 		}
 
 		constexpr auto Rad = 1.0f;
-		auto& WB0 = WorldBuffers[static_cast<uint8_t>(Type0)];
-		auto& WB1 = WorldBuffers[static_cast<uint8_t>(Type1)];
-		auto& WBCP = WorldBuffers[static_cast<uint8_t>(COLLISION_TYPE::Count) - 1];
-		switch (Type0)
+		auto& WB0 = WorldBuffers[static_cast<uint8_t>(ColiType0)];
+		auto& WB1 = WorldBuffers[static_cast<uint8_t>(ColiType1)];
+		auto& WBCP = WorldBuffers[0];
+		switch (ColiType0)
 		{
 		case CollisionVK::COLLISION_TYPE::Sphere:
-			switch (Type1)
+			switch (ColiType1)
 			{
 			case CollisionVK::COLLISION_TYPE::Sphere:
 				if (Collision::Intersection::SphereShpere(Rad, Rad, Position, Math::Vec3::Zero())) {
@@ -527,6 +551,24 @@ public:
 			}
 			break;
 		case CollisionVK::COLLISION_TYPE::Box:
+			switch (ColiType1)
+			{
+			case CollisionVK::COLLISION_TYPE::Sphere:
+				break;
+			case CollisionVK::COLLISION_TYPE::Box:
+				if (Rotation.NearlyEqual(Math::Quat::Identity())) {
+					if (Collision::Intersection::AABBAABB(Collision::AABB(Position - Math::Vec3::One(), Position + Math::Vec3::One()), Collision::AABB(-Math::Vec3::One(), Math::Vec3::One()))) {
+						WB0.Instances[0].Color = WB1.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
+					}
+				}
+				break;
+			case CollisionVK::COLLISION_TYPE::Cylinder:
+				break;
+			case CollisionVK::COLLISION_TYPE::Count:
+				break;
+			default:
+				break;
+			}
 			break;
 		case CollisionVK::COLLISION_TYPE::Cylinder:
 			break;
@@ -537,10 +579,17 @@ public:
 		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
-		const auto Pos = glm::vec3(0.0f, 0.25f, 10.0f);
+		const auto PosFrt = glm::vec3(0.0f, 0.0f, 10.0f);
+		const auto PosTop = glm::vec3(0.0f, 10.0f, 0.0f);
+		const auto PosRht = glm::vec3(10.0f, 0.0f, 0.0f);
+		const auto PosDia = glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f)) * 10.0f;
 		const auto Tag = glm::vec3(0.0f);
 		const auto Up = glm::vec3(0.0f, 1.0f, 0.0f);
-		const auto View = glm::lookAt(Pos, Tag, Up);
+		const auto UpT = glm::vec3(0.0f, 0.0f, -1.0f);
+		const auto ViewFrt = glm::lookAt(PosFrt, Tag, Up);
+		const auto ViewTop = glm::lookAt(PosTop, Tag, UpT);
+		const auto ViewRht = glm::lookAt(PosRht, Tag, Up);
+		const auto ViewDia = glm::lookAt(PosDia, Tag, Up);
 
 		constexpr auto Fov = 0.16f * std::numbers::pi_v<float>;
 		const auto Aspect = static_cast<float>(Rect.right - Rect.left) / (Rect.bottom - Rect.top);
@@ -548,7 +597,10 @@ public:
 		constexpr auto ZNear = ZFar * 0.0001f;
 		const auto Projection = glm::perspective(Fov, Aspect, ZNear, ZFar);
 
-		ViewProjectionBuffer.ViewProjection = Projection * View;
+		ViewProjectionBuffer.ViewProjection[0] = Projection * ViewFrt;
+		ViewProjectionBuffer.ViewProjection[1] = Projection * ViewTop;
+		ViewProjectionBuffer.ViewProjection[2] = Projection * ViewRht;
+		ViewProjectionBuffer.ViewProjection[3] = Projection * ViewDia;
 	}
 
 protected:
@@ -559,22 +611,30 @@ protected:
 
 		Count,
 	};
-	COLLISION_TYPE Type0 = COLLISION_TYPE::Sphere;
-	COLLISION_TYPE Type1 = COLLISION_TYPE::Sphere;
-	void SetType0(const COLLISION_TYPE Type) {
-		if (Type0 != Type) {
-			if (_countof(WorldBuffers) > static_cast<uint8_t>(Type0)) {
-				WorldBuffers[static_cast<uint8_t>(Type0)].Instances[0].World = glm::scale(glm::mat4(), glm::vec3(0.0f, 0.0f, 0.0f));
+	COLLISION_TYPE ColiType0 = COLLISION_TYPE::Sphere;
+	COLLISION_TYPE ColiType1 = COLLISION_TYPE::Sphere;
+	void SetColiType0(const COLLISION_TYPE Type) {
+		if (ColiType0 != Type) {
+			if (_countof(WorldBuffers) > static_cast<uint8_t>(ColiType0)) {
+				WorldBuffers[static_cast<uint8_t>(ColiType0)].Instances[0].World = glm::scale(glm::mat4(), glm::vec3(0.0f, 0.0f, 0.0f));
 			}
-			Type0 = Type;
+			ColiType0 = Type;
 		}
 	}
-	void SetType1(const COLLISION_TYPE Type) {
-		if (Type1 != Type) {
-			if (_countof(WorldBuffers) > static_cast<uint8_t>(Type1)) {
-				WorldBuffers[static_cast<uint8_t>(Type1)].Instances[1].World = glm::scale(glm::mat4(), glm::vec3(0.0f, 0.0f, 0.0f));
+	void SetColiType1(const COLLISION_TYPE Type) {
+		if (ColiType1 != Type) {
+			if (_countof(WorldBuffers) > static_cast<uint8_t>(ColiType1)) {
+				WorldBuffers[static_cast<uint8_t>(ColiType1)].Instances[1].World = glm::scale(glm::mat4(), glm::vec3(0.0f, 0.0f, 0.0f));
 			}
-			Type1 = Type;
+			ColiType1 = Type;
+		}
+	}
+	void SetColiTypes(const COLLISION_TYPE Type) {
+		if (GetKeyState(VK_SHIFT) < 0) {
+			SetColiType1(Type);
+		}
+		else {
+			SetColiType0(Type);
 		}
 	}
 
@@ -599,7 +659,7 @@ protected:
 	WORLD_BUFFER WorldBuffers[static_cast<uint8_t>(COLLISION_TYPE::Count)];
 
 	struct VIEW_PROJECTION_BUFFER {
-		glm::mat4 ViewProjection;
+		glm::mat4 ViewProjection[4];
 	};
 	VIEW_PROJECTION_BUFFER ViewProjectionBuffer;
 };

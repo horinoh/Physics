@@ -14,17 +14,11 @@ layout (set = 0, binding = 0) uniform WORLD_BUFFER
 {
 	INSTANCE Instances[2];
 } WB;
-layout (set = 0, binding = 1) uniform VIEW_PROJECTION_BUFFER
-{
-	mat4 ViewProjection;
-} VPB;
 
 layout (location = 0) out vec3 OutColor;
 
 void main()
 {
-	const mat4 PVW = VPB.ViewProjection * WB.Instances[gl_InstanceIndex].World;
-
-	gl_Position = PVW * vec4(InPosition, 1.0f);
+	gl_Position = WB.Instances[gl_InstanceIndex].World * vec4(InPosition, 1.0f);
 	OutColor = WB.Instances[gl_InstanceIndex].Color;
 }
