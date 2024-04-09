@@ -283,8 +283,8 @@ public:
 		Pipelines.emplace_back();
 
 		const std::array SMs = {
-			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK_P.vert.spv"),
-			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK_P.frag.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK.vert.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK.frag.spv"),
 		};
 		const std::array PSSCIs = {
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs[0], .pName = "main", .pSpecializationInfo = nullptr }),
@@ -311,8 +311,8 @@ public:
 		VK::CreatePipeline_VsFs_Input(Pipelines[0], PipelineLayouts[0], RenderPasses[0], VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, PRSCI, VK_TRUE, VIBDs, VIADs, PSSCIs);
 
 		const std::array SMs_CP = {
-			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK_CP_P.vert.spv"),
-			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK_CP_P.frag.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK_CP.vert.spv"),
+			VK::CreateShaderModule(std::filesystem::path(".") / "CollisionVK_CP.frag.spv"),
 		};
 		const std::array PSSCIs_CP = {
 			VkPipelineShaderStageCreateInfo({.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .pNext = nullptr, .flags = 0, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = SMs_CP[0], .pName = "main", .pSpecializationInfo = nullptr }),

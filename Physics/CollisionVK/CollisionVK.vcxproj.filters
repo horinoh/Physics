@@ -62,19 +62,28 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <None Include="CollisionVK_CP_P.vert">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="CollisionVK_P.frag">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="CollisionVK_P.vert">
-      <Filter>Shader Files</Filter>
-    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="CollisionVK_CP_P.frag">
+    <CustomBuild Include="CollisionVK_CP_P.vert" />
+    <CustomBuild Include="CollisionVK_P.frag" />
+    <CustomBuild Include="CollisionVK_P.vert" />
+    <CustomBuild Include="CollisionVK.frag">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="CollisionVK.geom">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="CollisionVK.vert">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="CollisionVK_CP.frag">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="CollisionVK_CP.geom">
+      <Filter>Shader Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="CollisionVK_CP.vert">
       <Filter>Shader Files</Filter>
     </CustomBuild>
   </ItemGroup>
