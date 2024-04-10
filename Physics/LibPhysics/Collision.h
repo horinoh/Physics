@@ -6,6 +6,7 @@
 
 namespace Physics 
 {
+	class Shape;
 	class RigidBody;
 }
 namespace Collision
@@ -164,7 +165,6 @@ namespace Collision
 			return Distance::AABBPointSq(Ab, SpPos) <= std::powf(SpRad, 2.0f);
 		}
 
-
 		//!< ƒŒƒC vs ‹…
 		[[nodiscard]] bool RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad, float& T0, float& T1);
 	
@@ -177,6 +177,7 @@ namespace Collision
 			const Math::Vec3& VelA, const Math::Vec3& VelB,
 			float& T);
 
+		//[[nodiscard]] bool RigidBodyRigidBody(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const float DeltaSec, Contact& Ct);
 		[[nodiscard]] bool RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct);
 	}
 

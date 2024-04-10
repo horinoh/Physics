@@ -8,6 +8,7 @@
 
 namespace Physics 
 {
+	class Shape;
 	class RigidBody;
 }
 
@@ -36,11 +37,11 @@ namespace Collision
 			const Math::Vec3 GetB() const { return SPs[2]; }
 			const Math::Vec3 GetC() const { return SPs[0]; }
 
-			//bool operator == (const Points& rhs) const { return std::ranges::equal(SPs, rhs.SPs); }
 		private:
 			std::array<Math::Vec3, 3> SPs;
 		};
-		[[nodiscard]] Points Get(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& UDir, const float Bias);
+		[[nodiscard]] static Points Get(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const Math::Vec3& UDir, const float Bias);
+		[[nodiscard]] static Points Get(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& UDir, const float Bias);
 		//!< n-シンプレックスが原点を含むかどうかを返す
 		//!< 過程で原点のシンプレックス上での重心座標、原点へのベクトルを求めている
 		static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<Points>& Sps, Math::Vec3& Dir, Math::Vec4& OutLambda)
@@ -71,6 +72,7 @@ namespace Collision
 		}
 
 		//!< サポートポイントが四面体をなしていない場合、四面体を形成する
+		void ToTetrahedron(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, std::vector<SupportPoint::Points>& Sps);
 		void ToTetrahedron(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, std::vector<SupportPoint::Points>& Sps);
 		//!< バイアスの分だけ拡張する
 		void Expand(const float Bias, std::vector<SupportPoint::Points>& Sps);
@@ -96,24 +98,34 @@ namespace Collision
 
 	namespace Intersection 
 	{
-		using OnIntersectGJK = std::function<void(const Physics::RigidBody*, const Physics::RigidBody*, const std::vector<SupportPoint::Points>&, const float, Math::Vec3&, Math::Vec3&)>;
-		
+		//!< 衝突点算出用 (EPA 等)
+		using OnIntersectGJK = std::function<void(const Physics::Shape*, const Math::Vec3&, const Math::Quat&, const Physics::Shape*, const Math::Vec3&, const Math::Quat&, const std::vector<SupportPoint::Points>&, const float, Math::Vec3&, Math::Vec3&)>;
 		//!< EPA (Expanding Polytope Algorithm)
-		void EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB);
+		void EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB);
 
+		//!< GJK 本体
+		[[nodiscard]] bool GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, OnIntersectGJK OnIntersect, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB);
 		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, OnIntersectGJK OnIntersect, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB);
-		[[nodiscard]] static bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
+
+		//!< 衝突点算出に EPA と組み合わせて使用
+		[[nodiscard]] static bool GJK_EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB) 
+		{
+			return GJK(ShA, PosA, RotA, ShB, PosB, RotB, EPA, Bias, OnA, OnB);
+		}
+		[[nodiscard]] bool GJK_EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB);
+
+		//!< 衝突点が不要な場合
+		[[nodiscard]] static bool GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB)
 		{
 			Math::Vec3 OnA, OnB;
-			return GJK(RbA, RbB, [](const Physics::RigidBody*, const Physics::RigidBody*, const std::vector<SupportPoint::Points>&, const float, Math::Vec3&, Math::Vec3&) {}, 0.0f, OnA, OnB);
+			return GJK(ShA, PosA, RotA, ShB, PosB, RotB, [](const Physics::Shape*, const Math::Vec3&, const Math::Quat&, const Physics::Shape*, const Math::Vec3&, const Math::Quat&, const std::vector<SupportPoint::Points>&, const float, Math::Vec3&, Math::Vec3&) {}, 0.0f, OnA, OnB);
 		}
-		[[nodiscard]] static bool GJK_EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB) 
-		{
-			return GJK(RbA, RbB, EPA, Bias, OnA, OnB);
-		}
+		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
 	}
-	namespace Closest 
-	{
+	namespace Closest
+	{		
+		//!< 最近接点 (非衝突が確定であること)
+		void GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, Math::Vec3& OnA, Math::Vec3& OnB);
 		void GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, Math::Vec3& OnA, Math::Vec3& OnB);
 	}
 	

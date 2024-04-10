@@ -112,6 +112,7 @@ bool Collision::Intersection::SphereShpere(const float RadA, const float RadB,
 
 	return true;
 }
+
 bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct)
 {
 	if (RbA->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE && RbB->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE) {
@@ -162,8 +163,9 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 			//!< 衝突点、最近接点
 			Math::Vec3 OnA, OnB;
 			constexpr auto Bias = 0.001f;
-			if (Intersection::GJK_EPA(&WRbA, &WRbB, Bias, OnA, OnB)) {
-				Ct.TimeOfImpact = TOI;
+			//if (Intersection::GJK_EPA(&WRbA, &WRbB, Bias, OnA, OnB)) {
+			if (Intersection::GJK_EPA(WRbA.Shape, WRbA.Position, WRbA.Rotation, WRbB.Shape, WRbB.Position, WRbB.Rotation, Bias, OnA, OnB)) {
+					Ct.TimeOfImpact = TOI;
 
 				//!< 法線 A -> B #TODO
 				Ct.Normal = -(OnB - OnA).Normalize();

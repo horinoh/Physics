@@ -195,26 +195,34 @@ Math::Vec3 Collision::Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, con
 	return Math::Vec3::AxisX();
 }
 //!< A, B のサポートポイント、及びその差 C を求める
+Collision::SupportPoint::Points Collision::SupportPoint::Get(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const Math::Vec3& UDir, const float Bias)
+{
+	return { ShA->GetSupportPoint(PosA, RotA, UDir, Bias), ShB->GetSupportPoint(PosB, RotB, -UDir, Bias) };
+}
 Collision::SupportPoint::Points Collision::SupportPoint::Get(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& UDir, const float Bias)
 {
-	return { RbA->Shape->GetSupportPoint(RbA->Position, RbA->Rotation, UDir, Bias), RbB->Shape->GetSupportPoint(RbB->Position, RbB->Rotation, -UDir, Bias) };
+	return Get(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation, UDir, Bias);
 }
-void Collision::SupportPoint::ToTetrahedron(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, std::vector<Collision::SupportPoint::Points>& Sps)
+void Collision::SupportPoint::ToTetrahedron(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, std::vector<SupportPoint::Points>& Sps)
 {
 	if (1 == std::size(Sps)) {
-		Sps.emplace_back(Collision::SupportPoint::Get(RbA, RbB, -Sps[0].GetC().Normalize(), 0.0f));
+		Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, -Sps[0].GetC().Normalize(), 0.0f));
 	}
 	if (2 == std::size(Sps)) {
 		const auto AB = Sps[1].GetC() - Sps[0].GetC();
 		Math::Vec3 U, V;
 		AB.GetOrtho(U, V);
-		Sps.emplace_back(Collision::SupportPoint::Get(RbA, RbB, U, 0.0f));
+		Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, U, 0.0f));
 	}
 	if (3 == std::size(Sps)) {
 		const auto AB = Sps[1].GetC() - Sps[0].GetC();
 		const auto AC = Sps[2].GetC() - Sps[0].GetC();
-		Sps.emplace_back(Collision::SupportPoint::Get(RbA, RbB, AB.Cross(AC).Normalize(), 0.0f));
+		Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, AB.Cross(AC).Normalize(), 0.0f));
 	}
+}
+void Collision::SupportPoint::ToTetrahedron(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, std::vector<Collision::SupportPoint::Points>& Sps)
+{
+	ToTetrahedron(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation, Sps);
 }
 void Collision::SupportPoint::Expand(const float Bias, std::vector<Collision::SupportPoint::Points>& Sps)
 {
@@ -225,7 +233,7 @@ void Collision::SupportPoint::Expand(const float Bias, std::vector<Collision::Su
 		});
 }
 
-void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
+void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
 {
 	//!< 作業用サポートポイント
 	std::vector<SupportPoint::Points> Sps;
@@ -234,7 +242,7 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 	//!< EPA の前準備
 	{
 		//!< EPA は四面体を必要とするので、四面体へ拡張する
-		SupportPoint::ToTetrahedron(RbA, RbB, Sps);
+		SupportPoint::ToTetrahedron(ShA, PosA, RotA, ShB, PosB, RotB, Sps);
 		//!< シンプレックスをバイアスの分だけ拡張する
 		SupportPoint::Expand(Bias, Sps);
 	}
@@ -269,7 +277,7 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 		const auto N = Math::Vec3::UnitNormal(A, B, C);
 
 		//!< ミンコフスキー差の法線方向のサポートポイントを取得
-		const auto Pt = Collision::SupportPoint::Get(RbA, RbB, N, Bias);
+		const auto Pt = Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, N, Bias);
 
 		//!< サポートポイントが既出の場合は、これ以上拡張できない
 		if (std::ranges::any_of(Tris, [&](const auto& i) {
@@ -344,20 +352,20 @@ void Collision::Intersection::EPA(const Physics::RigidBody* RbA, const Physics::
 //!<	1, 2, 3, 4 がなす四面体が原点を含めば衝突、終了
 //!<	一番近い三角形 (例えば 1, 2, 4) から、原点を向く法線方向の次のサポートポイント 5 を見つける
 //!<	四面体 (1, 2, 4, 5) が原点を含むか、サポートポイントが無くなるまで続ける
-bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, OnIntersectGJK OnIntersect, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
+bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, OnIntersectGJK OnIntersect, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
 {
 	std::vector<Collision::SupportPoint::Points> Sps;
 	Sps.reserve(4); //!< 4 枠
 
 	//!< (1, 1, 1) 方向のサポートポイントを求める
-	Sps.emplace_back(Collision::SupportPoint::Get(RbA, RbB, Math::Vec3::One().Normalize(), 0.0f));
+	Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, Math::Vec3::One().Normalize(), 0.0f));
 
 	auto ClosestDistSq = (std::numeric_limits<float>::max)();
 	auto Dir = -Sps.back().GetC();
 	auto ContainOrigin = false;
 	Math::Vec4 Lambda;
 	do {
-		const auto Pt = Collision::SupportPoint::Get(RbA, RbB, Dir.ToNormalized(), 0.0f);
+		const auto Pt = Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, Dir.ToNormalized(), 0.0f);
 
 		//!< Pt は既存の点、もうこれ以上拡張できない -> 衝突無し
 		if (std::ranges::any_of(Sps, [&](const auto& i) { return Pt.GetC().NearlyEqual(i.GetC()); })) { break; }
@@ -391,23 +399,36 @@ bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::
 
 	if (ContainOrigin) {
 		//!< 衝突確定 -> 衝突点 OnA, OnB を求める (EPA 等)
-		OnIntersect(RbA, RbB, Sps, Bias, OnA, OnB);
+		OnIntersect(ShA, PosA, RotA, ShB, PosB, RotB, Sps, Bias, OnA, OnB);
 		return true;
 	}
 	return false;
 }
-void Collision::Closest::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, Math::Vec3& OnA, Math::Vec3& OnB)
+bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, OnIntersectGJK OnIntersect, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
+{
+	return GJK(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation, OnIntersect, Bias, OnA, OnB);
+}
+bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
+{
+	return GJK(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation);
+}
+bool Collision::Intersection::GJK_EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
+{
+	return GJK(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation, EPA, Bias, OnA, OnB);
+}
+
+void Collision::Closest::GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, Math::Vec3& OnA, Math::Vec3& OnB)
 {
 	std::vector<Collision::SupportPoint::Points> Sps;
 	Sps.reserve(4);
 
-	Sps.emplace_back(Collision::SupportPoint::Get(RbA, RbB, Math::Vec3::One().Normalize(), 0.0f));
+	Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, Math::Vec3::One().Normalize(), 0.0f));
 
 	auto ClosestDistSq = (std::numeric_limits<float>::max)();
 	auto Dir = -Sps.back().GetC();
 	auto Lambda = Math::Vec4::AxisX();
 	do {
-		const auto Pt = Collision::SupportPoint::Get(RbA, RbB, Dir.ToNormalized(), 0.0f);
+		const auto Pt = Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, Dir.ToNormalized(), 0.0f);
 		
 		if (std::ranges::any_of(Sps, [&](const auto& i) { return Pt.GetC().NearlyEqual(i.GetC()); })) { break; }
 		
@@ -438,7 +459,10 @@ void Collision::Closest::GJK(const Physics::RigidBody* RbA, const Physics::Rigid
 		return Acc + i.GetB() * Lambda[static_cast<int>(IndexOf(Sps, i))];
 		});
 }
-
+void Collision::Closest::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, Math::Vec3& OnA, Math::Vec3& OnB)
+{
+	GJK(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation, OnA, OnB);
+}
 
 #ifdef _DEBUG
 void Collision::SignedVolumeTest()
