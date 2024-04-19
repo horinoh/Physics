@@ -4,28 +4,61 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.8.34525.116
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ConvexHullDX", "ConvexHullDX\ConvexHullDX.vcxproj", "{C5122552-6238-4AF8-8255-C97EC2CE008F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0D3CB461-CFFF-481E-94C8-303E227FEE3D} = {0D3CB461-CFFF-481E-94C8-303E227FEE3D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ConvexHullVK", "ConvexHullVK\ConvexHullVK.vcxproj", "{079CC10B-FA8E-411F-ADFF-D6034889816A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0D3CB461-CFFF-481E-94C8-303E227FEE3D} = {0D3CB461-CFFF-481E-94C8-303E227FEE3D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SphereDX", "SphereDX\SphereDX.vcxproj", "{C46C3E43-F0E2-42F6-B350-9B4B484E1AD6}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0D3CB461-CFFF-481E-94C8-303E227FEE3D} = {0D3CB461-CFFF-481E-94C8-303E227FEE3D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SphereVK", "SphereVK\SphereVK.vcxproj", "{8A337DFA-8463-4257-A4DD-D59F1EAE74E1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0D3CB461-CFFF-481E-94C8-303E227FEE3D} = {0D3CB461-CFFF-481E-94C8-303E227FEE3D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GJKDX", "GJKDX\GJKDX.vcxproj", "{6D57977A-1A43-4E0C-AA1D-B6AB88AD6896}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0D3CB461-CFFF-481E-94C8-303E227FEE3D} = {0D3CB461-CFFF-481E-94C8-303E227FEE3D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GJKVK", "GJKVK\GJKVK.vcxproj", "{DA750EA6-9826-4B1D-A938-1393E43C3043}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0D3CB461-CFFF-481E-94C8-303E227FEE3D} = {0D3CB461-CFFF-481E-94C8-303E227FEE3D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoxDX", "BoxDX\BoxDX.vcxproj", "{CDE1819D-3F84-4FC9-9FA3-6F5E0292ACA8}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0D3CB461-CFFF-481E-94C8-303E227FEE3D} = {0D3CB461-CFFF-481E-94C8-303E227FEE3D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoxVK", "BoxVK\BoxVK.vcxproj", "{3BDBCDCC-13BA-4553-A8ED-274055C71502}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0D3CB461-CFFF-481E-94C8-303E227FEE3D} = {0D3CB461-CFFF-481E-94C8-303E227FEE3D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LibPhysics", "LibPhysics\LibPhysics.vcxproj", "{0D3CB461-CFFF-481E-94C8-303E227FEE3D}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ConstraintDX", "ConstraintDX\ConstraintDX.vcxproj", "{438ECAEE-C31E-40D7-9815-0680C7225D1B}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0D3CB461-CFFF-481E-94C8-303E227FEE3D} = {0D3CB461-CFFF-481E-94C8-303E227FEE3D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ConstraintVK", "ConstraintVK\ConstraintVK.vcxproj", "{5ADAF208-8CEC-4F9F-B800-47E91CD5DFC1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0D3CB461-CFFF-481E-94C8-303E227FEE3D} = {0D3CB461-CFFF-481E-94C8-303E227FEE3D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CollisionVK", "CollisionVK\CollisionVK.vcxproj", "{1CAA8903-EA7F-440A-AED6-91A2B56160CF}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0D3CB461-CFFF-481E-94C8-303E227FEE3D} = {0D3CB461-CFFF-481E-94C8-303E227FEE3D}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
