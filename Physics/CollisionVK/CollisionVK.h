@@ -3,6 +3,7 @@
 #include "resource.h"
 
 #include <numbers>
+#include <string_view>
 
 #include "../VK.h"
 #include "../GltfSDK.h"
@@ -147,6 +148,9 @@ public:
 			break;
 		case '3':
 			SetColiTypes(COLLISION_TYPE::Cylinder);
+			break;
+		case '4':
+			SetColiTypes(COLLISION_TYPE::Point);
 			break;
 
 		case VK_UP:
@@ -500,7 +504,9 @@ public:
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(CB));
 	}
 
-	virtual void UpdateWorldBuffer() {
+	virtual void UpdateWorldBuffer() {		
+		auto NoRot = [&]() { return Rotation.NearlyEqual(Math::Quat::Identity()); };
+
 		//!< カラーと最近接点をリセット
 		for (auto& i : WorldBuffers) {
 			i.Instances[0].Color = i.Instances[1].Color = { 1.0f, 1.0f, 1.0f };
@@ -519,6 +525,7 @@ public:
 			}
 		}
 
+		const auto Position1 = Math::Vec3::Zero();
 		constexpr auto Rad = 1.0f;
 		auto& WB0 = WorldBuffers[static_cast<uint8_t>(ColiType0)];
 		auto& WB1 = WorldBuffers[static_cast<uint8_t>(ColiType1)];
@@ -529,20 +536,27 @@ public:
 			switch (ColiType1)
 			{
 			case CollisionVK::COLLISION_TYPE::Sphere:
-				if (Collision::Intersection::SphereShpere(Rad, Rad, Position, Math::Vec3::Zero())) {
+				if (Collision::Intersection::SphereShpere(Rad, Rad, Position, Position1)) {
 					WB0.Instances[0].Color = WB1.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
 				}
 				else {
-					const auto AB = -Position.Normalize();
-					const auto OnA = AB * Rad + Position;
-					const auto OnB = -AB * Rad;
+					Math::Vec3 OnA, OnB;
+					Collision::Closest::SphereSphere(Position, Rad, Position1, Rad, OnA, OnB);
 					WBCP.Instances[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
 					WBCP.Instances[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());
 				}
 				break;
 			case CollisionVK::COLLISION_TYPE::Box:
+				if (Collision::Intersection::AABBSphere(Collision::AABB(Position1 - Math::Vec3::One(), Position1 + Math::Vec3::One()), Position, Rad)) {
+					WB0.Instances[0].Color = WB1.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
+				}
+				else {
+					//Collision::Closest::AABBSphere
+				}
 				break;
 			case CollisionVK::COLLISION_TYPE::Cylinder:
+				break;
+			case CollisionVK::COLLISION_TYPE::Point:
 				break;
 			case CollisionVK::COLLISION_TYPE::Count:
 				break;
@@ -554,15 +568,28 @@ public:
 			switch (ColiType1)
 			{
 			case CollisionVK::COLLISION_TYPE::Sphere:
+				if (NoRot()) {
+					if (Collision::Intersection::AABBSphere(Collision::AABB(Position - Math::Vec3::One(), Position + Math::Vec3::One()), Position1, Rad)) {
+						WB0.Instances[0].Color = WB1.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
+					}
+					else {
+						//Collision::Closest::AABBSphere
+					}
+				}
 				break;
 			case CollisionVK::COLLISION_TYPE::Box:
-				if (Rotation.NearlyEqual(Math::Quat::Identity())) {
-					if (Collision::Intersection::AABBAABB(Collision::AABB(Position - Math::Vec3::One(), Position + Math::Vec3::One()), Collision::AABB(-Math::Vec3::One(), Math::Vec3::One()))) {
+				if (NoRot()) {
+					if (Collision::Intersection::AABBAABB(Collision::AABB(Position - Math::Vec3::One(), Position + Math::Vec3::One()), Collision::AABB(Position1 - Math::Vec3::One(), Position1 + Math::Vec3::One()))) {
 						WB0.Instances[0].Color = WB1.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
+					}
+					else {
+						//Collision::Closest::AABBAABB
 					}
 				}
 				break;
 			case CollisionVK::COLLISION_TYPE::Cylinder:
+				break;
+			case CollisionVK::COLLISION_TYPE::Point:
 				break;
 			case CollisionVK::COLLISION_TYPE::Count:
 				break;
@@ -572,11 +599,51 @@ public:
 			break;
 		case CollisionVK::COLLISION_TYPE::Cylinder:
 			break;
+		case CollisionVK::COLLISION_TYPE::Point:
+			switch (ColiType1)
+			{
+			case CollisionVK::COLLISION_TYPE::Sphere:
+				if (false) {
+				}
+				else {
+					const auto OnA = Position;
+					const auto OnB = Collision::Closest::PointSphere(Position, Position1, Rad);
+					WBCP.Instances[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
+					WBCP.Instances[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());
+				}
+				break;
+			case CollisionVK::COLLISION_TYPE::Box:
+				if (false) {
+				}
+				else {
+					const auto OnA = Position;
+					const auto OnB = Collision::Closest::AABBPoint(Collision::AABB(Position1 - Math::Vec3::One(), Position1 + Math::Vec3::One()), Position);
+					WBCP.Instances[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
+					WBCP.Instances[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());
+				}
+				break;
+			case CollisionVK::COLLISION_TYPE::Cylinder:
+				if (false) {
+				}
+				else {
+					const auto OnA = Position;
+					WBCP.Instances[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
+				}
+				break;
+			case CollisionVK::COLLISION_TYPE::Point:
+				break;
+			case CollisionVK::COLLISION_TYPE::Count:
+				break;
+			default:
+				break;
+			}
+			break;
 		case CollisionVK::COLLISION_TYPE::Count:
 			break;
 		default:
 			break;
 		}
+		//LOG(data(std::format("No implementation for {} vs {}\n", Nameof(ColiType0), Nameof(ColiType1))));
 	}
 	virtual void UpdateViewProjectionBuffer() {
 		const auto PosFrt = glm::vec3(0.0f, 0.0f, 10.0f);
@@ -608,9 +675,21 @@ protected:
 		Sphere,
 		Box,
 		Cylinder,
+		Point,
 
 		Count,
 	};
+	static std::string_view Nameof(const COLLISION_TYPE Type) {
+		static constexpr std::array ColiNames = {
+			std::string_view("Sphere"),
+			std::string_view("Box"),
+			std::string_view("Cylinder"),
+			std::string_view("Point"),
+
+			std::string_view("Count"),
+		};
+		return ColiNames[static_cast<uint8_t>(Type)];
+	}
 	COLLISION_TYPE ColiType0 = COLLISION_TYPE::Sphere;
 	COLLISION_TYPE ColiType1 = COLLISION_TYPE::Sphere;
 	void SetColiType0(const COLLISION_TYPE Type) {

@@ -92,6 +92,10 @@ namespace Collision
 	{
 		[[nodiscard]] static float AABBPointSq(const AABB& Ab,
 			const Math::Vec3& Pt) {
+			const auto V = Math::Vec3(std::max(std::max(Ab.Min.X() - Pt.X(), 0.0f), std::max(Pt.X() - Ab.Max.X(), 0.0f)),
+				std::max(std::max(Ab.Min.Y() - Pt.Y(), 0.0f), std::max(Pt.Y() - Ab.Max.Y(), 0.0f)),
+				std::max(std::max(Ab.Min.Z() - Pt.Z(), 0.0f), std::max(Pt.Z() - Ab.Max.Z(), 0.0f)));
+
 			return Math::Vec3(std::max(std::max(Ab.Min.X() - Pt.X(), 0.0f), std::max(Pt.X() - Ab.Max.X(), 0.0f)),
 				std::max(std::max(Ab.Min.Y() - Pt.Y(), 0.0f), std::max(Pt.Y() - Ab.Max.Y(), 0.0f)),
 				std::max(std::max(Ab.Min.Z() - Pt.Z(), 0.0f), std::max(Pt.Z() - Ab.Max.Z(), 0.0f))).LengthSq();
@@ -179,6 +183,42 @@ namespace Collision
 
 		//[[nodiscard]] bool RigidBodyRigidBody(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const float DeltaSec, Contact& Ct);
 		[[nodiscard]] bool RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct);
+	}
+
+	namespace Closest 
+	{
+		[[nodiscard]] static Math::Vec3 AABBPoint(const AABB& Ab,
+			const Math::Vec3& Pt) {
+			return Math::Vec3(std::clamp(Pt.X(), Ab.Min.X(), Ab.Max.X()), std::clamp(Pt.Y(), Ab.Min.Y(), Ab.Max.Y()), std::clamp(Pt.Z(), Ab.Min.Z(), Ab.Max.Z()));
+		}
+
+		[[nodiscard]] static Math::Vec3 CylinderPoint(const Math::Vec3& CyA, const Math::Vec3& CyB, const Math::Vec3& CyR,
+			const Math::Vec3& Pt) {
+			//!< #TODO
+			return Math::Vec3::Zero();
+		}
+
+		[[nodiscard]] static Math::Vec3 OBBPoint(const Math::Vec3& ObPos, const Math::Vec3& ObX, const Math::Vec3& ObY, const Math::Vec3& ObZ, const Math::Vec3& ObExt,
+			const Math::Vec3& Pt) {
+			const auto D(Pt - ObPos);
+			return ObPos + 
+				std::clamp(D.Dot(ObX), -ObExt.X(), ObExt.X()) * ObX + 
+				std::clamp(D.Dot(ObY), -ObExt.Y(), ObExt.Y()) * ObY + 
+				std::clamp(D.Dot(ObZ), -ObExt.Z(), ObExt.Z()) * ObZ;
+		}
+
+		[[nodiscard]] static Math::Vec3 PointSphere(const Math::Vec3& Pt,
+			const Math::Vec3& SpPos, const float SpRad) {
+			return SpPos + (Pt - SpPos).Normalize() * SpRad;
+		}
+
+		static void SphereSphere(const Math::Vec3& SpPosA, const float SpRadA,
+			const Math::Vec3& SpPosB, const float SpRadB,
+			Math::Vec3& OnA, Math::Vec3& OnB) {
+			const auto AB = (SpPosB - SpPosA).Normalize();
+			OnA = AB * SpRadA + SpPosA;
+			OnB = -AB * SpRadB + SpPosB;
+		}
 	}
 
 	namespace Volume
