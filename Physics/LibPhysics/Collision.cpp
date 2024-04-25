@@ -128,17 +128,17 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 			const auto CPosB = RbB->Position + RbB->LinearVelocity * T;
 
 			//!< 法線 A -> B
-			Ct.Normal = (CPosB - CPosA).Normalize();
+			Ct.WNormal = (CPosB - CPosA).Normalize();
 
 			//!< 衝突点 (半径の分オフセット)
 #ifdef WORLD_CONTACT_POINT
 			Ct.WPointA = CPosA + Ct.Normal * SpA->Radius;
 			Ct.WPointB = CPosB + Ct.Normal * SpB->Radius;
-			Ct.PointA = RbA->ToLocal(Ct.WPointA);
-			Ct.PointB = RbB->ToLocal(Ct.WPointB);
+			Ct.PointA = RbA->ToLocalPos(Ct.WPointA);
+			Ct.PointB = RbB->ToLocalPos(Ct.WPointB);
 #else
-			Ct.PointA = RbA->ToLocal(CPosA + Ct.Normal * SpA->Radius);
-			Ct.PointB = RbB->ToLocal(CPosB - Ct.Normal * SpB->Radius); 
+			Ct.LPointA = RbA->ToLocalPos(CPosA + Ct.WNormal * SpA->Radius);
+			Ct.LPointB = RbB->ToLocalPos(CPosB - Ct.WNormal * SpB->Radius); 
 #endif
 
 
@@ -168,19 +168,19 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 					Ct.TimeOfImpact = TOI;
 
 				//!< 法線 A -> B #TODO
-				Ct.Normal = -(OnB - OnA).Normalize();
+				Ct.WNormal = -(OnB - OnA).Normalize();
 
 				//!< シンプレックスを拡張しているので、その分をキャンセルする
-				OnA -= Ct.Normal * Bias;
-				OnB += Ct.Normal * Bias;
+				OnA -= Ct.WNormal * Bias;
+				OnB += Ct.WNormal * Bias;
 
 				//!< 衝突点
 #ifdef WORLD_CONTACT_POINT
 				Ct.WPointA = OnA;
 				Ct.WPointB = OnB;
 #endif
-				Ct.PointA = RbA->ToLocal(OnA);
-				Ct.PointB = RbB->ToLocal(OnB);
+				Ct.LPointA = RbA->ToLocalPos(OnA);
+				Ct.LPointB = RbB->ToLocalPos(OnB);
 
 				//!< 衝突剛体を覚えておく
 				Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
@@ -230,8 +230,8 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 }
 void Collision::ResolveContact(const Contact& Ct)
 {
-	const auto WPointA = Ct.RigidBodyA->ToWorld(Ct.PointA);
-	const auto WPointB = Ct.RigidBodyB->ToWorld(Ct.PointB);
+	const auto WPointA = Ct.RigidBodyA->ToWorldPos(Ct.LPointA);
+	const auto WPointB = Ct.RigidBodyB->ToWorldPos(Ct.LPointB);
 	const auto TotalInvMass = Ct.RigidBodyA->InvMass + Ct.RigidBodyB->InvMass;
 	{
 		//!< 半径 (重心 -> 衝突点)
@@ -247,7 +247,7 @@ void Collision::ResolveContact(const Contact& Ct)
 			const auto VelB = Ct.RigidBodyB->LinearVelocity + Ct.RigidBodyB->AngularVelocity.Cross(RB);
 			const auto VelAB = VelA - VelB;
 			//!< 速度の法線成分
-			const auto& Nrm = Ct.Normal;
+			const auto& Nrm = Ct.WNormal;
 			const auto NVelAB = Nrm * VelAB.Dot(Nrm);
 
 			//!< 法線方向 力積J (運動量変化)

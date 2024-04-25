@@ -45,13 +45,13 @@ namespace Physics
 		void ApplyImpulse(const Velocities& Impulse);
 
 		ConstraintAnchor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
-		ConstraintAnchor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor);
+		ConstraintAnchor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor);
 
 	protected:
-		Math::Vec3 AnchorA;
+		Math::Vec3 LAnchorA;
 
 		Physics::RigidBody* RigidBodyB = nullptr;
-		Math::Vec3 AnchorB;
+		Math::Vec3 LAnchorB;
 
 		MassMatrix InvMass;
 	};
@@ -60,11 +60,11 @@ namespace Physics
 	public:
 		using Super = ConstraintAnchor;
 
-		ConstraintAnchorAxis& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis);
+		ConstraintAnchorAxis& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis);
 
 	protected:
-		Math::Vec3 AxisA;
-		Math::Vec3 AxisB;
+		Math::Vec3 LAxisA;
+		//Math::Vec3 LAxisB;
 
 		//!< ある瞬間の回転を CurRot = QA.Inverse() * QB * InitRot.Inverse() とすると、初期位置からの回転角は Theta = 2.0f * asin(CurRot.Dot(Hinge)) で求まる
 		Math::Quat InvInitRot;
@@ -75,14 +75,14 @@ namespace Physics
 	public:
 		using Super = ConstraintAnchor;
 
+		ConstraintDistance& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor) {
+			Super::Init(RbA, RbB, WAnchor);
+			return *this;
+		}
+
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
 		virtual void PostSolve() override;
-
-		ConstraintDistance& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor) {
-			Super::Init(RbA, RbB, Anchor);
-			return *this;
-		}
 
 	protected:
 		//!< ヤコビ行列 (n * 12) n == コンストレイント数, 12 == 6 (移動3、回転3) 軸の自由度 * 2 オブジェクト
@@ -100,14 +100,14 @@ namespace Physics
 	public:
 		using Super = ConstraintAnchorAxis;
 
+		ConstraintHinge& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis) {
+			Super::Init(RbA, RbB, WAnchor, WAxis);
+			return *this;
+		}
+
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
 		virtual void PostSolve() override;
-
-		ConstraintHinge& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis) {
-			Super::Init(RbA, RbB, Anchor, Axis);
-			return *this;
-		}
 
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V (n == 3)
@@ -122,15 +122,15 @@ namespace Physics
 	public:
 		using Super = ConstraintAnchorAxis;
 
-		virtual void PreSolve(const float DeltaSec) override;
-		virtual void Solve() override;
-		virtual void PostSolve() override;
-
-		ConstraintHingeLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float LimAng = 45.0f) {
-			Super::Init(RbA, RbB, Anchor, Axis);
+		ConstraintHingeLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float LimAng = 45.0f) {
+			Super::Init(RbA, RbB, WAnchor, WAxis);
 			LimitAngle = LimAng;
 			return *this;
 		}
+
+		virtual void PreSolve(const float DeltaSec) override;
+		virtual void Solve() override;
+		virtual void PostSolve() override;
 
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V、角度制限 (n == 4)
@@ -149,15 +149,15 @@ namespace Physics
 	public:
 		using Super = ConstraintAnchorAxis;
 
-		virtual void PreSolve(const float DeltaSec) override;
-		virtual void Solve() override;
-		virtual void PostSolve() override;
-
-		ConstraintBallSocket& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis) {
-			Super::Init(RbA, RbB, Anchor, Axis);
+		ConstraintBallSocket& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis) {
+			Super::Init(RbA, RbB, WAnchor, WAxis);
 			return *this;
 		}
 
+		virtual void PreSolve(const float DeltaSec) override;
+		virtual void Solve() override;
+		virtual void PostSolve() override;
+	
 	protected:
 		//!< 距離、軸 (n == 2)
 		Math::Mat<2, 12> Jacobian;
@@ -171,16 +171,16 @@ namespace Physics
 	public:
 		using Super = ConstraintAnchorAxis;
 
-		virtual void PreSolve(const float DeltaSec) override;
-		virtual void Solve() override;
-		virtual void PostSolve() override;
-
-		ConstraintBallSocketLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float LimAngU = 45.0f, const float LimAngV = 45.0f) {
-			Super::Init(RbA, RbB, Anchor, Axis);
+		ConstraintBallSocketLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float LimAngU = 45.0f, const float LimAngV = 45.0f) {
+			Super::Init(RbA, RbB, WAnchor, WAxis);
 			LimitAngleU = LimAngU;
 			LimitAngleV = LimAngV;
 			return *this;
 		}
+
+		virtual void PreSolve(const float DeltaSec) override;
+		virtual void Solve() override;
+		virtual void PostSolve() override;
 
 	protected:
 		Math::Mat<4, 12> Jacobian;
@@ -221,14 +221,14 @@ namespace Physics
 	public:
 		using Super = ConstraintAnchorAxis;
 
-		virtual void PreSolve(const float DeltaSec) override;
-		virtual void Solve() override;
-
-		ConstraintMotor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis, const float Spd) {
-			Super::Init(RbA, RbB, Anchor, Axis);
+		ConstraintMotor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float Spd) {
+			Super::Init(RbA, RbB, WAnchor, WAxis);
 			Speed = Spd;
 			return *this;
 		}
+
+		virtual void PreSolve(const float DeltaSec) override;
+		virtual void Solve() override;
 
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V、ヒンジ軸 (n == 4)
@@ -247,10 +247,10 @@ namespace Physics
 		ConstraintPenetration() {}
 		ConstraintPenetration(const Collision::Contact& Ct) { Init(Ct); }
 
+		ConstraintPenetration& Init(const Collision::Contact& Ct);
+
 		virtual void PreSolve(const float DeltaSec) override;
 		virtual void Solve() override;
-
-		ConstraintPenetration& Init(const Collision::Contact& Ct);
 
 	protected:
 		//!< 法線 N、接面の U, V (n == 3)
@@ -259,7 +259,7 @@ namespace Physics
 
 		float Baumgarte = 0.0f;
 
-		Math::Vec3 Normal;
+		Math::Vec3 LNormal;
 		float Friction = 0.0f;
 	};
 	class Manifold 

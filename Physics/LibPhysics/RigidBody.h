@@ -11,22 +11,27 @@ namespace Physics
 	public:
 		void Init(const Shape* Sh);
 
-		[[nodiscard]] Math::Vec3 GetCenterOfMass() const;
-		[[nodiscard]] Math::Vec3 GetWorldSpaceCenterOfMass() const { return Position + Rotation.Rotate(GetCenterOfMass()); }
-
-		[[nodiscard]] Math::Mat3 GetWorldSpaceInverseInertiaTensor() const { return ToWorld(InvInertiaTensor); }
-
-		[[nodiscard]] Math::Vec3 ToLocal(const Math::Vec3& rhs) const {
-			return Rotation.Inverse().Rotate(rhs - GetWorldSpaceCenterOfMass());
+		[[nodiscard]] Math::Vec3 ToLocal(const Math::Vec3& rhs, const Math::Vec3& Center) const {
+			return Rotation.Inverse().Rotate(rhs - Center);
 		}
-		[[nodiscard]] Math::Vec3 ToWorld(const Math::Vec3& rhs) const {
-			return GetWorldSpaceCenterOfMass() + Rotation.Rotate(rhs);
+		[[nodiscard]] Math::Vec3 ToWorld(const Math::Vec3& rhs, const Math::Vec3& Center) const {
+			return Center + Rotation.Rotate(rhs);
 		}
+		[[nodiscard]] Math::Vec3 ToLocalPos(const Math::Vec3& rhs) const { return ToLocal(rhs, GetWorldSpaceCenterOfMass()); }
+		[[nodiscard]] Math::Vec3 ToWorldPos(const Math::Vec3& rhs) const { return ToWorld(rhs, GetWorldSpaceCenterOfMass()); }
+		[[nodiscard]] Math::Vec3 ToLocalDir(const Math::Vec3& rhs) const { return ToLocal(rhs, Math::Vec3::Zero()); }
+		[[nodiscard]] Math::Vec3 ToWorldDir(const Math::Vec3& rhs) const { return ToWorld(rhs, Math::Vec3::Zero()); }
+
 		[[nodiscard]] Math::Mat3 ToWorld(const Math::Mat3& rhs) const {
 			const auto Rot3 = static_cast<const Math::Mat3>(Rotation);
 			//!< 本来は Rot3 * rhs * Rot3.Inverse() だが、スケーリングが無いので Rot3 * rhs * Rot3.Transpose() で良い
 			return Rot3 * rhs * Rot3.Transpose();
 		}
+
+		[[nodiscard]] Math::Vec3 GetCenterOfMass() const;
+		[[nodiscard]] Math::Vec3 GetWorldSpaceCenterOfMass() const { return Position + Rotation.Rotate(GetCenterOfMass()); }
+
+		[[nodiscard]] Math::Mat3 GetWorldSpaceInverseInertiaTensor() const { return ToWorld(InvInertiaTensor); }
 
 		void ApplyGravity(const float DeltaSec) {
 #if 1

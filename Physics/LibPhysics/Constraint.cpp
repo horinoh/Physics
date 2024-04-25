@@ -61,28 +61,28 @@ Physics::ConstraintAnchor& Physics::ConstraintAnchor::Init(const Physics::RigidB
 
 	return *this;
 }
-Physics::ConstraintAnchor& Physics::ConstraintAnchor::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor)
+Physics::ConstraintAnchor& Physics::ConstraintAnchor::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor)
 {
 	Init(RbA, RbB);
 
 	//!< 初期位置はローカルで保存しておく、(オブジェクトが動く事を考慮して) 都度ワールドへと変換して使う
-	AnchorA = RigidBodyA->ToLocal(Anchor);
-	AnchorB = RigidBodyB->ToLocal(Anchor);
+	LAnchorA = RigidBodyA->ToLocalPos(WAnchor);
+	LAnchorB = RigidBodyB->ToLocalPos(WAnchor);
 
 	return *this;
 }
 
-Physics::ConstraintAnchorAxis& Physics::ConstraintAnchorAxis::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& Anchor, const Math::Vec3& Axis)
+Physics::ConstraintAnchorAxis& Physics::ConstraintAnchorAxis::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis)
 {
 	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
 	RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
 
-	AnchorA = RigidBodyA->ToLocal(Anchor);
-	AnchorB = RigidBodyB->ToLocal(Anchor);
+	LAnchorA = RigidBodyA->ToLocalPos(WAnchor);
+	LAnchorB = RigidBodyB->ToLocalPos(WAnchor);
 
 	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
 
-	AxisA = RigidBodyA->Rotation.Inverse().Rotate(Axis);
+	LAxisA = RigidBodyA->ToLocalDir(WAxis);
 
 	//!< A, B の初期位置における QA.Inverse() * QB (の逆四元数を求めることにどうせなるので、ここでやってしまう)
 	InvInitRot = (RigidBodyA->Rotation.Inverse() * RigidBodyB->Rotation).Inverse();
@@ -93,8 +93,8 @@ Physics::ConstraintAnchorAxis& Physics::ConstraintAnchorAxis::Init(const Physics
 void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 {
 	//!< ワールドへ変換 (オブジェクトが動く事を考慮して都度やる必要がある)
-	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
-	const auto WAnchorB = RigidBodyB->ToWorld(AnchorB);
+	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
+	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
 	const auto BA = WAnchorA - WAnchorB;
@@ -139,8 +139,8 @@ void Physics::ConstraintDistance::PostSolve()
 
 void Physics::ConstraintHinge::PreSolve(const float DeltaSec) 
 {
-	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
-	const auto WAnchorB = RigidBodyB->ToWorld(AnchorB);
+	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
+	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
 	const auto BA = WAnchorA - WAnchorB;
@@ -162,7 +162,7 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 
 	//!< ヒンジ軸に垂直な U, V
 	Math::Vec3 U, V;
-	AxisA.GetOrtho(U, V);
+	LAxisA.GetOrtho(U, V);
 
 	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
 	//!< (ここでは) 転置する意味が無い
@@ -216,8 +216,8 @@ void Physics::ConstraintHinge::PostSolve()
 
 void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 {
-	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
-	const auto WAnchorB = RigidBodyB->ToWorld(AnchorB);
+	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
+	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
 	const auto BA = WAnchorA - WAnchorB;
@@ -237,7 +237,7 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 	const auto InvQA = QA.Inverse();
 
 	Math::Vec3 U, V;
-	AxisA.GetOrtho(U, V);
+	LAxisA.GetOrtho(U, V);
 
 	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
 	const auto& PT = P; // P.Transpose();
@@ -248,7 +248,7 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 	//!< 現在の回転
 	const auto CurRot = InvQA * QB * InvInitRot;
 	//!< 初期位置からの回転角度を求め、破綻しているかどうか調査
-	Angle = TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(AxisA)));
+	Angle = TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(LAxisA)));
 	IsAngleViolated = std::fabsf(Angle) > LimitAngle;
 
 	{
@@ -268,9 +268,9 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 	//!< 角度制限
 	if (IsAngleViolated) {
 		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(AxisA);
+		const auto J2 = MatA * Math::Vec4(LAxisA);
 		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(AxisA);
+		const auto J4 = MatB * Math::Vec4(LAxisA);
 		Jacobian[3] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
 	else {
@@ -314,8 +314,8 @@ void Physics::ConstraintHingeLimited::PostSolve()
 
 void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 {
-	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
-	const auto WAnchorB = RigidBodyB->ToWorld(AnchorB);
+	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
+	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
 	const auto BA = WAnchorA - WAnchorB;
@@ -342,9 +342,9 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 
 	{
 		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = -0.5f * MatA * Math::Vec4(AxisA);
+		const auto J2 = -0.5f * MatA * Math::Vec4(LAxisA);
 		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = 0.5f * MatB * Math::Vec4(AxisA);
+		const auto J4 = 0.5f * MatB * Math::Vec4(LAxisA);
 		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
 
@@ -376,8 +376,8 @@ void Physics::ConstraintBallSocket::PostSolve()
 
 void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 {
-	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
-	const auto WAnchorB = RigidBodyB->ToWorld(AnchorB);
+	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
+	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
 	const auto BA = WAnchorA - WAnchorB;
@@ -404,14 +404,14 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 
 	{
 		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = -0.5f * MatA * Math::Vec4(AxisA);
+		const auto J2 = -0.5f * MatA * Math::Vec4(LAxisA);
 		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = 0.5f * MatB * Math::Vec4(AxisA);
+		const auto J4 = 0.5f * MatB * Math::Vec4(LAxisA);
 		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
 
 	Math::Vec3 U, V;
-	AxisA.GetOrtho(U, V);
+	LAxisA.GetOrtho(U, V);
 
 	const auto CurRot = InvQA * QB * InvInitRot;
 	AngleU = TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(U)));
@@ -496,8 +496,8 @@ void Physics::ConstraintMoverUpDown::PreSolve(const float DeltaSec)
 
 void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 {
-	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
-	const auto WAnchorB = RigidBodyB->ToWorld(AnchorB);
+	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
+	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
 	const auto BA = WAnchorA - WAnchorB;
@@ -514,9 +514,9 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 	const auto& QB = RigidBodyB->Rotation;
 	const auto InvQA = QA.Inverse();
 
-	const auto Axis = RigidBodyA->Rotation.Rotate(AxisA);
+	const auto WAxis = RigidBodyA->ToWorldDir(LAxisA);
 	Math::Vec3 U, V;
-	Axis.GetOrtho(U, V);
+	WAxis.GetOrtho(U, V);
 
 	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
 	const auto& PT = P; // P.Transpose();
@@ -540,16 +540,16 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 	}
 	{
 		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(Axis);
+		const auto J2 = MatA * Math::Vec4(WAxis);
 		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(Axis);
+		const auto J4 = MatB * Math::Vec4(WAxis);
 		Jacobian[3] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
 
 	//!< A ローカルでの相対回転
 	const auto RelRot = RigidBodyA->Rotation.Inverse() * RigidBodyB->Rotation * InvInitRot;
 	//!< ワールドでの相対回転軸
-	const auto WRelAxis = RigidBodyA->Rotation.Rotate(RelRot.XYZ());
+	const auto WRelAxis = RigidBodyA->ToWorldDir(RelRot.XYZ());
 	const auto C = AB.Dot(AB);
 	Baumgarte = { 0.05f * C / DeltaSec, 0.05f * U.Dot(WRelAxis) / DeltaSec, 0.05f * V.Dot(WRelAxis) / DeltaSec };
 }
@@ -559,7 +559,7 @@ void Physics::ConstraintMotor::Solve()
 	const auto A = Jacobian * GetInverseMassMatrix() * JT;
 	Math::Vec<12> Vel;
 	{
-		const auto WAxis = RigidBodyA->Rotation.Rotate(AxisA) * Speed;
+		const auto WAxis = RigidBodyA->ToWorldDir(LAxisA) * Speed;
 		Vel[3] = -WAxis[0];
 		Vel[4] = -WAxis[1];
 		Vel[5] = -WAxis[2];
@@ -575,22 +575,36 @@ void Physics::ConstraintMotor::Solve()
 	ApplyImpulse(JT * Lambda);
 }
 
+Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Collision::Contact& Ct)
+{
+	Super::Init(Ct.RigidBodyA, Ct.RigidBodyB);
+
+	LAnchorA = Ct.LPointA;
+	LAnchorB = Ct.LPointB;
+
+	//!< A ローカル
+	LNormal = RigidBodyA->ToLocalDir(Ct.WNormal).Normalize();
+
+	Friction = RigidBodyA->Friction * RigidBodyB->Friction;
+
+	return *this;
+}
 void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 {
-	const auto WAnchorA = RigidBodyA->ToWorld(AnchorA);
-	const auto WAnchorB = RigidBodyB->ToWorld(AnchorB);
+	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
+	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	//!< 法線をワールドスペースへ
-	const auto N = RigidBodyA->Rotation.Rotate(Normal);
+	const auto WNormal = RigidBodyA->ToWorldDir(LNormal);
 	Math::Vec3 U, V;
-	N.GetOrtho(U, V);
+	WNormal.GetOrtho(U, V);
 
-	const auto J1 = -N;
+	const auto J1 = -WNormal;
 	const auto J2 = RA.Cross(J1);
-	const auto J3 = N;
+	const auto J3 = WNormal;
 	const auto J4 = RB.Cross(J3);
 	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 
@@ -613,7 +627,7 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
 
-	const auto C = (std::min)((WAnchorB - WAnchorA).Dot(N) + 0.02f, 0.0f);
+	const auto C = (std::min)((WAnchorB - WAnchorA).Dot(WNormal) + 0.02f, 0.0f);
 	Baumgarte = 0.25f * C / DeltaSec;
 }
 void Physics::ConstraintPenetration::Solve()
@@ -639,20 +653,6 @@ void Physics::ConstraintPenetration::Solve()
 
 	ApplyImpulse(JT * Lambda);
 }
-Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Collision::Contact& Ct)
-{
-	Super::Init(Ct.RigidBodyA, Ct.RigidBodyB);
-
-	AnchorA = Ct.PointA;
-	AnchorB = Ct.PointB;
-
-	//!< A ローカル
-	Normal = RigidBodyA->Rotation.Inverse().Rotate(Ct.Normal).Normalize();
-
-	Friction = RigidBodyA->Friction * RigidBodyB->Friction;
-
-	return *this;
-}
 
 Physics::Manifold::Manifold(const Collision::Contact& Ct) : RigidBodyA(Ct.RigidBodyA), RigidBodyB(Ct.RigidBodyB) { Add(Ct); }
 void Physics::Manifold::Add(const Collision::Contact& CtOrig)
@@ -664,8 +664,8 @@ void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 	//!< 既存とほぼ同じ接触位置の場合は何もしない
 	constexpr auto Eps2 = 0.02f * 0.02f;
 	if (std::ranges::any_of(Constraints, [&](const auto& i) {
-		return (i.first.RigidBodyA->ToWorld(i.first.PointA) - Ct.RigidBodyA->ToWorld(Ct.PointA)).LengthSq() < Eps2 ||
-			(i.first.RigidBodyB->ToWorld(i.first.PointB) - Ct.RigidBodyB->ToWorld(Ct.PointB)).LengthSq() < Eps2;
+		return (i.first.RigidBodyA->ToWorldPos(i.first.LPointA) - Ct.RigidBodyA->ToWorldPos(Ct.LPointA)).LengthSq() < Eps2 ||
+			(i.first.RigidBodyB->ToWorldPos(i.first.LPointB) - Ct.RigidBodyB->ToWorldPos(Ct.LPointB)).LengthSq() < Eps2;
 	})) {
 		return;
 	}
@@ -678,14 +678,14 @@ void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 	else {
 		//!< 平均値
 		const auto Avg = (std::accumulate(std::cbegin(Constraints), std::cend(Constraints), Math::Vec3::Zero(), [](const auto& Acc, const auto& i) {
-			return Acc + i.first.PointA; 
-		}) + Ct.PointA) / 5.0f;
+			return Acc + i.first.LPointA; 
+		}) + Ct.LPointA) / 5.0f;
 
 		//!< (新規を含め) 平均値に一番近い要素を削除する為、一旦追加してしまう
 		Constraints.emplace_back(NewItem);
 		//!< 平均値に一番近い要素を見つけ削除
 		Constraints.erase(std::ranges::min_element(Constraints, [&](const auto& lhs, const auto& rhs) {
-			return (Avg - lhs.first.PointA).LengthSq() < (Avg - rhs.first.PointA).LengthSq();
+			return (Avg - lhs.first.LPointA).LengthSq() < (Avg - rhs.first.LPointA).LengthSq();
 		}));
 	}
 }
@@ -694,10 +694,10 @@ void Physics::Manifold::RemoveExpired()
 	constexpr auto Eps2 = 0.02f * 0.02f;
 	const auto Range = std::ranges::remove_if(Constraints, [&](const auto& i) {
 		const auto& Ct = i.first;
-		const auto AB = Ct.RigidBodyB->ToWorld(Ct.PointB) - Ct.RigidBodyA->ToWorld(Ct.PointA);
-		const auto N = Ct.RigidBodyA->Rotation.Rotate(Ct.Normal);
-		const auto PenetrateDepth = N.Dot(AB);
-		return PenetrateDepth > 0.0f || (AB - N * PenetrateDepth).LengthSq() >= Eps2;
+		const auto AB = Ct.RigidBodyB->ToWorldPos(Ct.LPointB) - Ct.RigidBodyA->ToWorldPos(Ct.LPointA);
+		const auto WNormal = Ct.RigidBodyA->ToWorldDir(Ct.WNormal);
+		const auto PenetrateDepth = WNormal.Dot(AB);
+		return PenetrateDepth > 0.0f || (AB - WNormal * PenetrateDepth).LengthSq() >= Eps2;
 	});
 	Constraints.erase(std::cbegin(Range), std::cend(Range));
 }
