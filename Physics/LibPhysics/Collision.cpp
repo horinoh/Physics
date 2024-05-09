@@ -3,6 +3,28 @@
 #include "Shape.h"
 #include "GJK.h"
 
+float Collision::Distance::CapsulePointSq(const Math::Vec3& CapA, const Math::Vec3& CapB, const float CapR,
+	const Math::Vec3& Pt) 
+{
+	if (Collision::Intersection::CapsulePoint(CapA, CapB, CapR, Pt)) { return 0.0f; }
+	return (Pt - Collision::Closest::CapsulePoint(CapA, CapB, CapR, Pt)).LengthSq();
+}
+
+float Collision::Distance::CylinderPointSq(const Math::Vec3& CyA, const Math::Vec3& CyB, const float CyR,
+	const Math::Vec3& Pt) 
+{
+	if (Collision::Intersection::CylinderPoint(CyA, CyB, CyR, Pt)) { return 0.0f; }
+	return (Pt - Collision::Closest::CylinderPoint(CyA, CyB, CyR, Pt)).LengthSq();
+}
+
+float Collision::Distance::SegmentSegmentSq(const Math::Vec3& SegA, const Math::Vec3& SegB,
+	const Math::Vec3& SegC, const Math::Vec3& SegD,
+	float& T0, float& T1)
+{
+	Collision::Closest::SegmentSegment(SegA, SegB, SegC, SegD, T0, T1);
+	return ((SegA + (SegB - SegA) * T0) - (SegC + (SegD - SegC) * T1)).LengthSq();
+}
+
 bool Collision::Intersection::AABBAABB(const AABB& AbA, const AABB& AbB,
 	const Math::Vec3& VelA, const Math::Vec3& VelB,
 	float& T)
@@ -59,6 +81,21 @@ bool Collision::Intersection::AABBRay(const AABB& Ab,
 	}
 	return true;
 }
+bool Collision::Intersection::CapsulePoint(const Math::Vec3& CapA, const Math::Vec3& CapB, const float CapR,
+	const Math::Vec3& Pt) 
+{
+	return Collision::Distance::PointSegmentSq(CapA, CapB, Pt) <= std::pow(CapR, 2.0f);
+}
+
+bool Collision::Intersection::CylinderPoint(const Math::Vec3& CyA, const Math::Vec3& CyB, const float CyR,
+	const Math::Vec3& Pt) 
+{
+	if (!CapsulePoint(CyA, CyB, CyR, Pt)) { return false; }
+	const auto AB = CyB - CyA;
+	if ((Pt - CyB).Dot(-AB) < 0.0f) { return false; }
+	if ((Pt - CyA).Dot(AB) < 0.0f) { return false; }
+	return true;
+}
 
 bool Collision::Intersection::RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad, float& T0, float& T1)
 {
@@ -111,6 +148,93 @@ bool Collision::Intersection::SphereShpere(const float RadA, const float RadB,
 	T = (std::max)(T0, 0.0f);
 
 	return true;
+}
+
+Math::Vec3 Collision::Closest::CapsulePoint(const Math::Vec3& CapA, const Math::Vec3& CapB, const float CapR,
+	const Math::Vec3& Pt) 
+{
+	const auto C = PointSegment(Pt, CapA, CapB);
+	return C + (Pt - C).Normalize() * CapR;
+}
+
+Math::Vec3 Collision::Closest::CylinderPoint(const Math::Vec3& CyA, const Math::Vec3& CyB, const float CyR,
+	const Math::Vec3& Pt) 
+{
+	const auto AB = CyB - CyA;
+	if ((Pt - CyB).Dot(-AB) < 0.0f) {
+		const auto N = AB.Normalize();
+		const auto C = PlanePoint(N, N.Dot(CyB), Pt);
+		const auto BC(C - CyB);
+		const auto LenSq = BC.LengthSq();
+		if (LenSq < std::pow(CyR, 2.0f)) {
+			return C;
+		}
+		return CyB + BC * CyR / std::sqrt(LenSq);
+	}
+	else if ((Pt - CyA).Dot(AB) < 0.0f) {
+		const auto N = -AB.Normalize();
+		const auto C = PlanePoint(N, N.Dot(CyA), Pt);
+		const auto AC = C - CyA;
+		const auto LenSq = AC.LengthSq();
+		if (LenSq < std::pow(CyR, 2.0f)) {
+			return C;
+		}
+		return CyA + AC * CyR / std::sqrt(LenSq);
+	}
+	else {
+		const auto C = PointSegment(Pt, CyA, CyB);
+		return C + (Pt - C).Normalize() * CyR;
+	}
+}
+
+Math::Vec3 Collision::Closest::PlanePoint(const Math::Vec3 & PlN, const float PlD,
+	const Math::Vec3& Pt) 
+{
+	return Pt - Collision::Distance::PlanePoint(PlN, PlD, Pt) * PlN;
+}
+
+Math::Vec3 Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
+	const Math::Vec3& SegC, const Math::Vec3& SegD,
+	float& T0, float& T1)
+{
+	const auto AB = SegB - SegA;
+	const auto CD = SegD - SegC;
+	const auto A = AB.LengthSq();
+	const auto E = CD.LengthSq();
+
+	//< ‚Q‚Â‚Ìü•ª‚Æ‚à‚ª“_‚Ék‘Þ‚µ‚Ä‚¢‚é
+	if (A <= std::numeric_limits<float>::epsilon() && E <= std::numeric_limits<float>::epsilon()) { T0 = 0.0f; T1 = 0.0f; return Math::Vec3::Zero(); }
+
+	const auto CA = SegA - SegC;
+	const auto F = CD.Dot(CA);
+
+	float S, T;
+	//< ü•ªA‚ª“_‚Ék‘Þ‚µ‚Ä‚¢‚é
+	if (A <= std::numeric_limits<float>::epsilon()) {
+		S = 0.0f; T = std::clamp(F / E, 0.0f, 1.0f);
+	}
+	else {
+		const auto C = AB.Dot(CA);
+		//< ü•ªB‚ª“_‚Ék‘Þ‚µ‚Ä‚¢‚é
+		if (E <= std::numeric_limits<float>::epsilon()) { 
+			S = std::clamp(-C / A, 0.0f, 1.0f); T = 0.0f; 
+		}
+		else {
+			const auto b = AB.Dot(CD);
+			const auto Denom(A * E - std::pow(b, 2.0f));
+			//< •½s‚Èê‡
+			if (std::abs(Denom) <= std::numeric_limits<float>::epsilon()) { S = 0.0f; }
+			else { S = std::clamp((b * F - C * E) / Denom, 0.0f, 1.0f); }
+
+			const auto Tnom(b * S + F);
+			if (Tnom < 0.0f) { T = 0.0f; S = std::clamp(-C / A, 0.0f, 1.0f); }
+			else if (Tnom > E) { T = 1.0f; S = std::clamp((b - C) / A, 0.0f, 1.0f); }
+			else { T = Tnom / E; }
+		}
+	}
+
+	T0 = S;
+	T1 = T;
 }
 
 bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct)

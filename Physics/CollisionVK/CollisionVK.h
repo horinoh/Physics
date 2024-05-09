@@ -79,7 +79,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Mesh.Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Mesh.Vertices));
+								std::memcpy(std::data(Mesh.Vertices), std::data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Mesh.Vertices));
 							}
 							break;
 							default: break;
@@ -101,7 +101,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Mesh.Normals), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Mesh.Normals));
+								std::memcpy(std::data(Mesh.Normals), std::data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Mesh.Normals));
 							}
 							break;
 							default: break;
@@ -133,10 +133,10 @@ public:
 		case 'D':
 			X += Speed;
 			break;
-		case 'Z':
+		case 'Q':
 			Z -= Speed;
 			break;
-		case 'X':
+		case 'E':
 			Z += Speed;
 			break;
 
@@ -206,13 +206,13 @@ public:
 		std::vector<VkDrawIndexedIndirectCommand> DIICs;
 		for (const auto& i : Meshes) {
 			VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(i.Vertices));
-			StagingVertices.emplace_back().Create(Device, PDMP, TotalSizeOf(i.Vertices), data(i.Vertices));
+			StagingVertices.emplace_back().Create(Device, PDMP, TotalSizeOf(i.Vertices), std::data(i.Vertices));
 
 			IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(i.Indices));
-			StagingIndices.emplace_back().Create(Device, PDMP, TotalSizeOf(i.Indices), data(i.Indices));
+			StagingIndices.emplace_back().Create(Device, PDMP, TotalSizeOf(i.Indices), std::data(i.Indices));
 
 			DIICs.emplace_back(VkDrawIndexedIndirectCommand({
-				.indexCount = static_cast<uint32_t>(size(i.Indices)),
+				.indexCount = static_cast<uint32_t>(std::size(i.Indices)),
 				.instanceCount = _countof(WorldBuffers[0].Instances),
 				.firstIndex = 0,
 				.vertexOffset = 0,
@@ -371,7 +371,7 @@ public:
 				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 				.pNext = nullptr,
 				.descriptorPool = DP,
-				.descriptorSetCount = static_cast<uint32_t>(size(DSLs)), .pSetLayouts = data(DSLs)
+				.descriptorSetCount = static_cast<uint32_t>(std::size(DSLs)), .pSetLayouts = std::data(DSLs)
 			};
 			VERIFY_SUCCEEDED(vkAllocateDescriptorSets(Device, &DSAI, &DescriptorSets.emplace_back()));
 		}
@@ -448,8 +448,8 @@ public:
 			.pInheritanceInfo = &CBII
 		};
 		VERIFY_SUCCEEDED(vkBeginCommandBuffer(SCB, &SCBBI)); {
-			vkCmdSetViewport(SCB, 0, static_cast<uint32_t>(size(Viewports)), data(Viewports));
-			vkCmdSetScissor(SCB, 0, static_cast<uint32_t>(size(ScissorRects)), data(ScissorRects));
+			vkCmdSetViewport(SCB, 0, static_cast<uint32_t>(std::size(Viewports)), std::data(Viewports));
+			vkCmdSetScissor(SCB, 0, static_cast<uint32_t>(std::size(ScissorRects)), std::data(ScissorRects));
 
 			VkMemoryRequirements MR;
 			vkGetBufferMemoryRequirements(Device, UniformBuffers[0].Buffer, &MR);
@@ -459,17 +459,17 @@ public:
 			const std::array DSs = { DS };
 			for (auto j = 0; j < std::size(Meshes); ++j) {
 				const std::array DynamicOffsets = { static_cast<uint32_t>(RoundUp(sizeof(WorldBuffers[0]) * j, MR.alignment))};
-				vkCmdBindDescriptorSets(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PLL, 0, static_cast<uint32_t>(size(DSs)), data(DSs), static_cast<uint32_t>(size(DynamicOffsets)), data(DynamicOffsets));
+				vkCmdBindDescriptorSets(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PLL, 0, static_cast<uint32_t>(std::size(DSs)), std::data(DSs), static_cast<uint32_t>(std::size(DynamicOffsets)), std::data(DynamicOffsets));
 
 				const std::array VBs = { VertexBuffers[j].Buffer };
 				const std::array Offsets = { VkDeviceSize(0) };
-				vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs)), data(VBs), data(Offsets));
+				vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(std::size(VBs)), std::data(VBs), std::data(Offsets));
 				vkCmdBindIndexBuffer(SCB, IndexBuffers[j].Buffer, 0, VK_INDEX_TYPE_UINT32);
 				vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[j].Buffer, 0, 1, 0);
 			}
 
 			const std::array DynamicOffsets = { static_cast<uint32_t>(0) };
-			vkCmdBindDescriptorSets(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PLL, 0, static_cast<uint32_t>(size(DSs)), data(DSs), static_cast<uint32_t>(size(DynamicOffsets)), data(DynamicOffsets));
+			vkCmdBindDescriptorSets(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PLL, 0, static_cast<uint32_t>(std::size(DSs)), std::data(DSs), static_cast<uint32_t>(std::size(DynamicOffsets)), std::data(DynamicOffsets));
 
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
 			vkCmdDrawIndirect(SCB, IndirectBuffers[std::size(Meshes)].Buffer, 0, 1, 0);
@@ -495,11 +495,11 @@ public:
 				.renderPass = RP,
 				.framebuffer = FB,
 				.renderArea = VkRect2D({.offset = VkOffset2D({.x = 0, .y = 0 }), .extent = SurfaceExtent2D }),
-				.clearValueCount = static_cast<uint32_t>(size(CVs)), .pClearValues = data(CVs)
+				.clearValueCount = static_cast<uint32_t>(std::size(CVs)), .pClearValues = std::data(CVs)
 			};
 			vkCmdBeginRenderPass(CB, &RPBI, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS); {
 				const std::array SCBs = { SCB };
-				vkCmdExecuteCommands(CB, static_cast<uint32_t>(size(SCBs)), data(SCBs));
+				vkCmdExecuteCommands(CB, static_cast<uint32_t>(std::size(SCBs)), std::data(SCBs));
 			} vkCmdEndRenderPass(CB);
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(CB));
 	}
@@ -643,7 +643,7 @@ public:
 		default:
 			break;
 		}
-		//LOG(data(std::format("No implementation for {} vs {}\n", Nameof(ColiType0), Nameof(ColiType1))));
+		//LOG(std::data(std::format("No implementation for {} vs {}\n", Nameof(ColiType0), Nameof(ColiType1))));
 	}
 	virtual void UpdateViewProjectionBuffer() {
 		const auto PosFrt = glm::vec3(0.0f, 0.0f, 10.0f);

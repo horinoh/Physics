@@ -722,7 +722,7 @@ void Physics::ManifoldCollector::PreSolve(const float DeltaSec)
 {
 #ifdef _DEBUG
 	//for (auto i = 0; i < std::size(Manifolds);++i) {
-	//	LOG(data(std::format("Manifold[{}] Contacts = {}\n", i, std::size(Manifolds[i].Constraints))));
+	//	LOG(std::data(std::format("Manifold[{}] Contacts = {}\n", i, std::size(Manifolds[i].Constraints))));
 	//}
 #endif
 

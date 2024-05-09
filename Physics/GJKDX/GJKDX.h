@@ -77,7 +77,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Vertices));
+								std::memcpy(std::data(Vertices), std::data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Vertices));
 							}
 							break;
 							default: break;
@@ -99,7 +99,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Normals), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Normals));
+								std::memcpy(std::data(Normals), std::data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Normals));
 							}
 							break;
 							default: break;
@@ -155,10 +155,10 @@ public:
 		case 'D':
 			X += Speed;
 			break;
-		case 'Z':
+		case 'Q':
 			Z -= Speed;
 			break;
-		case 'X':
+		case 'E':
 			Z += Speed;
 			break;
 
@@ -184,7 +184,7 @@ public:
 
 		if (nullptr != Scene) {
 			if (0 < size(Scene->RigidBodies)) {
-				const auto Rb = Scene->RigidBodies[0];
+				const auto Rb = Scene->RigidBodies[0].get();
 
 				Rb->Position = Math::Vec3(
 					(std::clamp)(Rb->Position.X() + X, -5.0f, 5.0f),
@@ -223,7 +223,7 @@ public:
 		std::ranges::copy(ShapeVert, std::back_inserter(Vec3s));
 #endif
 
-		auto Convex = static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(new Physics::ShapeConvex()));
+		auto Convex = static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>()).get());
 		//!< 凸包を構築
 		Convex->Init(Vec3s);
 		//!< 描画用の頂点、インデックスを構築
@@ -237,11 +237,11 @@ public:
 		}
 
 		for (auto i = 0; i < _countof(WorldBuffer.Instances); ++i) {
-			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 			Rb->Position = 0 == i ? Math::Vec3::AxisZ() * 5.0f : Math::Vec3::Zero();
 			Rb->Rotation = Math::Quat::Identity();
 			Rb->InvMass = 0.0f;
-			Rb->Init(Scene->Shapes.back());
+			Rb->Init(Scene->Shapes.back().get());
 		}
 
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);
@@ -251,13 +251,13 @@ public:
 #ifdef USE_MESH
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Vertices), sizeof(Vertices[0]));
 		UploadResource UploadVertex;
-		UploadVertex.Create(COM_PTR_GET(Device), TotalSizeOf(Vertices), data(Vertices));
+		UploadVertex.Create(COM_PTR_GET(Device), TotalSizeOf(Vertices), std::data(Vertices));
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Normals), sizeof(Normals[0]));
 		UploadResource UploadNormal;
-		UploadNormal.Create(COM_PTR_GET(Device), TotalSizeOf(Normals), data(Normals));
+		UploadNormal.Create(COM_PTR_GET(Device), TotalSizeOf(Normals), std::data(Normals));
 		IndexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Indices), DXGI_FORMAT_R32_UINT);
 		UploadResource UploadIndex;
-		UploadIndex.Create(COM_PTR_GET(Device), TotalSizeOf(Indices), data(Indices));
+		UploadIndex.Create(COM_PTR_GET(Device), TotalSizeOf(Indices), std::data(Indices));
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = {
 			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)),
 			.InstanceCount = _countof(WorldBuffer.Instances),
@@ -272,12 +272,12 @@ public:
 
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Vertices_CH), sizeof(Vertices_CH[0]));
 		UploadResource UploadVertex_CH;
-		UploadVertex_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Vertices_CH), data(Vertices_CH));
+		UploadVertex_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Vertices_CH), std::data(Vertices_CH));
 		IndexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Indices_CH), DXGI_FORMAT_R32_UINT);
 		UploadResource UploadIndex_CH;
-		UploadIndex_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Indices_CH), data(Indices_CH));
+		UploadIndex_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Indices_CH), std::data(Indices_CH));
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA_CH = {
-			.IndexCountPerInstance = static_cast<UINT32>(size(Indices_CH)),
+			.IndexCountPerInstance = static_cast<UINT32>(std::size(Indices_CH)),
 			.InstanceCount = _countof(WorldBuffer.Instances),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
@@ -351,7 +351,7 @@ public:
 			{
 				D3D12_ROOT_PARAMETER1({
 					.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-					.DescriptorTable = D3D12_ROOT_DESCRIPTOR_TABLE1({.NumDescriptorRanges = static_cast<UINT>(size(DRs)), .pDescriptorRanges = data(DRs) }),
+					.DescriptorTable = D3D12_ROOT_DESCRIPTOR_TABLE1({.NumDescriptorRanges = static_cast<UINT>(std::size(DRs)), .pDescriptorRanges = std::data(DRs) }),
 					.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
 				}),
 			},
@@ -366,8 +366,8 @@ public:
 		PipelineStates.emplace_back();
 
 		std::vector<COM_PTR<ID3DBlob>> SBs;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "GJKDX_PN.vs.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "GJKDX_PN.ps.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(std::data((std::filesystem::path(".") / "GJKDX_PN.vs.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(std::data((std::filesystem::path(".") / "GJKDX_PN.ps.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
 		const std::array SBCs = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs[0]->GetBufferPointer(), .BytecodeLength = SBs[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs[1]->GetBufferPointer(), .BytecodeLength = SBs[1]->GetBufferSize() }),
@@ -387,8 +387,8 @@ public:
 		DX::CreatePipelineState_VsPs_Input(PipelineStates[0], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, RD, TRUE, IEDs, SBCs);
 
 		std::vector<COM_PTR<ID3DBlob>> SBs_CH;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "GJKDX_CH_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "GJKDX_CH_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(std::data((std::filesystem::path(".") / "GJKDX_CH_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(std::data((std::filesystem::path(".") / "GJKDX_CH_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CH.emplace_back())));
 		const std::array SBCs_CH = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CH[0]->GetBufferPointer(), .BytecodeLength = SBs_CH[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CH[1]->GetBufferPointer(), .BytecodeLength = SBs_CH[1]->GetBufferSize() }),
@@ -407,8 +407,8 @@ public:
 		DX::CreatePipelineState_VsPs_Input(PipelineStates[1], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, RD_CH, TRUE, IEDs_CH, SBCs_CH);
 
 		std::vector<COM_PTR<ID3DBlob>> SBs_CP;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "GJKDX_CP_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CP.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "GJKDX_CP_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CP.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(std::data((std::filesystem::path(".") / "GJKDX_CP_P.vs.cso").wstring()), COM_PTR_PUT(SBs_CP.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(std::data((std::filesystem::path(".") / "GJKDX_CP_P.ps.cso").wstring()), COM_PTR_PUT(SBs_CP.emplace_back())));
 		const std::array SBCs_CP = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CP[0]->GetBufferPointer(), .BytecodeLength = SBs_CP[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_CP[1]->GetBufferPointer(), .BytecodeLength = SBs_CP[1]->GetBufferSize() }),
@@ -509,13 +509,13 @@ public:
 #ifdef USE_MESH
 			BCL->SetPipelineState(PS0);
 			const std::array VBVs = { VertexBuffers[0].View, VertexBuffers[1].View };
-			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs)), data(VBVs));
+			BCL->IASetVertexBuffers(0, static_cast<UINT>(std::size(VBVs)), std::data(VBVs));
 			BCL->IASetIndexBuffer(&IndexBuffers[0].View);
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
 
 			BCL->SetPipelineState(PS1);
 			const std::array VBVs_CH = { VertexBuffers[2].View };
-			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs_CH)), data(VBVs_CH));
+			BCL->IASetVertexBuffers(0, static_cast<UINT>(std::size(VBVs_CH)), std::data(VBVs_CH));
 			BCL->IASetIndexBuffer(&IndexBuffers[1].View);
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[1].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[1].Resource), 0, nullptr, 0);
 
@@ -524,7 +524,7 @@ public:
 #else
 			BCL->SetPipelineState(PS1);
 			const std::array VBVs_CH = { VertexBuffers[0].View };
-			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs_CH)), data(VBVs_CH));
+			BCL->IASetVertexBuffers(0, static_cast<UINT>(std::size(VBVs_CH)), std::data(VBVs_CH));
 			BCL->IASetIndexBuffer(&IndexBuffers[0].View);
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
 
@@ -543,8 +543,8 @@ public:
 		{
 			DCL->SetGraphicsRootSignature(COM_PTR_GET(RootSignatures[0]));
 
-			DCL->RSSetViewports(static_cast<UINT>(size(Viewports)), data(Viewports));
-			DCL->RSSetScissorRects(static_cast<UINT>(size(ScissorRects)), data(ScissorRects));
+			DCL->RSSetViewports(static_cast<UINT>(std::size(Viewports)), std::data(Viewports));
+			DCL->RSSetScissorRects(static_cast<UINT>(std::size(ScissorRects)), std::data(ScissorRects));
 
 			const auto SCR = COM_PTR_GET(SwapChainBackBuffers[i].Resource);
 			ResourceBarrier(DCL, SCR, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -552,11 +552,11 @@ public:
 				const auto& HandleDSV = DsvDescs[0].second;
 
 				constexpr std::array<D3D12_RECT, 0> Rects = {};
-				DCL->ClearRenderTargetView(SwapChainBackBuffers[i].Handle, DirectX::Colors::SkyBlue, static_cast<UINT>(size(Rects)), data(Rects));
-				DCL->ClearDepthStencilView(HandleDSV[0], D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, static_cast<UINT>(size(Rects)), data(Rects));
+				DCL->ClearRenderTargetView(SwapChainBackBuffers[i].Handle, DirectX::Colors::SkyBlue, static_cast<UINT>(std::size(Rects)), std::data(Rects));
+				DCL->ClearDepthStencilView(HandleDSV[0], D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, static_cast<UINT>(std::size(Rects)), std::data(Rects));
 
 				const std::array CHs = { SwapChainBackBuffers[i].Handle };
-				DCL->OMSetRenderTargets(static_cast<UINT>(size(CHs)), data(CHs), FALSE, &HandleDSV[0]);
+				DCL->OMSetRenderTargets(static_cast<UINT>(std::size(CHs)), std::data(CHs), FALSE, &HandleDSV[0]);
 
 				{
 					const auto& Desc = CbvSrvUavDescs[i];
@@ -564,7 +564,7 @@ public:
 					const auto& Handle = Desc.second;
 
 					const std::array DHs = { COM_PTR_GET(Heap) };
-					DCL->SetDescriptorHeaps(static_cast<UINT>(size(DHs)), data(DHs));
+					DCL->SetDescriptorHeaps(static_cast<UINT>(std::size(DHs)), std::data(DHs));
 
 					DCL->SetGraphicsRootDescriptorTable(0, Handle[0]);
 				}
@@ -580,7 +580,7 @@ public:
 		if (nullptr != Scene) {
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances)) {
-					const auto Rb = Scene->RigidBodies[i];
+					const auto Rb = Scene->RigidBodies[i].get();
 					const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 					const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
 
@@ -591,8 +591,8 @@ public:
 				WorldBuffer.Instances[i].Color = { 1.0f, 1.0f, 1.0f };
 				WorldBuffer.Instances[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
 			}
-			const auto RbA = Scene->RigidBodies[0];
-			const auto RbB = Scene->RigidBodies[1];
+			const auto RbA = Scene->RigidBodies[0].get();
+			const auto RbB = Scene->RigidBodies[1].get();
 			Math::Vec3 OnA, OnB;
 			if (Collision::Intersection::GJK_EPA(RbA, RbB, 0.01f, OnA, OnB)) {
 				WorldBuffer.Instances[0].Color = { 1.0f, 1.0f, 0.0f };
@@ -603,8 +603,8 @@ public:
 			}
 			DirectX::XMStoreFloat3(&WorldBuffer.Instances[0].ClosestPoint, DirectX::XMVectorSet(OnA.X(), OnA.Y(), OnA.Z(), 0.0f));
 			DirectX::XMStoreFloat3(&WorldBuffer.Instances[1].ClosestPoint, DirectX::XMVectorSet(OnB.X(), OnB.Y(), OnB.Z(), 0.0f));
-			//LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
-			//LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
+			//LOG(std::data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
+			//LOG(std::data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
 		}
 	}
 	virtual void UpdateViewProjectionBuffer() {

@@ -61,7 +61,7 @@ void DX::CreateDevice([[maybe_unused]] HWND hWnd)
 	for (const auto i : FeatureLevels) {
 		if (SUCCEEDED(D3D12CreateDevice(COM_PTR_GET(Adapter), i, COM_PTR_UUIDOF_PUTVOID(Device)))) {
 			//!< NumFeatureLevels, pFeatureLevelsRequested は入力、MaxSupportedFeatureLevel は出力となる (NumFeatureLevels, pFeatureLevelsRequested is input, MaxSupportedFeatureLevel is output)
-			D3D12_FEATURE_DATA_FEATURE_LEVELS FDFL = { .NumFeatureLevels = static_cast<UINT>(size(FeatureLevels)), .pFeatureLevelsRequested = data(FeatureLevels) };
+			D3D12_FEATURE_DATA_FEATURE_LEVELS FDFL = { .NumFeatureLevels = static_cast<UINT>(size(FeatureLevels)), .pFeatureLevelsRequested = std::data(FeatureLevels) };
 			VERIFY_SUCCEEDED(Device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, reinterpret_cast<void*>(&FDFL), sizeof(FDFL)));
 #define D3D_FEATURE_LEVEL_ENTRY(fl) case D3D_FEATURE_LEVEL_##fl: break;
 			switch (FDFL.MaxSupportedFeatureLevel) {
@@ -182,13 +182,13 @@ template<> void DX::SerializeRootSignature(COM_PTR<ID3DBlob>& Blob, const std::v
 {
 	D3D12_FEATURE_DATA_ROOT_SIGNATURE FDRS = { .HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1 };
 	VERIFY_SUCCEEDED(Device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, reinterpret_cast<void*>(&FDRS), sizeof(FDRS)));
-	LOG(data(std::format("RootSignature HighestVersion = {:#x}\n", static_cast<UINT>(FDRS.HighestVersion))));
+	LOG(std::data(std::format("RootSignature HighestVersion = {:#x}\n", static_cast<UINT>(FDRS.HighestVersion))));
 	VERIFY(D3D_ROOT_SIGNATURE_VERSION_1_1 == FDRS.HighestVersion);
 
 	COM_PTR<ID3DBlob> ErrorBlob;
 	const D3D12_ROOT_SIGNATURE_DESC1 RSD = {
-		.NumParameters = static_cast<UINT>(size(RPs)), .pParameters = data(RPs),
-		.NumStaticSamplers = static_cast<UINT>(size(SSDs)), .pStaticSamplers = data(SSDs),
+		.NumParameters = static_cast<UINT>(std::size(RPs)), .pParameters = std::data(RPs),
+		.NumStaticSamplers = static_cast<UINT>(std::size(SSDs)), .pStaticSamplers = std::data(SSDs),
 		.Flags = Flags
 	};
 	const D3D12_VERSIONED_ROOT_SIGNATURE_DESC VRSD = { .Version = D3D_ROOT_SIGNATURE_VERSION_1_1, .Desc_1_1 = RSD, };
@@ -234,10 +234,10 @@ void DX::CreatePipelineStateVsPsDsHsGs(COM_PTR<ID3D12PipelineState>& PST,
 		.SampleMask = D3D12_DEFAULT_SAMPLE_MASK,
 		.RasterizerState = RD,
 		.DepthStencilState = DSD,
-		.InputLayout = D3D12_INPUT_LAYOUT_DESC({.pInputElementDescs = data(IEDs), .NumElements = static_cast<UINT>(size(IEDs)) }),
+		.InputLayout = D3D12_INPUT_LAYOUT_DESC({.pInputElementDescs = std::data(IEDs), .NumElements = static_cast<UINT>(std::size(IEDs)) }),
 		.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
 		.PrimitiveTopologyType = PTT,
-		.NumRenderTargets = static_cast<UINT>(size(RTVFormats)), .RTVFormats = {},
+		.NumRenderTargets = static_cast<UINT>(std::size(RTVFormats)), .RTVFormats = {},
 		.DSVFormat = DSD.DepthEnable ? DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_UNKNOWN,
 		.SampleDesc = DXGI_SAMPLE_DESC({.Count = 1, .Quality = 0 }),
 		.NodeMask = 0, //!< マルチGPUの場合に使用(1つしか使わない場合は0で良い)
@@ -246,10 +246,10 @@ void DX::CreatePipelineStateVsPsDsHsGs(COM_PTR<ID3D12PipelineState>& PST,
 	};
 
 	//!< レンダーターゲット数分だけ必要なもの
-	VERIFY(size(RTBDs) <= _countof(GPSD.BlendState.RenderTarget));
+	VERIFY(std::size(RTBDs) <= _countof(GPSD.BlendState.RenderTarget));
 	std::ranges::copy(RTBDs, GPSD.BlendState.RenderTarget);
 	//!< TRUE == IndependentBlendEnable の場合はレンダーターゲットの分だけ用意すること (If TRUE == IndependentBlendEnable, need NumRenderTarget elements)
-	VERIFY((false == GPSD.BlendState.IndependentBlendEnable || size(RTBDs) == GPSD.NumRenderTargets) && "");
+	VERIFY((false == GPSD.BlendState.IndependentBlendEnable || std::size(RTBDs) == GPSD.NumRenderTargets) && "");
 	VERIFY(GPSD.NumRenderTargets <= _countof(GPSD.RTVFormats));
 	std::ranges::copy(RTVFormats, GPSD.RTVFormats);
 
@@ -290,7 +290,7 @@ void DX::WaitForFence(ID3D12CommandQueue* CQ, ID3D12Fence* Fence)
 void DX::SubmitGraphics(const UINT i)
 {
 	const std::array CLs = { static_cast<ID3D12CommandList*>(COM_PTR_GET(DirectCommandLists[i])) };
-	GraphicsCommandQueue->ExecuteCommandLists(static_cast<UINT>(size(CLs)), data(CLs));
+	GraphicsCommandQueue->ExecuteCommandLists(static_cast<UINT>(std::size(CLs)), std::data(CLs));
 }
 void DX::Present()
 {

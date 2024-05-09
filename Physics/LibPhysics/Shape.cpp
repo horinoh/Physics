@@ -19,11 +19,11 @@ Physics::ShapeConvex& Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& 
 	InertiaTensor = Convex::Tetrahedron::CalcInertiaTensor(Vertices, Indices, CenterOfMass);
 #endif
 
-	LOG(data(std::string("CenterOfMass = \n")));
-	LOG(data(CenterOfMass.ToString()));
+	LOG(std::data(std::string("CenterOfMass = \n")));
+	LOG(std::data(CenterOfMass.ToString()));
 
-	LOG(data(std::string("InertiaTensor = \n")));
-	LOG(data(InertiaTensor.ToString()));
+	LOG(std::data(std::string("InertiaTensor = \n")));
+	LOG(std::data(InertiaTensor.ToString()));
 
 	InvInertiaTensor = InertiaTensor.Inverse();
 

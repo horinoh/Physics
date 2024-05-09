@@ -88,7 +88,7 @@ void Convex::CollectUniqueEdges(std::vector<Collision::TriInds>::const_iterator 
 //!< ハイポリを食わせるとかなり時間がかかる上に結局ハイポリの凸包ができるだけなのでコリジョンとして現実的ではない、ローポリを食わせること
 void Convex::BuildConvexHull(const std::vector<Math::Vec3>& Pts, std::vector<Math::Vec3>& Vertices, std::vector<Collision::TriInds>& Indices)
 {
-	LOG(data(std::format("Building convex hull...\n")));
+	LOG(std::data(std::format("Building convex hull...\n")));
 
 	//!< まずは「なるべく」包含するような四面体を作成
 	BuildTetrahedron(Pts, Vertices, Indices);
@@ -99,7 +99,7 @@ void Convex::BuildConvexHull(const std::vector<Math::Vec3>& Pts, std::vector<Mat
 
 	//!< 外部点が無くなるまで繰り返す
 	while (!std::empty(External)) {
-		LOG(data(std::format("Rest vertices = {}\n", size(External))));
+		LOG(std::data(std::format("Rest vertices = {}\n", size(External))));
 
 		//!< 最遠点を見つける
 		const auto ExFarIt = Collision::Distance::Farthest(External, External[0]);
@@ -147,7 +147,7 @@ void Convex::BuildConvexHull(const std::vector<Math::Vec3>& Pts, std::vector<Mat
 
 Math::Vec3 Convex::Uniform::CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
 {
-	LOG(data(std::format("Calculating center of mass (Uniform)...\n")));
+	LOG(std::data(std::format("Calculating center of mass (Uniform)...\n")));
 
 	//!< 各軸にサンプリングする個数 (計算に時間がかかる)
 	constexpr auto SampleCount = 100;
@@ -173,7 +173,7 @@ Math::Vec3 Convex::Uniform::CalcCenterOfMass(const Collision::AABB& Aabb, const 
 
 Math::Mat3 Convex::Uniform::CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
 {
-	LOG(data(std::format("Calculating inertia tensor (Uniform)...\n")));
+	LOG(std::data(std::format("Calculating inertia tensor (Uniform)...\n")));
 
 	//!< 各軸にサンプリングする個数 (計算に時間がかかる)
 	constexpr auto SampleCount = 100;
@@ -203,7 +203,7 @@ Math::Mat3 Convex::Uniform::CalcInertiaTensor(const Collision::AABB& Aabb, const
 
 Math::Vec3 Convex::MonteCarlo::CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
 {
-	LOG(data(std::format("Calculating center of mass (Monte carlo)...\n")));
+	LOG(std::data(std::format("Calculating center of mass (Monte carlo)...\n")));
 
 #if 0
 	//!< 真乱数でシードを生成する
@@ -237,7 +237,7 @@ Math::Vec3 Convex::MonteCarlo::CalcCenterOfMass(const Collision::AABB& Aabb, con
 
 Math::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
 {
-	LOG(data(std::format("Calculating inertia tensor (Monte carlo)...\n")));
+	LOG(std::data(std::format("Calculating inertia tensor (Monte carlo)...\n")));
 
 #if 0
 	std::random_device SeedGen;
@@ -271,7 +271,7 @@ Math::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Aabb, co
 
 Math::Vec3 Convex::Tetrahedron::CalcCenterOfMass(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
 {
-	LOG(data(std::format("Calculating center of mass (Tetrahedron)...\n")));
+	LOG(std::data(std::format("Calculating center of mass (Tetrahedron)...\n")));
 
 	const auto MeshCenter = std::accumulate(std::begin(Vertices), std::end(Vertices), Math::Vec3::Zero()) / static_cast<float>(std::size(Vertices));
 	auto CenterOfMass = Math::Vec3::Zero();
@@ -321,7 +321,7 @@ Math::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const Math::Vec3& A, const Mat
 }
 Math::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
 {
-	LOG(data(std::format("Calculating inertia tensor (Tetrahedron)...\n")));
+	LOG(std::data(std::format("Calculating inertia tensor (Tetrahedron)...\n")));
 
 	auto TotalInertiaTensor = Math::Mat3::Zero();
 	auto TotalVolume = 0.0f;

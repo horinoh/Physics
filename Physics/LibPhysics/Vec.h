@@ -52,7 +52,7 @@ namespace Math
 		inline float X() const { return Comps[0]; }
 		inline float Y() const { return Comps[1]; }
 		inline float operator[](const int i) const { return Comps[i]; }
-		inline operator const float* () const { return data(Comps); }
+		inline operator const float* () const { return std::data(Comps); }
 
 		inline float Dot(const Vec2& rhs) const { 
 			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
@@ -91,7 +91,7 @@ namespace Math
 			return *this;
 		}
 		inline float& operator[](const int i) { return Comps[i]; }
-		inline operator float* () { return data(Comps); }
+		inline operator float* () { return std::data(Comps); }
 		inline operator const Component2& () const { return Comps; }
 		inline operator Component2& () { return Comps; }
 
@@ -152,7 +152,7 @@ namespace Math
 		inline float Y() const { return Comps[1]; }
 		inline float Z() const { return Comps[2]; }
 		inline float operator[](const int i) const { return Comps[i]; }
-		inline operator const float* () const { return data(Comps); }
+		inline operator const float* () const { return std::data(Comps); }
 
 		inline float Dot(const Vec3& rhs) const { 
 			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
@@ -205,7 +205,7 @@ namespace Math
 			return *this;
 		}
 		inline float& operator[](const int i) { return Comps[i]; }
-		inline operator float* () { return data(Comps); }
+		inline operator float* () { return std::data(Comps); }
 		inline operator const Component3& () const { return Comps; }
 		inline operator Component3& () { return Comps; }
 
@@ -266,7 +266,7 @@ namespace Math
 		inline float Z() const { return Comps[2]; }
 		inline float W() const { return Comps[3]; }
 		inline float operator[](const int i) const { return Comps[i]; }
-		inline operator const float* () const { return data(Comps); }
+		inline operator const float* () const { return std::data(Comps); }
 
 		inline float Dot(const Vec4& rhs) const { 
 			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
@@ -312,7 +312,7 @@ namespace Math
 			return *this; 
 		}
 		inline float& operator[](const int i) { return Comps[i]; }
-		inline operator float* () { return data(Comps); }
+		inline operator float* () { return std::data(Comps); }
 		inline operator const Component4& () const { return Comps; }
 		inline operator Component4& () { return Comps; }
 
@@ -371,7 +371,7 @@ namespace Math
 		}
 
 		inline float operator[](const int i) const { return Comps[i]; }
-		inline operator const float* () const { return data(Comps); }
+		inline operator const float* () const { return std::data(Comps); }
 
 		inline float Dot(const Vec& rhs) const { 
 			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
@@ -407,7 +407,7 @@ namespace Math
 			return *this; 
 		}
 		inline float& operator[](const int i) { return Comps[i]; }
-		inline operator float* () { return data(Comps); }
+		inline operator float* () { return std::data(Comps); }
 
 		inline Vec& ToZero() { return (*this = Zero()); }
 		inline Vec& ToNormalized() { return (*this = Normalize()); }

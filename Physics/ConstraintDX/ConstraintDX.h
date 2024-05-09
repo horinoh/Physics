@@ -76,7 +76,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Mesh.Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Mesh.Vertices));
+								std::memcpy(std::data(Mesh.Vertices), std::data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Mesh.Vertices));
 							}
 							break;
 							default: break;
@@ -98,7 +98,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Mesh.Normals), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Mesh.Normals));
+								std::memcpy(std::data(Mesh.Normals), std::data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Mesh.Normals));
 							}
 							break;
 							default: break;
@@ -118,8 +118,8 @@ public:
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
-			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(new Physics::ShapeBox(Radius)))->Init();
-			static_cast<Physics::ShapeSphere*>(Scene->Shapes.emplace_back(new Physics::ShapeSphere(Radius)))->Init();
+			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius)).get())->Init();
+			static_cast<Physics::ShapeSphere*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius)).get())->Init();
 
 			//!< 距離コンストレイント
 			{
@@ -127,15 +127,15 @@ public:
 				constexpr auto JntLen = 1.1f;
 				constexpr auto JntCount = 5;
 
-				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 				RbA->Position = JntRootPos;
 				RbA->InvMass = 0;
-				RbA->Init(Scene->Shapes[1]);
+				RbA->Init(Scene->Shapes[1].get());
 
 				for (auto i = 0; i < JntCount; ++i) {
-					auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 					RbB->Position = RbA->Position + Math::Vec3::AxisX() * JntLen;
-					RbB->Init(Scene->Shapes[1]);
+					RbB->Init(Scene->Shapes[1].get());
 
 					auto Jnt = new Physics::ConstraintDistance();
 					Jnt->Init(RbA, RbB, RbA->Position);
@@ -148,10 +148,10 @@ public:
 			{
 				const auto Pos = Math::Vec3(0.0f, -4.0f, 0.0f);
 
-				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 				Rb->Position = Pos;
 				Rb->InvMass = 0.0f;
-				Rb->Init(Scene->Shapes[1]);
+				Rb->Init(Scene->Shapes[1].get());
 
 				{
 					auto Jnt = new Physics::ConstraintMoverUpDown();
@@ -170,15 +170,15 @@ public:
 				constexpr auto JntLen = 1.2f;
 				constexpr auto JntCount = 5;
 
-				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 				RbA->Position = JntRootPos;
 				RbA->InvMass = 0;
-				RbA->Init(Scene->Shapes[0]);
+				RbA->Init(Scene->Shapes[0].get());
 
 				for (auto i = 0; i < JntCount; ++i) {
-					auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 					RbB->Position = RbA->Position + Math::Vec3::AxisZ() * JntLen;
-					RbB->Init(Scene->Shapes[0]);
+					RbB->Init(Scene->Shapes[0].get());
 
 					auto Jnt = new Physics::ConstraintHinge();
 					Jnt->Init(RbA, RbB, RbA->Position, Math::Vec3::AxisX());
@@ -193,15 +193,15 @@ public:
 				constexpr auto JntLen = 1.2f;
 				constexpr auto JntCount = 5;
 
-				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 				RbA->Position = JntRootPos;
 				RbA->InvMass = 0;
-				RbA->Init(Scene->Shapes[0]);
+				RbA->Init(Scene->Shapes[0].get());
 
 				for (auto i = 0; i < JntCount; ++i) {
-					auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 					RbB->Position = RbA->Position + Math::Vec3::AxisX() * JntLen;
-					RbB->Init(Scene->Shapes[0]);
+					RbB->Init(Scene->Shapes[0].get());
 
 					auto Jnt = new Physics::ConstraintHingeLimited();
 					Jnt->Init(RbA, RbB, RbA->Position, Math::Vec3::AxisZ());
@@ -214,14 +214,14 @@ public:
 			{
 				const auto Pos = Math::Vec3(15.0f, 6.0f, 0.0f);
 
-				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 				RbA->Position = Pos;
 				RbA->InvMass = 0.0f;
-				RbA->Init(Scene->Shapes[1]);
+				RbA->Init(Scene->Shapes[1].get());
 
-				auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 				RbB->Position = Pos - Math::Vec3::AxisX() * 1.2f;
-				RbB->Init(Scene->Shapes[0]);
+				RbB->Init(Scene->Shapes[0].get());
 
 				auto Jnt = new Physics::ConstraintBallSocket();
 				Jnt->Init(RbA, RbB, RbA->Position, Math::Vec3::AxisY());
@@ -237,14 +237,14 @@ public:
 			{
 				const auto Pos = Math::Vec3(-15.0f, 6.0f, 0.0f);
 
-				auto RbA = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 				RbA->Position = Pos;
 				RbA->InvMass = 0.0f;
-				RbA->Init(Scene->Shapes[1]);
+				RbA->Init(Scene->Shapes[1].get());
 
-				auto RbB = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+				auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 				RbB->Position = Pos - Math::Vec3::AxisY() * 1.2f;
-				RbB->Init(Scene->Shapes[0]);
+				RbB->Init(Scene->Shapes[0].get());
 
 				auto Jnt = new Physics::ConstraintMotor();
 				Jnt->Init(RbA, RbB, RbA->Position, Math::Vec3::AxisY(), 2.0f);
@@ -297,15 +297,15 @@ public:
 		const auto& Box = Meshes[0];
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Box.Vertices), sizeof(Box.Vertices[0]));
 		UploadResource UploadVertex_Box;
-		UploadVertex_Box.Create(COM_PTR_GET(Device), TotalSizeOf(Box.Vertices), data(Box.Vertices));
+		UploadVertex_Box.Create(COM_PTR_GET(Device), TotalSizeOf(Box.Vertices), std::data(Box.Vertices));
 
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Box.Normals), sizeof(Box.Normals[0]));
 		UploadResource UploadNormal_Box;
-		UploadNormal_Box.Create(COM_PTR_GET(Device), TotalSizeOf(Box.Normals), data(Box.Normals));
+		UploadNormal_Box.Create(COM_PTR_GET(Device), TotalSizeOf(Box.Normals), std::data(Box.Normals));
 
 		IndexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Box.Indices), DXGI_FORMAT_R32_UINT);
 		UploadResource UploadIndex_Box;
-		UploadIndex_Box.Create(COM_PTR_GET(Device), TotalSizeOf(Box.Indices), data(Box.Indices));
+		UploadIndex_Box.Create(COM_PTR_GET(Device), TotalSizeOf(Box.Indices), std::data(Box.Indices));
 
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA_Box = {
 			.IndexCountPerInstance = static_cast<UINT32>(size(Box.Indices)),
@@ -321,15 +321,15 @@ public:
 		const auto& Sphere = Meshes[1];
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Sphere.Vertices), sizeof(Sphere.Vertices[0]));
 		UploadResource UploadVertex_Sphere;
-		UploadVertex_Sphere.Create(COM_PTR_GET(Device), TotalSizeOf(Sphere.Vertices), data(Sphere.Vertices));
+		UploadVertex_Sphere.Create(COM_PTR_GET(Device), TotalSizeOf(Sphere.Vertices), std::data(Sphere.Vertices));
 
 		VertexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Sphere.Normals), sizeof(Sphere.Normals[0]));
 		UploadResource UploadNormal_Sphere;
-		UploadNormal_Sphere.Create(COM_PTR_GET(Device), TotalSizeOf(Sphere.Normals), data(Sphere.Normals));
+		UploadNormal_Sphere.Create(COM_PTR_GET(Device), TotalSizeOf(Sphere.Normals), std::data(Sphere.Normals));
 
 		IndexBuffers.emplace_back().Create(COM_PTR_GET(Device), TotalSizeOf(Sphere.Indices), DXGI_FORMAT_R32_UINT);
 		UploadResource UploadIndex_Sphere;
-		UploadIndex_Sphere.Create(COM_PTR_GET(Device), TotalSizeOf(Sphere.Indices), data(Sphere.Indices));
+		UploadIndex_Sphere.Create(COM_PTR_GET(Device), TotalSizeOf(Sphere.Indices), std::data(Sphere.Indices));
 
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA_Sphere = {
 			.IndexCountPerInstance = static_cast<UINT32>(size(Sphere.Indices)),
@@ -388,7 +388,7 @@ public:
 			{
 				D3D12_ROOT_PARAMETER1({
 					.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-					.DescriptorTable = D3D12_ROOT_DESCRIPTOR_TABLE1({.NumDescriptorRanges = static_cast<UINT>(size(DRs)), .pDescriptorRanges = data(DRs) }),
+					.DescriptorTable = D3D12_ROOT_DESCRIPTOR_TABLE1({.NumDescriptorRanges = static_cast<UINT>(size(DRs)), .pDescriptorRanges = std::data(DRs) }),
 					.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
 				}),
 			},
@@ -402,8 +402,8 @@ public:
 		PipelineStates.emplace_back();
 
 		std::vector<COM_PTR<ID3DBlob>> SBs;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConstraintDX.vs.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConstraintDX.ps.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(std::data((std::filesystem::path(".") / "ConstraintDX.vs.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(std::data((std::filesystem::path(".") / "ConstraintDX.ps.cso").wstring()), COM_PTR_PUT(SBs.emplace_back())));
 		const std::array SBCs = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs[0]->GetBufferPointer(), .BytecodeLength = SBs[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs[1]->GetBufferPointer(), .BytecodeLength = SBs[1]->GetBufferSize() }),
@@ -423,8 +423,8 @@ public:
 		DX::CreatePipelineState_VsPs_Input(PipelineStates[0], COM_PTR_GET(RootSignatures[0]), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, RD, TRUE, IEDs, SBCs);
 
 		std::vector<COM_PTR<ID3DBlob>> SBs_1;
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConstraintDX_1.vs.cso").wstring()), COM_PTR_PUT(SBs_1.emplace_back())));
-		VERIFY_SUCCEEDED(D3DReadFileToBlob(data((std::filesystem::path(".") / "ConstraintDX.ps.cso").wstring()), COM_PTR_PUT(SBs_1.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(std::data((std::filesystem::path(".") / "ConstraintDX_1.vs.cso").wstring()), COM_PTR_PUT(SBs_1.emplace_back())));
+		VERIFY_SUCCEEDED(D3DReadFileToBlob(std::data((std::filesystem::path(".") / "ConstraintDX.ps.cso").wstring()), COM_PTR_PUT(SBs_1.emplace_back())));
 		const std::array SBCs_1 = {
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_1[0]->GetBufferPointer(), .BytecodeLength = SBs_1[0]->GetBufferSize() }),
 			D3D12_SHADER_BYTECODE({.pShaderBytecode = SBs_1[1]->GetBufferPointer(), .BytecodeLength = SBs_1[1]->GetBufferSize() }),
@@ -512,14 +512,14 @@ public:
 			BCL->SetPipelineState(PS0);
 			{
 				const std::array VBVs = { VertexBuffers[0].View, VertexBuffers[1].View };
-				BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs)), data(VBVs));
+				BCL->IASetVertexBuffers(0, static_cast<UINT>(std::size(VBVs)), std::data(VBVs));
 				BCL->IASetIndexBuffer(&IndexBuffers[0].View);
 				BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
 			}
 			BCL->SetPipelineState(PS1);
 			{
 				const std::array VBVs = { VertexBuffers[2].View, VertexBuffers[3].View };
-				BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs)), data(VBVs));
+				BCL->IASetVertexBuffers(0, static_cast<UINT>(std::size(VBVs)), std::data(VBVs));
 				BCL->IASetIndexBuffer(&IndexBuffers[1].View);
 				BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[1].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[1].Resource), 0, nullptr, 0);
 			}
@@ -535,8 +535,8 @@ public:
 		{
 			DCL->SetGraphicsRootSignature(COM_PTR_GET(RootSignatures[0]));
 
-			DCL->RSSetViewports(static_cast<UINT>(size(Viewports)), data(Viewports));
-			DCL->RSSetScissorRects(static_cast<UINT>(size(ScissorRects)), data(ScissorRects));
+			DCL->RSSetViewports(static_cast<UINT>(std::size(Viewports)), std::data(Viewports));
+			DCL->RSSetScissorRects(static_cast<UINT>(std::size(ScissorRects)), std::data(ScissorRects));
 
 			const auto SCR = COM_PTR_GET(SwapChainBackBuffers[i].Resource);
 			ResourceBarrier(DCL, SCR, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -544,11 +544,11 @@ public:
 				const auto& HandleDSV = DsvDescs[0].second;
 
 				constexpr std::array<D3D12_RECT, 0> Rects = {};
-				DCL->ClearRenderTargetView(SwapChainBackBuffers[i].Handle, DirectX::Colors::SkyBlue, static_cast<UINT>(size(Rects)), data(Rects));
-				DCL->ClearDepthStencilView(HandleDSV[0], D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, static_cast<UINT>(size(Rects)), data(Rects));
+				DCL->ClearRenderTargetView(SwapChainBackBuffers[i].Handle, DirectX::Colors::SkyBlue, static_cast<UINT>(size(Rects)), std::data(Rects));
+				DCL->ClearDepthStencilView(HandleDSV[0], D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, static_cast<UINT>(size(Rects)), std::data(Rects));
 
 				const std::array CHs = { SwapChainBackBuffers[i].Handle };
-				DCL->OMSetRenderTargets(static_cast<UINT>(size(CHs)), data(CHs), FALSE, &HandleDSV[0]);
+				DCL->OMSetRenderTargets(static_cast<UINT>(std::size(CHs)), std::data(CHs), FALSE, &HandleDSV[0]);
 
 				{
 					const auto& Desc = CbvSrvUavDescs[i];
@@ -556,7 +556,7 @@ public:
 					const auto& Handle = Desc.second;
 
 					const std::array DHs = { COM_PTR_GET(Heap) };
-					DCL->SetDescriptorHeaps(static_cast<UINT>(size(DHs)), data(DHs));
+					DCL->SetDescriptorHeaps(static_cast<UINT>(std::size(DHs)), std::data(DHs));
 
 					DCL->SetGraphicsRootDescriptorTable(0, Handle[0]);
 				}
@@ -571,7 +571,7 @@ public:
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
 			for (auto i = 0, i0 = 0, i1 = 0; i < size(Scene->RigidBodies); ++i) {
-				const auto Rb = Scene->RigidBodies[i];
+				const auto Rb = Scene->RigidBodies[i].get();
 				const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 				const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
 				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE::BOX) {

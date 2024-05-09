@@ -37,7 +37,7 @@
 #include "Common.h"
 
 #ifdef _DEBUG
-#define VERIFY_SUCCEEDED(x) { const auto HR = (x); if(!SUCCEEDED(HR)){ LOG(data(std::format("HRESULT = {:#x}\n", static_cast<UINT>(HR)))); __debugbreak(); } }
+#define VERIFY_SUCCEEDED(x) { const auto HR = (x); if(!SUCCEEDED(HR)){ LOG(std::data(std::format("HRESULT = {:#x}\n", static_cast<UINT>(HR)))); __debugbreak(); } }
 #define VERIFY(x) if(!(x)){ __debugbreak(); }
 #else
 #define VERIFY_SUCCEEDED(x) (x)
@@ -50,7 +50,7 @@ public:
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) {
 		GetClientRect(hWnd, &Rect);
 		const auto W = Rect.right - Rect.left, H = Rect.bottom - Rect.top;
-		LOG(data(std::format("Rect = {} x {}\n", W, H)));
+		LOG(std::data(std::format("Rect = {} x {}\n", W, H)));
 
 		CreateDevice(hWnd);
 		CreateCommandQueue();
@@ -260,7 +260,7 @@ protected:
 	}
 	static void ExecuteAndWait(ID3D12CommandQueue* CQ, ID3D12CommandList* CL, ID3D12Fence* Fence) {
 		const std::array CLs = { CL };
-		CQ->ExecuteCommandLists(static_cast<UINT>(size(CLs)), data(CLs));
+		CQ->ExecuteCommandLists(static_cast<UINT>(std::size(CLs)), std::data(CLs));
 		WaitForFence(CQ, Fence);
 	}
 	static void ResourceBarrier(ID3D12GraphicsCommandList* GCL, 
@@ -276,7 +276,7 @@ protected:
 				})
 			})
 		};
-		GCL->ResourceBarrier(static_cast<UINT>(size(RBs)), data(RBs));
+		GCL->ResourceBarrier(static_cast<UINT>(std::size(RBs)), std::data(RBs));
 	}
 	static void ResourceBarrier2(ID3D12GraphicsCommandList* GCL, 
 		ID3D12Resource* Resource0, const D3D12_RESOURCE_STATES Before0, const D3D12_RESOURCE_STATES After0,
@@ -301,7 +301,7 @@ protected:
 				})
 			})
 		};
-		GCL->ResourceBarrier(static_cast<UINT>(size(RBs)), data(RBs));
+		GCL->ResourceBarrier(static_cast<UINT>(std::size(RBs)), std::data(RBs));
 	}
 	static void CopyToUploadResource(ID3D12Resource* Resource, const size_t Size, const void* Source, const D3D12_RANGE* Range = nullptr) {
 		if (nullptr != Resource && Size && nullptr != Source) [[likely]] {
@@ -381,13 +381,13 @@ protected:
 		const auto CL = COM_PTR_GET(DirectCommandLists[i]);
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);
 		VERIFY_SUCCEEDED(CL->Reset(CA, nullptr)); {
-			CL->RSSetViewports(static_cast<UINT>(size(Viewports)), data(Viewports));
-			CL->RSSetScissorRects(static_cast<UINT>(size(ScissorRects)), data(ScissorRects));
+			CL->RSSetViewports(static_cast<UINT>(std::size(Viewports)), std::data(Viewports));
+			CL->RSSetScissorRects(static_cast<UINT>(std::size(ScissorRects)), std::data(ScissorRects));
 			const auto SCR = COM_PTR_GET(SwapChainBackBuffers[i].Resource);
 			ResourceBarrier(CL, SCR, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 			{
 				constexpr std::array<D3D12_RECT, 0> Rects = {};
-				CL->ClearRenderTargetView(SwapChainBackBuffers[i].Handle, Color, static_cast<UINT>(size(Rects)), data(Rects));
+				CL->ClearRenderTargetView(SwapChainBackBuffers[i].Handle, Color, static_cast<UINT>(std::size(Rects)), std::data(Rects));
 			}
 			ResourceBarrier(CL, SCR, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 		} VERIFY_SUCCEEDED(CL->Close());
@@ -415,7 +415,7 @@ protected:
 						})
 					})
 				};
-				GCL->ResourceBarrier(static_cast<UINT>(size(RBs)), data(RBs));
+				GCL->ResourceBarrier(static_cast<UINT>(std::size(RBs)), std::data(RBs));
 			}
 		}
 		void ExecuteCopyCommand(ID3D12Device* Device, ID3D12CommandAllocator* CA, ID3D12GraphicsCommandList* GCL, ID3D12CommandQueue* CQ, ID3D12Fence* Fence, const size_t Size, const void* Source, const D3D12_RESOURCE_STATES RS = D3D12_RESOURCE_STATE_GENERIC_READ) {
@@ -479,7 +479,11 @@ protected:
 		IndirectBuffer& Create(ID3D12Device* Device, const size_t Size, const D3D12_INDIRECT_ARGUMENT_TYPE Type) {
 			Super::Create(Device, Size);
 			const std::array IADs = { D3D12_INDIRECT_ARGUMENT_DESC({.Type = Type }), };
-			const D3D12_COMMAND_SIGNATURE_DESC CSD = { .ByteStride = static_cast<UINT>(Size), .NumArgumentDescs = static_cast<const UINT>(size(IADs)), .pArgumentDescs = data(IADs), .NodeMask = 0 };
+			const D3D12_COMMAND_SIGNATURE_DESC CSD = { 
+				.ByteStride = static_cast<UINT>(Size), 
+				.NumArgumentDescs = static_cast<const UINT>(std::size(IADs)), .pArgumentDescs = std::data(IADs), 
+				.NodeMask = 0
+			};
 			Device->CreateCommandSignature(&CSD, nullptr, COM_PTR_UUIDOF_PUTVOID(CommandSignature));
 			return *this;
 		}

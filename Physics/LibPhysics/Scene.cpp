@@ -8,25 +8,6 @@
 
 #include "Log.h"
 
-Physics::Scene::~Scene() 
-{
-	for (auto i : Shapes) {
-		if (nullptr != i) {
-			delete i;
-		}
-	}
-	for (auto i : RigidBodies) {
-		if (nullptr != i) {
-			delete i;
-		}
-	}
-	for (auto i : Constraints) {
-		if (nullptr != i) {
-			delete i;
-		}
-	}
-}
-
 #ifdef USE_BRUTE_FORCE
 void Physics::Scene::BruteForce(const float DeltaSec, std::vector<Collision::Contact>& Contacts)
 {
@@ -64,7 +45,7 @@ void Physics::Scene::BroadPhase(const float DeltaSec, std::vector<CollidablePair
 		const auto RbCount = size(RigidBodies);
 		BoundEdges.reserve(RbCount * 2);
 		for (auto i = 0; i < RbCount; ++i) {
-			const auto Rb = RigidBodies[i];
+			const auto Rb = RigidBodies[i].get();
 
 			auto Aabb = Rb->Shape->GetAABB(Rb->Position, Rb->Rotation);
 			//!< 速度分 AABB を拡張する
@@ -111,8 +92,8 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 
 	//!< 潜在的衝突相手と、実際に衝突しているかを調べる
 	for (const auto& i : CollidablePairs) {
-		const auto RbA = RigidBodies[i.first];
-		const auto RbB = RigidBodies[i.second];
+		const auto RbA = RigidBodies[i.first].get();
+		const auto RbB = RigidBodies[i.second].get();
 		if (0.0f != RbA->InvMass || 0.0f != RbB->InvMass) {
 			Collision::Contact Ct;
 			if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
@@ -134,20 +115,20 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 
 void Physics::Scene::SolveConstraint(const float DeltaSec, const uint32_t ItCount)
 {
-	for (auto i : Constraints) {
+	for (auto& i : Constraints) {
 		i->PreSolve(DeltaSec);
 	}
 	Manifolds.PreSolve(DeltaSec);
 
 	//!< １度には２剛体間のコンストレイントしか解決しないので、繰り返さないと収束しない
 	for (uint32_t c = 0; c < ItCount; ++c) {
-		for (auto i : Constraints) {
+		for (auto& i : Constraints) {
 			i->Solve();
 		}
 		Manifolds.Solve();
 	}
 
-	for (auto i : Constraints) {
+	for (auto& i : Constraints) {
 		i->PostSolve();
 	}
 	Manifolds.PostSolve();
@@ -158,7 +139,7 @@ void Physics::Scene::Update(const float DeltaSec)
 	Manifolds.RemoveExpired();
 
 	//!< 重力
-	for (auto i : RigidBodies) {
+	for (auto& i : RigidBodies) {
 		i->ApplyGravity(DeltaSec);
 	}
 
@@ -177,7 +158,7 @@ void Physics::Scene::Update(const float DeltaSec)
 		//		Cnt++;
 		//	}
 		//}
-		//LOG(data(std::format("Collidable / BruteForce = {} / {}\n", std::size(CollidablePairs), Cnt)));
+		//LOG(std::data(std::format("Collidable / BruteForce = {} / {}\n", std::size(CollidablePairs), Cnt)));
 #endif
 		NarrowPhase(DeltaSec, CollidablePairs, Contacts);
 	}
@@ -193,7 +174,7 @@ void Physics::Scene::Update(const float DeltaSec)
 		const auto Delta = i.TimeOfImpact - AccumTime;
 
 		//!< 次の衝突までシミュレーションを進める
-		for (auto j : RigidBodies) {
+		for (auto& j : RigidBodies) {
 			j->Update(Delta);
 		}
 
@@ -206,7 +187,7 @@ void Physics::Scene::Update(const float DeltaSec)
 	//!< 残りのシミュレーションを進める
 	const auto Delta = DeltaSec - AccumTime;
 	if (0.0f < Delta) {
-		for (auto i : RigidBodies) {
+		for (auto& i : RigidBodies) {
 			i->Update(Delta);
 		}
 	}

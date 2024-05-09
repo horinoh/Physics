@@ -18,7 +18,7 @@ namespace Physics
 	public:
 		using CollidablePair = std::pair<int, int>;
 
-		virtual ~Scene();
+		//virtual ~Scene() { for (auto& i : RigidBodies) { i.reset(); } }
 		
 #ifdef USE_BRUTE_FORCE
 		virtual void BruteForce(const float DeltaSec, std::vector<Collision::Contact>& Contacts);
@@ -32,9 +32,9 @@ namespace Physics
 
 		virtual void Update(const float DeltaSec);
 
-		std::vector<Physics::Shape*> Shapes;
-		std::vector<Physics::RigidBody*> RigidBodies;
-		std::vector<Physics::Constraint*> Constraints;
+		std::vector<std::unique_ptr<Physics::Shape>> Shapes;
+		std::vector<std::unique_ptr<Physics::RigidBody>> RigidBodies;
+		std::vector<std::unique_ptr<Physics::Constraint>> Constraints;
 		Physics::ManifoldCollector Manifolds;
 	};
 }

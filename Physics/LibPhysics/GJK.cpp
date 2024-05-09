@@ -335,7 +335,7 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 		OnA = Sps[A].GetA() * Lambda[0] + Sps[B].GetA() * Lambda[1] + Sps[C].GetA() * Lambda[2];
 		OnB = Sps[A].GetB() * Lambda[0] + Sps[B].GetB() * Lambda[1] + Sps[C].GetB() * Lambda[2];
 #ifdef _DEBUG
-		//LOG(data(std::format("PenetrationDistSq = {}\n", (OnB - OnA).LengthSq())));
+		//LOG(std::data(std::format("PenetrationDistSq = {}\n", (OnB - OnA).LengthSq())));
 #endif
 	}
 }

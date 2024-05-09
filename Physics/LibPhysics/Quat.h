@@ -61,7 +61,7 @@ namespace Math
 		inline float W() const { return Comps[3]; }
 		inline Vec3 XYZ() const { return { X(), Y(), Z() }; }
 		inline float operator[](const int i) const { return Comps[i]; }
-		inline operator const float* () const { return data(Comps); }
+		inline operator const float* () const { return std::data(Comps); }
 		inline operator Vec3() const { return { X(), Y(), Z() }; }
 		inline operator Mat3() const {
 			return {
@@ -115,7 +115,7 @@ namespace Math
 			return *this; 
 		}
 		inline float& operator[](const int i) { return Comps[i]; }
-		inline operator float* () { return data(Comps); }
+		inline operator float* () { return std::data(Comps); }
 		inline operator const Component4& () const { return Comps; }
 		inline operator Component4& () { return Comps; }
 

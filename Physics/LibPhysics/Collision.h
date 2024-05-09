@@ -99,6 +99,20 @@ namespace Collision
 			return  std::sqrtf(AABBPoint(Ab, Pt));
 		}
 
+		[[nodiscard]] float CapsulePointSq(const Math::Vec3& CapA, const Math::Vec3& CapB, const float CapR,
+			const Math::Vec3& Pt);
+		[[nodiscard]] static float CapsulePoint(const Math::Vec3& CapA, const Math::Vec3& CapB, const float CapR,
+			const Math::Vec3& Pt) {
+			return std::sqrtf(CapsulePointSq(CapA, CapB, CapR, Pt));
+		}
+
+		[[nodiscard]] float CylinderPointSq(const Math::Vec3& CyA, const Math::Vec3& CyB, const float CyR,
+			const Math::Vec3& Pt);
+		[[nodiscard]] static float CylinderPoint(const Math::Vec3& CyA, const Math::Vec3& CyB, const float CyR,
+			const Math::Vec3& Pt) {
+			return std::sqrtf(CylinderPointSq(CyA, CyB, CyR, Pt));
+		}
+
 		[[nodiscard]] static float PointRaySq(const Math::Vec3& Pt, const Math::Vec3& RayPos, const Math::Vec3& RayDir) {
 			const auto ToPt = Pt - RayPos;
 			return ((RayDir * ToPt.Dot(RayDir)) - ToPt).LengthSq();
@@ -107,12 +121,51 @@ namespace Collision
 			return std::sqrtf(PointRaySq(Pt, RayPos, RayDir));
 		}
 
+		[[nodiscard]] static float PointSegmentSq(const Math::Vec3& Pt,
+			const Math::Vec3& SegA, const Math::Vec3& SegB) {
+			const auto AB = SegB - SegA;
+			const auto AP = Pt - SegA;
+			const auto T = AP.Dot(AB);
+			if (T <= 0.0f) { return AP.LengthSq(); }
+			const auto T1 = AB.LengthSq();
+			if (T1 <= T) { return (Pt - SegB).LengthSq(); }
+			return AP.LengthSq() - std::pow(T, 2.0f) / T1;
+		}
+		[[nodiscard]] static float PointSegment(const Math::Vec3& Pt,
+			const Math::Vec3& SegA, const Math::Vec3& SegB) {
+			return std::sqrtf(PointSegmentSq(Pt, SegA, SegB));
+		}
+
+		[[nodiscard]] static float PointSphereSq(const Math::Vec3& Pt,
+			const Math::Vec3& SpPos, const float SpRad) {
+			return std::max((Pt - SpPos).LengthSq() - std::pow(SpRad, 2.0f), 0.0f);
+		}
+		[[nodiscard]] static float PointSphere(const Math::Vec3& Pt,
+			const Math::Vec3& SpPos, const float SpRad) {
+			return std::sqrtf(PointSphereSq(Pt, SpPos, SpRad));
+		}
+
 		[[nodiscard]] static float PointTriangle(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C) {
 			return (Pt - A).Dot(Math::Vec3::UnitNormal(A, B, C));
 		}
 		[[nodiscard]] static bool IsFront(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C) {
 			//!< 側だけ分かればよいので正規化する必要はない
 			return (Pt - A).Dot(Math::Vec3::Normal(A, B, C)) >= 0.0f;
+		}
+
+		[[nodiscard]] static float PlanePoint(const Math::Vec3& PlN, const float PlD,
+			const Math::Vec3 Pt)
+		{
+			return PlN.Dot(Pt) + PlD;
+		}
+
+		[[nodiscard]] float SegmentSegmentSq(const Math::Vec3& SegA, const Math::Vec3& SegB,
+			const Math::Vec3& SegC, const Math::Vec3& SegD,
+			float& T0, float& T1);
+		[[nodiscard]] static float SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
+			const Math::Vec3& SegC, const Math::Vec3& SegD,
+			float& T0, float& T1) {
+			return std::sqrtf(SegmentSegmentSq(SegA, SegB, SegC, SegD, T0, T1));
 		}
 
 		//!< 指定の方向に一番遠い点のイテレータを返す 
@@ -174,6 +227,12 @@ namespace Collision
 			return Distance::AABBPointSq(Ab, SpPos) <= std::powf(SpRad, 2.0f);
 		}
 
+		[[nodiscard]] bool CapsulePoint(const Math::Vec3& CapA, const Math::Vec3& CapB, const float CapR,
+			const Math::Vec3& Pt);
+
+		[[nodiscard]] bool CylinderPoint(const Math::Vec3& CyA, const Math::Vec3& CyB, const float CyR,
+			const Math::Vec3& Pt);
+
 		//!< レイ vs 球
 		[[nodiscard]] bool RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad, float& T0, float& T1);
 	
@@ -196,12 +255,12 @@ namespace Collision
 			const Math::Vec3& Pt) {
 			return Math::Vec3(std::clamp(Pt.X(), Ab.Min.X(), Ab.Max.X()), std::clamp(Pt.Y(), Ab.Min.Y(), Ab.Max.Y()), std::clamp(Pt.Z(), Ab.Min.Z(), Ab.Max.Z()));
 		}
+		
+		[[nodiscard]] Math::Vec3 CapsulePoint(const Math::Vec3& CapA, const Math::Vec3& CapB, const float CapR,
+			const Math::Vec3& Pt);
 
-		[[nodiscard]] static Math::Vec3 CylinderPoint(const Math::Vec3& CyA, const Math::Vec3& CyB, const Math::Vec3& CyR,
-			const Math::Vec3& Pt) {
-			//!< #TODO
-			return Math::Vec3::Zero();
-		}
+		[[nodiscard]] Math::Vec3 CylinderPoint(const Math::Vec3& CyA, const Math::Vec3& CyB, const float CyR,
+			const Math::Vec3& Pt);
 
 		[[nodiscard]] static Math::Vec3 OBBPoint(const Math::Vec3& ObPos, const Math::Vec3& ObX, const Math::Vec3& ObY, const Math::Vec3& ObZ, const Math::Vec3& ObExt,
 			const Math::Vec3& Pt) {
@@ -212,10 +271,38 @@ namespace Collision
 				std::clamp(D.Dot(ObZ), -ObExt.Z(), ObExt.Z()) * ObZ;
 		}
 
+		[[nodiscard]] static Math::Vec3 PointSegment(const Math::Vec3& Pt,
+			const Math::Vec3& SegA, const Math::Vec3& SegB,
+			float& T) {
+			const auto AB = SegB - SegA;
+			T = (Pt - SegA).Dot(AB);
+			if (T <= 0.0f) {
+				T = 0.0f;
+				return SegA;
+			}
+			else {
+				const auto Denom = AB.LengthSq();
+				if (T >= Denom) {
+					T = 1.0f;
+					return SegB;
+				}
+				return SegA + AB * T / Denom;
+			}
+		}
+		[[nodiscard]] static Math::Vec3 PointSegment(const Math::Vec3& Pt,
+			const Math::Vec3& SegA, const Math::Vec3& SegB) { float T; return PointSegment(Pt, SegA, SegB, T); }
+
 		[[nodiscard]] static Math::Vec3 PointSphere(const Math::Vec3& Pt,
 			const Math::Vec3& SpPos, const float SpRad) {
 			return SpPos + (Pt - SpPos).Normalize() * SpRad;
 		}
+
+		[[nodiscard]] static Math::Vec3 PlanePoint(const Math::Vec3& PlN, const float PlD,
+			const Math::Vec3& Pt);
+
+		Math::Vec3 SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
+			const Math::Vec3& SegC, const Math::Vec3& SegD,
+			float& T0, float& T1);
 
 		static void SphereSphere(const Math::Vec3& SpPosA, const float SpRadA,
 			const Math::Vec3& SpPosB, const float SpRadB,

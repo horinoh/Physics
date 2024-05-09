@@ -13,15 +13,15 @@
 
 namespace Gltf {
 	static bool IsBinary(std::string_view Path) {
-		std::ifstream In(data(Path), std::ios::in | std::ios::binary);
+		std::ifstream In(std::data(Path), std::ios::in | std::ios::binary);
 		if (!In.fail()) {
 			In.seekg(0, std::ios_base::end);
 			const auto Size = In.tellg();
 			if (Size) {
 				In.seekg(0, std::ios_base::beg);
 				std::vector<std::byte> Buf(Size);
-				In.read(reinterpret_cast<char*>(data(Buf)), 4);
-				return std::string("glTF") == std::string(reinterpret_cast<const char*>(data(Buf)));
+				In.read(reinterpret_cast<char*>(std::data(Buf)), 4);
+				return std::string("glTF") == std::string(reinterpret_cast<const char*>(std::data(Buf)));
 			}
 		}
 		return false;

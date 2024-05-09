@@ -77,7 +77,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Vertices), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Vertices));
+								std::memcpy(std::data(Vertices), std::data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Vertices));
 							}
 							break;
 							default: break;
@@ -99,7 +99,7 @@ public:
 							{
 							case Microsoft::glTF::AccessorType::TYPE_VEC3:
 							{
-								std::memcpy(data(Normals), data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Normals));
+								std::memcpy(std::data(Normals), std::data(ResourceReader->ReadBinaryData<float>(Document, Accessor)), TotalSizeOf(Normals));
 							}
 							break;
 							default: break;
@@ -155,10 +155,10 @@ public:
 		case 'D':
 			X += Speed;
 			break;
-		case 'Z':
+		case 'Q':
 			Z -= Speed;
 			break;
-		case 'X':
+		case 'E':
 			Z += Speed;
 			break;
 
@@ -184,7 +184,7 @@ public:
 
 		if (nullptr != Scene) {
 			if (0 < size(Scene->RigidBodies)) {
-				const auto Rb = Scene->RigidBodies[0];
+				const auto Rb = Scene->RigidBodies[0].get();
 
 				Rb->Position = Math::Vec3(
 					(std::clamp)(Rb->Position.X() + X, -5.0f, 5.0f),
@@ -224,7 +224,7 @@ public:
 		std::ranges::copy(ShapeVert, std::back_inserter(Vec3s));
 #endif
 
-		auto Convex = static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(new Physics::ShapeConvex()));
+		auto Convex = static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>()).get());
 		//!< 凸包を構築
 		Convex->Init(Vec3s);
 		//!< 描画用の頂点、インデックスを構築
@@ -238,11 +238,11 @@ public:
 		}
 
 		for (auto i = 0; i < _countof(WorldBuffer.Instances); ++i) {
-			auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
+			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
 			Rb->Position = 0 == i ? Math::Vec3::AxisZ() * 5.0f : Math::Vec3::Zero();
 			Rb->Rotation = Math::Quat::Identity();
 			Rb->InvMass = 0.0f;
-			Rb->Init(Scene->Shapes.back());
+			Rb->Init(Scene->Shapes.back().get());
 		}
 
 		const auto& CB = CommandBuffers[0];
@@ -251,13 +251,13 @@ public:
 #ifdef USE_MESH
 		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Vertices));
 		VK::Scoped<StagingBuffer> StagingVertex(Device);
-		StagingVertex.Create(Device, PDMP, TotalSizeOf(Vertices), data(Vertices));
+		StagingVertex.Create(Device, PDMP, TotalSizeOf(Vertices), std::data(Vertices));
 		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Normals));
 		VK::Scoped<StagingBuffer> StagingNormal(Device);
-		StagingNormal.Create(Device, PDMP, TotalSizeOf(Normals), data(Normals));
+		StagingNormal.Create(Device, PDMP, TotalSizeOf(Normals), std::data(Normals));
 		IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Indices));
 		VK::Scoped<StagingBuffer> StagingIndex(Device);
-		StagingIndex.Create(Device, PDMP, TotalSizeOf(Indices), data(Indices));
+		StagingIndex.Create(Device, PDMP, TotalSizeOf(Indices), std::data(Indices));
 		const VkDrawIndexedIndirectCommand DIIC = {
 			.indexCount = static_cast<uint32_t>(size(Indices)),
 			.instanceCount = _countof(WorldBuffer.Instances),
@@ -272,10 +272,10 @@ public:
 
 		VertexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Vertices_CH));
 		VK::Scoped<StagingBuffer> StagingVertex_CH(Device);
-		StagingVertex_CH.Create(Device, PDMP, TotalSizeOf(Vertices_CH), data(Vertices_CH));
+		StagingVertex_CH.Create(Device, PDMP, TotalSizeOf(Vertices_CH), std::data(Vertices_CH));
 		IndexBuffers.emplace_back().Create(Device, PDMP, TotalSizeOf(Indices_CH));
 		VK::Scoped<StagingBuffer> StagingIndex_CH(Device);
-		StagingIndex_CH.Create(Device, PDMP, TotalSizeOf(Indices_CH), data(Indices_CH));
+		StagingIndex_CH.Create(Device, PDMP, TotalSizeOf(Indices_CH), std::data(Indices_CH));
 		const VkDrawIndexedIndirectCommand DIIC_CH = {
 			.indexCount = static_cast<uint32_t>(size(Indices_CH)),
 			.instanceCount = _countof(WorldBuffer.Instances),
@@ -471,7 +471,7 @@ public:
 				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 				.pNext = nullptr,
 				.descriptorPool = DP,
-				.descriptorSetCount = static_cast<uint32_t>(size(DSLs)), .pSetLayouts = data(DSLs)
+				.descriptorSetCount = static_cast<uint32_t>(std::size(DSLs)), .pSetLayouts = std::data(DSLs)
 			};
 			VERIFY_SUCCEEDED(vkAllocateDescriptorSets(Device, &DSAI, &DescriptorSets.emplace_back()));
 		}
@@ -531,12 +531,12 @@ public:
 			.pInheritanceInfo = &CBII
 		};
 		VERIFY_SUCCEEDED(vkBeginCommandBuffer(SCB, &SCBBI)); {
-			vkCmdSetViewport(SCB, 0, static_cast<uint32_t>(size(Viewports)), data(Viewports));
-			vkCmdSetScissor(SCB, 0, static_cast<uint32_t>(size(ScissorRects)), data(ScissorRects));
+			vkCmdSetViewport(SCB, 0, static_cast<uint32_t>(std::size(Viewports)), std::data(Viewports));
+			vkCmdSetScissor(SCB, 0, static_cast<uint32_t>(std::size(ScissorRects)), std::data(ScissorRects));
 
 			const std::array DSs = { DS };
 			const std::array<uint32_t, 0> DynamicOffsets = {};
-			vkCmdBindDescriptorSets(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PLL, 0, static_cast<uint32_t>(size(DSs)), data(DSs), static_cast<uint32_t>(size(DynamicOffsets)), data(DynamicOffsets));
+			vkCmdBindDescriptorSets(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PLL, 0, static_cast<uint32_t>(std::size(DSs)), data(DSs), static_cast<uint32_t>(std::size(DynamicOffsets)), std::data(DynamicOffsets));
 
 			const std::array Offsets = { VkDeviceSize(0) };
 
@@ -544,14 +544,14 @@ public:
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL0);
 			const std::array VBs = { VertexBuffers[0].Buffer };
 			const std::array NBs = { VertexBuffers[1].Buffer };
-			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs)), data(VBs), data(Offsets));
-			vkCmdBindVertexBuffers(SCB, 1, static_cast<uint32_t>(size(NBs)), data(NBs), data(Offsets));
+			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(std::size(VBs)), std::data(VBs), std::data(Offsets));
+			vkCmdBindVertexBuffers(SCB, 1, static_cast<uint32_t>(std::size(NBs)), std::data(NBs), std::data(Offsets));
 			vkCmdBindIndexBuffer(SCB, IndexBuffers[0].Buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[0].Buffer, 0, 1, 0);
 
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
 			const std::array VBs_CH = { VertexBuffers[2].Buffer };
-			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs_CH)), data(VBs_CH), data(Offsets));
+			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(std::size(VBs_CH)), std::data(VBs_CH), std::data(Offsets));
 			vkCmdBindIndexBuffer(SCB, IndexBuffers[1].Buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[1].Buffer, 0, 1, 0);
 
@@ -560,7 +560,7 @@ public:
 #else
 			vkCmdBindPipeline(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PL1);
 			const std::array VBs_CH = { VertexBuffers[0].Buffer };
-			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(size(VBs_CH)), data(VBs_CH), data(Offsets));
+			vkCmdBindVertexBuffers(SCB, 0, static_cast<uint32_t>(std::size(VBs_CH)), std::data(VBs_CH), std::data(Offsets));
 			vkCmdBindIndexBuffer(SCB, IndexBuffers[0].Buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdDrawIndexedIndirect(SCB, IndirectBuffers[0].Buffer, 0, 1, 0);
 
@@ -589,11 +589,11 @@ public:
 				.renderPass = RP,
 				.framebuffer = FB,
 				.renderArea = VkRect2D({.offset = VkOffset2D({.x = 0, .y = 0 }), .extent = SurfaceExtent2D }),
-				.clearValueCount = static_cast<uint32_t>(size(CVs)), .pClearValues = data(CVs)
+				.clearValueCount = static_cast<uint32_t>(std::size(CVs)), .pClearValues = std::data(CVs)
 			};
 			vkCmdBeginRenderPass(CB, &RPBI, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS); {
 				const std::array SCBs = { SCB };
-				vkCmdExecuteCommands(CB, static_cast<uint32_t>(size(SCBs)), data(SCBs));
+				vkCmdExecuteCommands(CB, static_cast<uint32_t>(std::size(SCBs)), std::data(SCBs));
 			} vkCmdEndRenderPass(CB);
 		} VERIFY_SUCCEEDED(vkEndCommandBuffer(CB));
 	}
@@ -602,7 +602,7 @@ public:
 		if (nullptr != Scene) {
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances)) {
-					const auto Rb = Scene->RigidBodies[i];
+					const auto Rb = Scene->RigidBodies[i].get();
 					const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 					const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
 
@@ -613,8 +613,8 @@ public:
 				WorldBuffer.Instances[i].Color = { 1.0f, 1.0f, 1.0f };
 				WorldBuffer.Instances[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
 			}
-			const auto RbA = Scene->RigidBodies[0];
-			const auto RbB = Scene->RigidBodies[1];
+			const auto RbA = Scene->RigidBodies[0].get();
+			const auto RbB = Scene->RigidBodies[1].get();
 			Math::Vec3 OnA, OnB;
 			if (Collision::Intersection::GJK_EPA(RbA, RbB, 0.01f, OnA, OnB)) {
 				WorldBuffer.Instances[0].Color = { 1.0f, 1.0f, 0.0f };
@@ -625,8 +625,8 @@ public:
 			}
 			WorldBuffer.Instances[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
 			WorldBuffer.Instances[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());
-			//LOG(data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
-			//LOG(data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
+			//LOG(std::data(std::format("Closest A = {}, {}, {}\n", OnA.X(), OnA.Y(), OnA.Z())));
+			//LOG(std::data(std::format("Closest B = {}, {}, {}\n", OnB.X(), OnB.Y(), OnB.Z())));
 		}
 	}
 	virtual void UpdateViewProjectionBuffer() {
