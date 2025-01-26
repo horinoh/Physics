@@ -107,7 +107,7 @@ bool Collision::Intersection::RaySphere(const Math::Vec3& RayPos, const Math::Ve
 	//!< (RayDir * t + M)^2 - SpRad^2 = 0 ... M = RayPos - SpPos
 	//!< RayDir^2 * t^2 + 2 * M * RayDir * t + M^2 - SpRad^2 = 0
 	//!< A * t^2 + B * t + C = 0 ... A = RayDir^2, B = 2 * M * RayDir, C = M^2 - SpRad^2
-	const auto M = RayPos - SpPos;
+	const auto M = SpPos - RayPos;
 	const auto A = RayDir.Dot(RayDir);
 	const auto B2 = M.Dot(RayDir);
 	const auto C = M.Dot(M) - SpRad * SpRad;
@@ -244,6 +244,7 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 		const auto SpB = static_cast<const Physics::ShapeSphere*>(RbB->Shape);
 		float T;
 		//!< TOI ‚ª’¼Ú‹‚ß‚ç‚ê‚é
+		//!< ‘¬“x‚Íƒfƒ‹ƒ^ŽžŠÔ‚Ì‚à‚Ì‚ð“n‚·‚±‚Æ
 		if (Intersection::SphereShpere(SpA->Radius, SpB->Radius, RbA->Position, RbB->Position, RbA->LinearVelocity * DeltaSec, RbB->LinearVelocity * DeltaSec, T)) {
 			Ct.TimeOfImpact = T * DeltaSec;
 

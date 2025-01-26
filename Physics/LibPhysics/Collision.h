@@ -240,6 +240,7 @@ namespace Collision
 		[[nodiscard]] static bool SphereShpere(const float RadA, const float RadB, const Math::Vec3& PosA, const Math::Vec3& PosB) {
 			return (PosB - PosA).LengthSq() <= std::powf(RadA + RadB, 2.0f); 
 		}
+		//!< デルタ時間でコールする場合は、速度もデルタ時間のものを渡すこと
 		[[nodiscard]] bool SphereShpere(const float RadA, const float RadB,
 			const Math::Vec3& PosA, const Math::Vec3& PosB,
 			const Math::Vec3& VelA, const Math::Vec3& VelB,

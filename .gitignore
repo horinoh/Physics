@@ -7,3 +7,4 @@
 *.ipdb
 *.vcxproj.user
 .vs/
+__pycache__/
