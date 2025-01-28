@@ -107,7 +107,7 @@ bool Collision::Intersection::RaySphere(const Math::Vec3& RayPos, const Math::Ve
 	//!< (RayDir * t + M)^2 - SpRad^2 = 0 ... M = RayPos - SpPos
 	//!< RayDir^2 * t^2 + 2 * M * RayDir * t + M^2 - SpRad^2 = 0
 	//!< A * t^2 + B * t + C = 0 ... A = RayDir^2, B = 2 * M * RayDir, C = M^2 - SpRad^2
-	const auto M = SpPos - RayPos;
+	const auto M = RayPos - SpPos;
 	const auto A = RayDir.Dot(RayDir);
 	const auto B2 = M.Dot(RayDir);
 	const auto C = M.Dot(M) - SpRad * SpRad;
@@ -127,7 +127,8 @@ bool Collision::Intersection::SphereShpere(const float RadA, const float RadB,
 	const Math::Vec3& VelA, const Math::Vec3& VelB,
 	float& T)
 {
-	const auto Ray = VelB - VelA;
+	// A ‚Ì‘Š‘Î‘¬“x
+	const auto Ray = VelA - VelB;
 	const auto TotalRadius = RadA + RadB;
 
 	auto T0 = 0.0f, T1 = 0.0f;
@@ -265,8 +266,6 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 			Ct.LPointA = RbA->ToLocalPos(CPosA + Ct.WNormal * SpA->Radius);
 			Ct.LPointB = RbB->ToLocalPos(CPosB - Ct.WNormal * SpB->Radius); 
 #endif
-
-
 			//!< Õ“Ë„‘Ì‚ðŠo‚¦‚Ä‚¨‚­
 			Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
 			Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
@@ -290,7 +289,7 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 			constexpr auto Bias = 0.001f;
 			//if (Intersection::GJK_EPA(&WRbA, &WRbB, Bias, OnA, OnB)) {
 			if (Intersection::GJK_EPA(WRbA.Shape, WRbA.Position, WRbA.Rotation, WRbB.Shape, WRbB.Position, WRbB.Rotation, Bias, OnA, OnB)) {
-					Ct.TimeOfImpact = TOI;
+				Ct.TimeOfImpact = TOI;
 
 				//!< –@ü A -> B #TODO
 				Ct.WNormal = -(OnB - OnA).Normalize();
@@ -371,44 +370,31 @@ void Collision::ResolveContact(const Contact& Ct)
 			const auto VelA = Ct.RigidBodyA->LinearVelocity + Ct.RigidBodyA->AngularVelocity.Cross(RA);
 			const auto VelB = Ct.RigidBodyB->LinearVelocity + Ct.RigidBodyB->AngularVelocity.Cross(RB);
 			const auto VelAB = VelA - VelB;
-			//!< ‘¬“x‚Ì–@ü¬•ª
-			const auto& Nrm = Ct.WNormal;
-			const auto NVelAB = Nrm * VelAB.Dot(Nrm);
+	
+			auto Apply = [&](const auto& Axis, const auto& Vel, const float Coef) {
+				const auto AngJA = (WorldInvInertiaA * RA.Cross(Axis)).Cross(RA);
+				const auto AngJB = (WorldInvInertiaB * RB.Cross(Axis)).Cross(RB);
+				const auto AngFactor = (AngJA + AngJB).Dot(Axis);
+
+				const auto J = Vel * Coef / (TotalInvMass + AngFactor);
+
+				Ct.RigidBodyA->ApplyImpulse(WPointA, -J);
+				Ct.RigidBodyB->ApplyImpulse(WPointB, J);
+			};
 
 			//!< –@ü•ûŒü —ÍÏJ (‰^“®—Ê•Ï‰»)
-			{
-				//!< —¼ŽÒ‚Ì’e«ŒW”‚ðŠ|‚¯‚½‚¾‚¯‚ÌŠÈˆÕ‚ÈŽÀ‘•‚Æ‚·‚é
-				const auto TotalElasticity = 1.0f + Ct.RigidBodyA->Elasticity * Ct.RigidBodyB->Elasticity;
-				{
-					const auto AngJA = (WorldInvInertiaA * RA.Cross(Nrm)).Cross(RA);
-					const auto AngJB = (WorldInvInertiaB * RB.Cross(Nrm)).Cross(RB);
-					const auto AngFactor = (AngJA + AngJB).Dot(Nrm);
-
-					const auto J = NVelAB * TotalElasticity / (TotalInvMass + AngFactor);
-
-					Ct.RigidBodyA->ApplyImpulse(WPointA, -J);
-					Ct.RigidBodyB->ApplyImpulse(WPointB, J);
-				}
-			}
+			//!< ‘¬“x‚Ì–@ü¬•ª
+			const auto NVelAB = Ct.WNormal * VelAB.Dot(Ct.WNormal);
+			//!< —¼ŽÒ‚Ì’e«ŒW”‚ðŠ|‚¯‚½‚¾‚¯‚ÌŠÈˆÕ‚ÈŽÀ‘•‚Æ‚·‚é
+			const auto TotalElasticity = 1.0f + Ct.RigidBodyA->Elasticity * Ct.RigidBodyB->Elasticity;
+			Apply(Ct.WNormal, NVelAB, TotalElasticity);
 
 			//!< Úü•ûŒü —ÍÏJ (–€ŽC—Í)
-			{
-				//!< ‘¬“x‚ÌÚü¬•ª
-				const auto TVelAB = VelAB - NVelAB;
-				const auto Tan = TVelAB.Normalize();
-
-				const auto TotalFriction = Ct.RigidBodyA->Friction * Ct.RigidBodyB->Friction;
-				{
-					const auto AngJA = (WorldInvInertiaA * RA.Cross(Tan)).Cross(RA);
-					const auto AngJB = (WorldInvInertiaB * RB.Cross(Tan)).Cross(RB);
-					const auto AngFactor = (AngJA + AngJB).Dot(Tan);
-
-					const auto J = TVelAB * TotalFriction / (TotalInvMass + AngFactor);
-
-					Ct.RigidBodyA->ApplyImpulse(WPointA, -J);
-					Ct.RigidBodyB->ApplyImpulse(WPointB, J);
-				}
-			}
+			//!< ‘¬“x‚ÌÚü¬•ª
+			const auto TVelAB = VelAB - NVelAB;
+			const auto Tan = TVelAB.Normalize();
+			const auto TotalFriction = Ct.RigidBodyA->Friction * Ct.RigidBodyB->Friction;
+			Apply(Tan, TVelAB, TotalFriction);
 		}
 	}
 

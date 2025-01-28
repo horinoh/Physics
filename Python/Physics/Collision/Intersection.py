@@ -1,10 +1,17 @@
 # 交差
 import numpy as np
+from Physics.Collision.Bound import AABB
+
+# AABB vs AABB
+def AABBAABB(AbA, AbB):
+    if AbA.Max[0] < AbB.Min[0] or AbB.Max[0] < AbA.Min[0] or AbA.Max[1] < AbB.Min[1] or AbB.Max[1] < AbA.Min[1] or AbA.Max[2] < AbB.Min[2] or AbB.Max[2] < AbA.Min[2]:
+        return False
+    return True
 
 # レイ vs 球
 def RaySphere(RayPos, RayDir,
               SpPos, SpRad):
-    M = np.array(SpPos) - RayPos
+    M = np.array(RayPos) - SpPos
     A = RayDir @ RayDir
     B2 = M @ RayDir
     C = M @ M - SpRad * SpRad
@@ -26,7 +33,8 @@ def SphereSphere(PosA, RadA,
 # 球 vs 球 (動的)
 def SphereSphereDy(PosA, RadA, VelA, 
                    PosB, RadB, VelB):
-    Ray = VelB - VelA
+    # A の相対速度
+    Ray = VelA - VelB
     TotalRad = RadA + RadB
     T0 = 0.0
     T1 = 0.0

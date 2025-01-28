@@ -43,16 +43,15 @@ class App:
                 self.Scene.RigidBodies.append(Rb)
 
         # 剛体
-        XZ = 3
-        Y = 2
-        Dif = 3
-        Ofs = XZ * Dif * 0.5
-        for i in range(Y):
-            for j in range(XZ):
-                for k in range(XZ):
+        CXZ = 3; CY = 2
+        DXZ = 3; DY = 3
+        Ofs = CXZ * DXZ * 0.5
+        for i in range(CY):
+            for j in range(CXZ):
+                for k in range(CXZ):
                     Rb = RigidBody.RigidBody()
                     Rb.Shape = Shape.ShapeSphere()
-                    Rb.Position = [ j * Dif - Ofs, i * Dif + 3, k * Dif - Ofs]
+                    Rb.Position = [ j * DXZ - Ofs, i * DY + 3, k * DXZ - Ofs]
                     self.Scene.RigidBodies.append(Rb)
 
         # 球 (描画用)

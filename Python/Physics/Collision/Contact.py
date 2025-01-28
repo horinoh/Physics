@@ -54,6 +54,7 @@ def Resolve(Ci):
     NVelAB = Ci.WNrm * (VelAB @ Ci.WNrm)
     TVelAB = VelAB - NVelAB
 
+    # 力積用補助関数
     def Apply(Axis, Vel, Coef):
         JA = np.cross(InvInerA @ np.cross(RadA, Axis), RadA)
         JB = np.cross(InvInerB @ np.cross(RadB, Axis), RadB)

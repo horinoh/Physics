@@ -45,6 +45,10 @@ class RigidBody:
     def WorldCenterOfMass(self):
          return self.Position + quaternion.rotate_vectors(self.Rotation, self.CenterOfMass)
 
+    # AABB
+    def GetAABB(self):
+        return self.Shape.GetAABB(self.Position, self.Rotation)
+
     # 方向 (ワールド変換)
     def ToWorldDir(self, rhs):
         return quaternion.rotate_vectors(self.Rotation, rhs)
@@ -65,17 +69,17 @@ class RigidBody:
     
     # 線形力積
     def ApplyLinearImpulse(self, Impulse):
-	    if self.InvMass != 0.0:
-                self.LinearVelocity += Impulse * self.InvMass
+        if self.InvMass != 0.0:
+            self.LinearVelocity += Impulse * self.InvMass
     # 角力積
     def ApplyAngularImpulse(self, Impulse):
-	    if self.InvMass != 0.0:
-                self.AngularVelocity += self.ToWorld(self.InvInertiaTensor) @ Impulse
+        if self.InvMass != 0.0:
+            self.AngularVelocity += self.ToWorld(self.InvInertiaTensor) @ Impulse
     # 力積 (総合)
     def ApplyImpulse(self, ImpactPoint, Impulse):
-	    if self.InvMass != 0.0:
-                self.ApplyLinearImpulse(Impulse)    
-                self.ApplyAngularImpulse(np.cross(ImpactPoint - self.WorldCenterOfMass, Impulse))
+        if self.InvMass != 0.0:
+            self.ApplyLinearImpulse(Impulse)    
+            self.ApplyAngularImpulse(np.cross(ImpactPoint - self.WorldCenterOfMass, Impulse))
     
     def Update(self, DeltaSec):
         # 位置

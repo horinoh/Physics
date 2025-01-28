@@ -49,13 +49,15 @@ void Physics::Scene::BroadPhase(const float DeltaSec, std::vector<CollidablePair
 
 			auto Aabb = Rb->Shape->GetAABB(Rb->Position, Rb->Rotation);
 			//!< ‘¬“x•ª AABB ‚ðŠg’£‚·‚é
-			Aabb.Expand(Aabb.Min + Rb->LinearVelocity * DeltaSec);
-			Aabb.Expand(Aabb.Max + Rb->LinearVelocity * DeltaSec);
+			const auto DVel = Rb->LinearVelocity * DeltaSec;
+			Aabb.Expand(Aabb.Min + DVel);
+			Aabb.Expand(Aabb.Max + DVel);
 
 			//!< ‚³‚ç‚É­‚µŠg’£ (Žæ‚è‚±‚Ú‚µ–hŽ~H)
 			const auto Epsilon = 0.01f;
-			Aabb.Expand(Aabb.Min - Math::Vec3::One() * Epsilon);
-			Aabb.Expand(Aabb.Max + Math::Vec3::One() * Epsilon);
+			const auto DEp = Math::Vec3::One() * Epsilon;
+			Aabb.Expand(Aabb.Min - DEp);
+			Aabb.Expand(Aabb.Max + DEp);
 
 			BoundEdges.emplace_back(Collision::BoundEdge({ i, Axis.Dot(Aabb.Min), true })); //!< ‰ºŒÀ
 			BoundEdges.emplace_back(Collision::BoundEdge({ i, Axis.Dot(Aabb.Max), false }));//!< ãŒÀ

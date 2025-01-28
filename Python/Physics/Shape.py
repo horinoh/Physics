@@ -1,4 +1,5 @@
 import numpy as np
+from Physics.Collision.Bound import AABB
 
 import enum
 
@@ -16,6 +17,8 @@ class ShapeBase:
         pass
     def GetType(self):
         return ShapeType.NONE
+    def GetAABB(self, Pos, Rot):
+        return AABB()
 
 class ShapeSphere(ShapeBase):
     """ShapeSphere"""
@@ -29,3 +32,5 @@ class ShapeSphere(ShapeBase):
         super(ShapeSphere, self).__del__()
     def GetType(self):
         return ShapeType.SPHERE
+    def GetAABB(self, Pos, Rot):
+        return AABB(np.full(3, -self.Radius) + Pos, np.full(3, self.Radius) + Pos)
