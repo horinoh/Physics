@@ -236,6 +236,8 @@ Math::Vec3 Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math
 
 	T0 = S;
 	T1 = T;
+
+	return SegA + AB * T0;
 }
 
 bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct)
@@ -250,8 +252,8 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 			Ct.TimeOfImpact = T * DeltaSec;
 
 			//!< Õ“ËŽž‚Ì(’†S)ˆÊ’u
-			const auto CPosA = RbA->Position + RbA->LinearVelocity * T;
-			const auto CPosB = RbB->Position + RbB->LinearVelocity * T;
+			const auto CPosA = RbA->Position + RbA->LinearVelocity * Ct.TimeOfImpact;
+			const auto CPosB = RbB->Position + RbB->LinearVelocity * Ct.TimeOfImpact;
 
 			//!< –@ü A -> B
 			Ct.WNormal = (CPosB - CPosA).Normalize();

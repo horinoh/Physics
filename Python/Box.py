@@ -25,11 +25,6 @@ class App:
         View.camera = 'arcball'
         View.camera.set_range(x = [-10, 10])
 
-        # 軸を表示
-        #Axis = scene.visuals.XYZAxis(parent = View.scene, width = 1)
-        # グリッド
-        #View.add(scene.visuals.GridLines(color = "white", scale = (1.0, 1.0)))
-
         # 物理シーン
         self.Scene = Scene.Scene()
 
@@ -38,8 +33,8 @@ class App:
             for j in range(3):
                 Rb = RigidBody.RigidBody()
                 Rb.InvMass = 0.0 # 固定
-                Rb.Shape = Shape.ShapeSphere(50.0)
-                Rb.Position = [ (i - 1) * Rb.Shape.Radius, -Rb.Shape.Radius, (j - 1) * Rb.Shape.Radius ]
+                Rb.Shape = Shape.ShapeBox([20.0, 20.0, 20.0])
+                Rb.Position = [ (i - 1) * Rb.Shape.Extent[0], -Rb.Shape.Extent[1], (j - 1) * Rb.Shape.Extent[2] ]
                 self.Scene.RigidBodies.append(Rb)
 
         # 剛体
@@ -50,16 +45,17 @@ class App:
             for j in range(CXZ):
                 for k in range(CXZ):
                     Rb = RigidBody.RigidBody()
-                    Rb.Shape = Shape.ShapeSphere()
+                    Rb.Shape = Shape.ShapeBox()
                     Rb.Position = [ j * DXZ - Ofs, i * DY + 3, k * DXZ - Ofs]
+                    #Rb.Rotation = quaternion.from_euler_angles(i * 20, 0, j*20)
                     self.Scene.RigidBodies.append(Rb)
 
-        # 球 (描画用)
-        self.Spheres = []
+        # ボックス (描画用)
+        self.Boxes = []
         for i in self.Scene.RigidBodies:
-            Inst = scene.visuals.Sphere(radius = i.Shape.Radius, cols = 20, rows = 20, method = 'latitude', color = "yellow" if i.InvMass != 0.0 else "green", edge_color = 'black', parent = View.scene)
+            Inst = scene.visuals.Box(width = i.Shape.Extent[0], height = i.Shape.Extent[1], depth = i.Shape.Extent[2], color = "yellow" if i.InvMass != 0.0 else "green", edge_color = 'black', parent = View.scene)
             Inst.transform = MatrixTransform()
-            self.Spheres.append(Inst)
+            self.Boxes.append(Inst)
 
         # ボックス (描画用 未使用)
         self.AABBs = []
@@ -97,7 +93,7 @@ class App:
         #IsDrawAABB = False
         for i in range(len(self.Scene.RigidBodies)):
             Rb = self.Scene.RigidBodies[i]
-            VSp = self.Spheres[i]
+            VSp = self.Boxes[i]
             VBx = self.AABBs[i]
 
             VSp.transform.reset()
@@ -122,6 +118,6 @@ class App:
                 VBx.transform.translate([Ab.Center[0], Ab.Center[2], Ab.Center[1]])
             else:
                 VBx.transform.translate([0, 0, -100])
-
+                
 App()
 

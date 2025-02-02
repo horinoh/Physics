@@ -2,6 +2,8 @@
 import numpy as np
 
 from Physics import RigidBody
+from Physics import Shape
+from Physics.Collision import Intersection
 
 class Info:
     """Info"""
@@ -19,6 +21,41 @@ class Info:
         self.WOnB = np.zeros(3)
         # A -> B へのワールド法線
         self.WNrm = np.zeros(3)
+
+def GetContactInfoSphere(RbA, RbB, DeltaSec):
+    # 衝突検出
+    [b, T] = Intersection.SphereSphereDy(RbA.Position, RbA.Shape.Radius, RbA.LinearVelocity * DeltaSec,
+                                         RbB.Position, RbB.Shape.Radius, RbB.LinearVelocity * DeltaSec)
+    if b:
+        # 接触情報を収集
+        Ci = Info()
+                        
+        Ci.TimeOfImpact = T * DeltaSec
+        Ci.RbA = RbA
+        Ci.RbB = RbB
+
+        PosA = Ci.RbA.Position + Ci.RbA.LinearVelocity * Ci.TimeOfImpact
+        PosB = Ci.RbB.Position + Ci.RbB.LinearVelocity * Ci.TimeOfImpact
+        
+        # 法線
+        AB = PosB - PosA
+        Ci.WNrm = AB / np.linalg.norm(AB)
+
+        # 接点
+        Ci.WOnA = PosA + Ci.WNrm * Ci.RbA.Shape.Radius
+        Ci.WOnB = PosB - Ci.WNrm * Ci.RbB.Shape.Radius
+
+        return Ci
+    return None
+
+def GetContactInfo(RbA, RbB, DeltaSec):
+    # 球 vs 球 の場合は専用の処理
+    if RbA.Shape.GetType() == Shape.ShapeType.SPHERE and RbA.Shape.GetType() == Shape.ShapeType.SPHERE:
+        return GetContactInfoSphere(RbA, RbB, DeltaSec)
+    
+    # TOI が直接求まらないので、シミュレーションを進めることで求める (Conservative Advance)
+    
+    return None
 
 def ResolveLinear(Ci):
     TotalInvMass = Ci.RbA.InvMass + Ci.RbB.InvMass
