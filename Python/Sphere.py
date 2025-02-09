@@ -1,5 +1,6 @@
 import sys
 import random
+import math
 
 import numpy as np
 import quaternion
@@ -61,7 +62,7 @@ class App:
             Inst.transform = MatrixTransform()
             self.Spheres.append(Inst)
 
-        # ボックス (描画用 未使用)
+        # AABB (描画用)
         self.AABBs = []
         for i in self.Scene.RigidBodies:
             Inst = scene.visuals.Box(width = 1, height = 1, depth = 1, color = (1, 1, 1, 0), edge_color = "white", parent = View.scene)
@@ -86,6 +87,18 @@ class App:
                 else:
                     self.Timer.start()
 
+        # 小数点以下 4 桁までの制度で、同じ値とみなされるものはユニークにする
+        a = [
+            [0.1, 0.1, 0.12, 0.123, 0.1234],
+            [0.1, 0.1, 0.12, 0.123, 0.1234],
+            [0.1, 0.1, 0.12, 0.123, 0.123],
+            [0.1, 0.1, 0.12, 0.12, 0.1234],
+            [0.1, 0.1, 0.12, 0.123, 0.1234],
+            [0.1, 0.1, 0.12, 0.12, 0.12],
+            [0.1, 0.1, 0.12, 0.123, 0.0],
+        ]
+        print(np.unique(np.round(a, decimals = 4), axis = 0))
+
         if __name__ == '__main__' and sys.flags.interactive == 0:
             Canvas.app.run()
 
@@ -107,7 +120,7 @@ class App:
             Axis = quaternion.as_rotation_vector(Rb.Rotation)
             LenSq = Axis @ Axis
             if False == np.isclose(LenSq, 0.0):
-                Axis /= np.sqrt(LenSq)
+                Axis /= math.sqrt(LenSq)
                 VSp.transform.rotate(-np.rad2deg(Rb.Rotation.angle()), [Axis[0], Axis[2], Axis[1]])
             
             # YZ が入れ替わるので注意s

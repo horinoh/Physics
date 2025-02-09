@@ -11,7 +11,8 @@ void Convex::BuildTetrahedron(const std::vector<Math::Vec3>& Pts, std::vector<Ma
 	//< 前出の逆向きの軸軸に一番遠い点
 	P[1] = *Collision::Distance::Farthest(Pts, -P[0]);
 	//!< 前出の 2 点からなる線分に一番遠い点
-	P[2] = *Collision::Distance::Farthest(Pts, P[0], P[1]);
+	//P[2] = *Collision::Distance::Farthest(Pts, P[0], P[1]);
+	P[2] = *Collision::Distance::Farthest(Pts, P[0], P[1] - P[0]);
 	//!< 前出の 3 点からなる三角形に一番遠い点
 	P[3] = *Collision::Distance::Farthest(Pts, P[0], P[1], P[2]);
 

@@ -1,5 +1,6 @@
 # 接触
 import numpy as np
+import math # math.sqrt の方が numpy.sqrt より速いらしい
 
 from Physics import RigidBody
 from Physics import Shape
@@ -106,7 +107,7 @@ def Resolve(Ci):
     # 力積 (接線)
     LenSq = TVelAB @ TVelAB
     if False == np.isclose(LenSq, 0.0):
-        WTan = TVelAB / np.sqrt(LenSq)
+        WTan = TVelAB / math.sqrt(LenSq)
         Apply(WTan, TVelAB, TotalFriction)
 
     # 追い出し処理

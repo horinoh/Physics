@@ -22,7 +22,10 @@ namespace Collision
 	[[nodiscard]] Math::Vec2 SignedVolume(const Math::Vec3& A, const Math::Vec3& B);
 	[[nodiscard]] Math::Vec3 SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C);
 	[[nodiscard]] Math::Vec4 SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D);
-	[[nodiscard]] Math::Vec3 Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C);
+	//!< ABC 上での 原点 の重心座標
+	bool Barycentric(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, Math::Vec3& BC);
+	//!< ABC 上での Pt の重心座標
+	bool Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, Math::Vec3& BC);
 
 	namespace SupportPoint {
 		//!< サポートポイント : 特定の方向に最も遠い点

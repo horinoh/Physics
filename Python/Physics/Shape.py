@@ -8,6 +8,7 @@ import enum
 class ShapeType(enum.Enum):
     SPHERE = enum.auto(),
     BOX = enum.auto(),
+    CONVEX = enum.auto(),
 
 class ShapeBase:
     """Shape"""
@@ -82,6 +83,33 @@ class ShapeBox(ShapeBase):
 
     def GetType(self):
         return ShapeType.BOX
+
+    def GetAABB(self, Pos, Rot):
+        Ab = AABB()
+        for i in self.Points:
+            Ab.Expand(quaternion.rotate_vectors(Rot, i) + Pos)
+        return Ab
+
+    def GetSupportPoint(self, Pos, Rot, UDir, Bias):
+        return max(self.Points, key = lambda rhs: (quaternion.rotate_vectors(Rot, rhs) + Pos) @ UDir) + UDir * Bias
+    
+    def GetFastestPointSpeed(self, AngVel, UDir):
+        return max(self.Points, key = lambda rhs: UDir @ np.cross(AngVel, rhs))
+
+class ShapeConvex(ShapeBase):
+    """ShapeConvex"""
+    
+    def __init__(self):
+        super(ShapeConvex, self).__init__()
+        #self.InertiaTensor = 
+        #self.InvInertiaTensor = np.linalg.inv(self.InertiaTensor)
+        self.Points = []
+
+    def __del__(self):
+        super(ShapeConvex, self).__del__()
+
+    def GetType(self):
+        return ShapeType.CONVEX
 
     def GetAABB(self, Pos, Rot):
         Ab = AABB()

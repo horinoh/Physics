@@ -1,5 +1,6 @@
 import sys
 import random
+import math
 
 import numpy as np
 import quaternion
@@ -57,7 +58,7 @@ class App:
             Inst.transform = MatrixTransform()
             self.Boxes.append(Inst)
 
-        # ボックス (描画用 未使用)
+        # AABB (描画用)
         self.AABBs = []
         for i in self.Scene.RigidBodies:
             Inst = scene.visuals.Box(width = 1, height = 1, depth = 1, color = (1, 1, 1, 0), edge_color = "white", parent = View.scene)
@@ -103,7 +104,7 @@ class App:
             Axis = quaternion.as_rotation_vector(Rb.Rotation)
             LenSq = Axis @ Axis
             if False == np.isclose(LenSq, 0.0):
-                Axis /= np.sqrt(LenSq)
+                Axis /= math.sqrt(LenSq)
                 VSp.transform.rotate(-np.rad2deg(Rb.Rotation.angle()), [Axis[0], Axis[2], Axis[1]])
             
             # YZ が入れ替わるので注意s
@@ -115,6 +116,8 @@ class App:
             if IsDrawAABB and Rb.InvMass != 0.0:
                 Ab = Rb.GetAABB()
                 VBx.transform.scale([Ab.Extent[0], Ab.Extent[2], Ab.Extent[1]])
+                # AABB がジャストフィットなので、表示用に少し大きくする
+                VBx.transform.scale([1.1, 1.1, 1.1])
                 VBx.transform.translate([Ab.Center[0], Ab.Center[2], Ab.Center[1]])
             else:
                 VBx.transform.translate([0, 0, -100])

@@ -45,47 +45,9 @@ Math::Vec2 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B)
 //!< 2-シンプレックス (三角形)
 Math::Vec3 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C)
 {
-	const auto N = (B - A).Cross(C - A);
-	if (N.NearlyEqual(Math::Vec3::Zero())) { return Math::Vec3::AxisX(); }
-	const auto P = N * A.Dot(N) / N.LengthSq(); //!< 平方根を省けるので正規化しない方が良い
-
-	//!< XY, YZ, ZX 平面の内、射影面積が最大のものを見つける
-	auto Index = 0;
-	auto MaxVal = 0.0f;
-	for (auto i = 0; i < 3; ++i) {
-		const auto j = (i + 1) % 3;
-		const auto k = (i + 2) % 3;
-
-		const auto a = Math::Vec2(A[j], A[k]);
-		const auto b = Math::Vec2(B[j], B[k]);
-		const auto c = Math::Vec2(C[j], C[k]);
-		const auto AB = b - a;
-		const auto AC = c - a;
-		const auto Area = Math::Mat2(AB, AC).Determinant();
-
-		if (std::abs(Area) > std::abs(MaxVal)) {
-			MaxVal = Area;
-			Index = i;
-		}
-	}
-
-	//!< 「P と三角形」を選択した平面に射影 (X が選択された場合 Index1, Index2 はそれぞれ Y, Z といった具合になる)
-	const auto X = (Index + 1) % 3;
-	const auto Y = (Index + 2) % 3;
-	const std::array PrjABC = { Math::Vec2(A[X], A[Y]), Math::Vec2(B[X], B[Y]), Math::Vec2(C[X], C[Y]) };
-	const auto PrjP = Math::Vec2(P[X], P[Y]);
-
-	//!< 射影点と辺からなるサブ三角形の面積
-	Math::Vec3 Areas;
-	for (auto i = 0; i < 3; ++i) {
-		const auto j = (i + 1) % 3;
-		const auto k = (i + 2) % 3;
-
-		Areas[i] = Math::Mat2(PrjABC[j] - PrjP, PrjABC[k] - PrjP).Determinant();
-	}
-	//!< P が [A, B, C] の内部にある場合 (サブ三角形の面積の符号から分かる)
-	if (Sign(MaxVal) == Sign(Areas.X()) && Sign(MaxVal) == Sign(Areas.Y()) && Sign(MaxVal) == Sign(Areas.Z())) {
-		return Areas / MaxVal;
+	Math::Vec3 BC;
+	if (Barycentric(A, B, C, BC)) {
+		return BC;
 	}
 
 	//!< 3 辺に射影して一番近いものを見つける (1-SignedVolume に帰着)
@@ -112,7 +74,10 @@ Math::Vec3 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B, con
 Math::Vec4 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D)
 {
 	//const auto Cofactor = Vec4(-Mat3(B, C, D).Determinant(), Mat3(A, C, D).Determinant(), -Mat3(A, B, D).Determinant(), Mat3(A, B, C).Determinant());
-	const auto M = Math::Mat4(Math::Vec4(A.X(), B.X(), C.X(), D.X()), Math::Vec4(A.Y(), B.Y(), C.Y(), D.Y()), Math::Vec4(A.Z(), B.Z(), C.Z(), D.Z()), Math::Vec4::One());
+	const auto M = Math::Mat4(Math::Vec4(A.X(), B.X(), C.X(), D.X()), 
+		Math::Vec4(A.Y(), B.Y(), C.Y(), D.Y()), 
+		Math::Vec4(A.Z(), B.Z(), C.Z(), D.Z()), 
+		Math::Vec4::One());
 	const auto Cofactor = Math::Vec4(M.Cofactor(3, 0), M.Cofactor(3, 1), M.Cofactor(3, 2), M.Cofactor(3, 3));
 	const auto Det = Cofactor.X() + Cofactor.Y() + Cofactor.Z() + Cofactor.W();
 
@@ -142,14 +107,12 @@ Math::Vec4 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B, con
 	return Lambda;
 }
 
-//!< ABC 上での Pt の重心座標
-Math::Vec3 Collision::Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C)
+bool Collision::Barycentric(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, Math::Vec3& BC)
 {
-	const auto PA = A - Pt;
-	const auto PB = B - Pt;
-	const auto PC = C - Pt;
-
-	const auto N = Math::Vec3::Normal(PA, PB, PC);
+	const auto N = Math::Vec3::Normal(A, B, C);
+	if (N.NearlyEqual(Math::Vec3::Zero())) { 
+		return false; 
+	}
 	const auto P = N * A.Dot(N) / N.LengthSq();
 
 	//!< XY, YZ, ZX 平面の内、射影面積が最大のものを見つける
@@ -159,11 +122,11 @@ Math::Vec3 Collision::Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, con
 		const auto j = (i + 1) % 3;
 		const auto k = (i + 2) % 3;
 
-		const auto A = Math::Vec2(PA[j], PA[k]);
-		const auto B = Math::Vec2(PB[j], PB[k]);
-		const auto C = Math::Vec2(PC[j], PC[k]);
-		const auto AB = B - A;
-		const auto AC = C - A;
+		const auto a = Math::Vec2(A[j], A[k]);
+		const auto b = Math::Vec2(B[j], B[k]);
+		const auto c = Math::Vec2(C[j], C[k]);
+		const auto AB = b - a;
+		const auto AC = c - a;
 		const auto Area = Math::Mat2(AB, AC).Determinant();
 
 		if (std::abs(Area) > std::abs(MaxVal)) {
@@ -175,7 +138,7 @@ Math::Vec3 Collision::Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, con
 	//!< 「P と三角形」を選択した平面に射影 (X が選択された場合 Index1, Index2 はそれぞれ Y, Z といった具合になる)
 	const auto X = (Index + 1) % 3;
 	const auto Y = (Index + 2) % 3;
-	const std::array PrjABC = { Math::Vec2(PA[X], PA[Y]), Math::Vec2(PB[X], PB[Y]), Math::Vec2(PC[X], PC[Y]) };
+	const std::array PrjABC = { Math::Vec2(A[X], A[Y]), Math::Vec2(B[X], B[Y]), Math::Vec2(C[X], C[Y]) };
 	const auto PrjP = Math::Vec2(P[X], P[Y]);
 
 	//!< 射影点と辺からなるサブ三角形の面積
@@ -189,11 +152,17 @@ Math::Vec3 Collision::Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, con
 
 	//!< P が [A, B, C] の内部にある場合 (サブ三角形の面積の符号から分かる)
 	if (Sign(MaxVal) == Sign(Areas.X()) && Sign(MaxVal) == Sign(Areas.Y()) && Sign(MaxVal) == Sign(Areas.Z())) {
-		return Areas / MaxVal;
+		BC = Areas / MaxVal;
+		return true;
 	}
 
-	return Math::Vec3::AxisX();
+	return false;
 }
+bool Collision::Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, Math::Vec3& BC) 
+{
+	return Barycentric(A - Pt, B - Pt, C - Pt, BC);
+}
+
 //!< A, B のサポートポイント、及びその差 C を求める
 Collision::SupportPoint::Points Collision::SupportPoint::Get(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const Math::Vec3& UDir, const float Bias)
 {
@@ -331,7 +300,9 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 		//const auto& CTri = *SupportPoint::Distance::Closest(Math::Vec3::Zero(), Sps, Tris);
 		const auto A = CTri[0], B = CTri[1], C = CTri[2];
 		//!< それ上での、原点の重心座標を取得
-		const auto Lambda = Barycentric(Math::Vec3::Zero(), Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC());
+		//const auto Lambda = Barycentric(Math::Vec3::Zero(), Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC());
+		Math::Vec3 Lambda;
+		Barycentric(Math::Vec3::Zero(), Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC(), Lambda);
 		OnA = Sps[A].GetA() * Lambda[0] + Sps[B].GetA() * Lambda[1] + Sps[C].GetA() * Lambda[2];
 		OnB = Sps[A].GetB() * Lambda[0] + Sps[B].GetB() * Lambda[1] + Sps[C].GetB() * Lambda[2];
 #ifdef _DEBUG

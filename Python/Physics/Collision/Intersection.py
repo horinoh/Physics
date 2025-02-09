@@ -1,4 +1,5 @@
 # 交差
+import math # math.sqrt の方が numpy.sqrt より速いらしい
 import numpy as np
 from Physics.Collision.Bound import AABB
 
@@ -18,7 +19,7 @@ def RaySphere(RayPos, RayDir,
 
     D4Sq = B2 * B2 - A * C
     if D4Sq >= 0:
-        D4 = np.sqrt(D4Sq)
+        D4 = math.sqrt(D4Sq)
         T0 = (B2 - D4) / A
         T1 = (B2 + D4) / A
         return True, T0, T1
