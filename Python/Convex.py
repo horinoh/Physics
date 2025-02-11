@@ -13,6 +13,7 @@ from vispy.util.quaternion import Quaternion
 from Physics import Scene
 from Physics import RigidBody
 from Physics import Shape
+from Physics.Collision.Intersection import GJK
 
 from Physics.Collision.GJK import TestSignedVolume
 
@@ -63,7 +64,10 @@ class App:
         @Canvas.events.key_press.connect
         def on_key_press(event):
             Rb = self.Scene.RigidBodies[0]
-
+            Ang = quaternion.as_euler_angles(Rb.Rotation)
+            
+            MvSpd = 0.2
+            RotSpd = 10
             match event.key:
                 case ' ':
                     self.IsStop = False if self.IsStop else True
@@ -72,21 +76,37 @@ class App:
                     else:
                         self.Timer.start()
                 case 'w':
-                    Rb.Position[2] += 0.1
+                    Rb.Position[2] += MvSpd
                 case 'a':
-                    Rb.Position[0] -= 0.1
+                    Rb.Position[0] -= MvSpd
                 case 's':
-                    Rb.Position[2] -= 0.1
+                    Rb.Position[2] -= MvSpd
                 case 'd':
-                    Rb.Position[0] += 0.1
+                    Rb.Position[0] += MvSpd
+                case 'q':
+                    Rb.Position[1] -= MvSpd
+                case 'e':
+                    Rb.Position[1] += MvSpd
                 case 'Up':
-                    print("Up")
+                    Ang[0] += np.deg2rad(RotSpd)
                 case 'Left':
-                    print("Left")
+                    Ang[1] += np.deg2rad(RotSpd)
                 case 'Down':
-                    print("Down")
+                    Ang[0] -= np.deg2rad(RotSpd)
                 case 'Right':
-                    print("Right")
+                    Ang[1] -= np.deg2rad(RotSpd)
+
+            if Ang[0] < 0.0:
+                Ang[0] += np.pi
+            if Ang[0] > np.pi:
+                Ang[0] -= np.pi
+
+            if Ang[1] < 0.0:
+                Ang[1] += np.pi
+            if Ang[1] > np.pi:
+                Ang[1] -= np.pi
+
+            Rb.Rotation = quaternion.from_euler_angles(Ang[0], Ang[1], Ang[2])
 
         if __name__ == '__main__' and sys.flags.interactive == 0:
             Canvas.app.run()
@@ -95,6 +115,16 @@ class App:
     def Update(self, event):
         self.Scene.Update(self.Timer.interval)
         
+        if len(self.Scene.RigidBodies) == 0: 
+            return
+
+        RbA = self.Scene.RigidBodies[0]
+        RbB = self.Scene.RigidBodies[1]
+        if( GJK(RbA.Shape, RbA.Position, RbA.Rotation,
+            RbB.Shape, RbB.Position, RbB.Rotation, 
+            0.0)):
+            pass #print("Intersection")
+
         for i in range(len(self.Scene.RigidBodies)):
             Rb = self.Scene.RigidBodies[i]
             
