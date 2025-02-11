@@ -168,10 +168,10 @@ Collision::SupportPoint::Points Collision::SupportPoint::Get(const Physics::Shap
 {
 	return { ShA->GetSupportPoint(PosA, RotA, UDir, Bias), ShB->GetSupportPoint(PosB, RotB, -UDir, Bias) };
 }
-Collision::SupportPoint::Points Collision::SupportPoint::Get(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& UDir, const float Bias)
-{
-	return Get(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation, UDir, Bias);
-}
+//Collision::SupportPoint::Points Collision::SupportPoint::Get(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& UDir, const float Bias)
+//{
+//	return Get(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation, UDir, Bias);
+//}
 void Collision::SupportPoint::ToTetrahedron(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, std::vector<SupportPoint::Points>& Sps)
 {
 	if (1 == std::size(Sps)) {
@@ -323,7 +323,10 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 //!<	1, 2, 3, 4 がなす四面体が原点を含めば衝突、終了
 //!<	一番近い三角形 (例えば 1, 2, 4) から、原点を向く法線方向の次のサポートポイント 5 を見つける
 //!<	四面体 (1, 2, 4, 5) が原点を含むか、サポートポイントが無くなるまで続ける
-bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, OnIntersectGJK OnIntersect, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
+bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, 
+	const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB,
+	OnIntersectGJK OnIntersect, const float Bias, 
+	Math::Vec3& OnA, Math::Vec3& OnB)
 {
 	std::vector<Collision::SupportPoint::Points> Sps;
 	Sps.reserve(4); //!< 4 枠
@@ -341,10 +344,10 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& P
 		//!< Pt は既存の点、もうこれ以上拡張できない -> 衝突無し
 		if (std::ranges::any_of(Sps, [&](const auto& i) { return Pt.GetC().NearlyEqual(i.GetC()); })) { break; }
 
-		Sps.emplace_back(Pt);
-
-		//!< Pt が原点を超えていない場合は原点を含まない
+		//!< 新しいサポートポイント Pt が原点を超えていない場合は原点を含まない
 		if (Dir.Dot(Pt.GetC() - Math::Vec3::Zero()) < 0.0f) { break; }
+
+		Sps.emplace_back(Pt);
 
 		//!< シンプレックスが原点を含むなら衝突
 		if ((ContainOrigin = Collision::SupportPoint::SimplexSignedVolumes(Sps, Dir, Lambda))) {
@@ -375,9 +378,15 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& P
 	}
 	return false;
 }
-bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, OnIntersectGJK OnIntersect, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
+bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, 
+	const Physics::RigidBody* RbB, 
+	OnIntersectGJK OnIntersect, const float Bias, 
+	Math::Vec3& OnA, Math::Vec3& OnB)
 {
-	return GJK(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation, OnIntersect, Bias, OnA, OnB);
+	return GJK(RbA->Shape, RbA->Position, RbA->Rotation, 
+		RbB->Shape, RbB->Position, RbB->Rotation, 
+		OnIntersect, Bias, 
+		OnA, OnB);
 }
 bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
 {

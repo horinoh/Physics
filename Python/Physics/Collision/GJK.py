@@ -2,8 +2,11 @@
 import sys
 import numpy as np
 
+from Physics import RigidBody
+from Physics import Shape
+
 # ABC 上での 原点 の重心座標
-def BaryCentricOrigin(A, B, C):
+def BaryCentric(A, B, C):
     # 法線
     N = np.cross(np.array(B) - A, np.array(C) - A)
     if np.isclose(N @ N, 0.0):
@@ -45,9 +48,9 @@ def BaryCentricOrigin(A, B, C):
     return False, np.zeros(3)
 
 # ABC 上での Pt の重心座標
-def BaryCentric(A, B, C,
-                Pt):
-    return BaryCentricOrigin(A - Pt, B - Pt, C - Pt)
+def BaryCentricOfPoint(A, B, C,
+                       Pt):
+    return BaryCentric(A - Pt, B - Pt, C - Pt)
 
 # 指定行、列を取り除いた部分行列の行列式
 def Minor(Mat,
@@ -88,7 +91,7 @@ def SignedVolume1(A, B):
 # その平面に A, B, C, P(原点) を射影 ABC 上での P の重心座標を返す
 # P が ABC 外の場合は 3 辺射影して一番近い 1-シンプレクスに帰着
 def SignedVolume2(A, B, C):
-    [b, BC] = BaryCentricOrigin(A, B, C)
+    [b, BC] = BaryCentric(A, B, C)
     if b:
         return BC
 
@@ -175,3 +178,25 @@ def TestSignedVolume():
 
     # 0.29, 0.302, 0.206, 0.202
     print(SignedVolume3([51.19, 26.19, 1.91], [-51.05, -26.05, -0.43], [50.89, -24.10, -1.04], [-49.10, 25.89, -1.04]))
+
+# A, B の形状のミンコフスキー差の形状を C とした場合
+# C のサポートポイントは A, B のサポートポイントの差となる
+class SupportPoint:
+    """SupportPoint"""
+
+    def __init__(self, SpA, SpB):
+        self.A = SpA
+        self.B = SpB
+        self.C = self.A - self.B
+    
+        self._Shape = None
+    def __del__(self):
+        pass
+
+def GetSupportPoint(ShA, PosA, RotA,
+                    ShB, PosB, RotB,
+                    UDir, Bias):
+    # A は UDir 方向に一番遠い点、B はその反対方向に一番遠い点を求める
+    A = ShA.GetSupportPoint(PosA, RotA,  UDir, Bias)
+    B = ShB.GetSupportPoint(PosB, RotB, -UDir, Bias)
+    return SupportPoint(A, B)

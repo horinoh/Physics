@@ -5,8 +5,6 @@ import math
 import numpy as np
 import quaternion
 
-# 要インストール
-# pip install vispy, Glfw
 from vispy import app
 from vispy import scene
 from vispy.visuals.transforms import MatrixTransform
@@ -20,6 +18,9 @@ from Physics.Collision.GJK import TestSignedVolume
 
 class App:
     def __init__(self):
+        print("Python=", sys.version)
+        print("Numpy+", np.__version__)
+
         # キャンバス
         Canvas = scene.SceneCanvas(keys = 'interactive', bgcolor = 'skyblue', size = (800, 600), show = True)
         # ビューを追加
