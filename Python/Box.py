@@ -77,12 +77,13 @@ class App:
 
         @Canvas.events.key_press.connect
         def on_key_press(event):
-            if event.key == ' ':
-                self.IsStop = False if self.IsStop else True
-                if self.IsStop:
-                    self.Timer.stop()
-                else:
-                    self.Timer.start()
+            match event.key:
+                case ' ':
+                    self.IsStop = False if self.IsStop else True
+                    if self.IsStop:
+                        self.Timer.stop()
+                    else:
+                        self.Timer.start()
 
         if __name__ == '__main__' and sys.flags.interactive == 0:
             Canvas.app.run()
@@ -95,33 +96,33 @@ class App:
         #IsDrawAABB = False
         for i in range(len(self.Scene.RigidBodies)):
             Rb = self.Scene.RigidBodies[i]
-            VSp = self.Boxes[i]
-            VBx = self.AABBs[i]
+            VisBox = self.Boxes[i]
+            VisAB = self.AABBs[i]
 
-            VSp.transform.reset()
-            VBx.transform.reset()
+            VisBox.transform.reset()
+            VisAB.transform.reset()
             
             # 回転軸が取れれば回転する
             Axis = quaternion.as_rotation_vector(Rb.Rotation)
             LenSq = Axis @ Axis
             if False == np.isclose(LenSq, 0.0):
                 Axis /= math.sqrt(LenSq)
-                VSp.transform.rotate(-np.rad2deg(Rb.Rotation.angle()), [Axis[0], Axis[2], Axis[1]])
+                VisBox.transform.rotate(-np.rad2deg(Rb.Rotation.angle()), [Axis[0], Axis[2], Axis[1]])
             
             # YZ が入れ替わるので注意s
             Pos = [Rb.Position[0], Rb.Position[2], Rb.Position[1]]
-            # 球
-            VSp.transform.translate(Pos)
+            # ボックス
+            VisBox.transform.translate(Pos)
 
             # AABB
             if IsDrawAABB and Rb.InvMass != 0.0:
                 Ab = Rb.GetAABB()
-                VBx.transform.scale([Ab.Extent[0], Ab.Extent[2], Ab.Extent[1]])
+                VisAB.transform.scale([Ab.Extent[0], Ab.Extent[2], Ab.Extent[1]])
                 # AABB がジャストフィットなので、表示用に少し大きくする
-                VBx.transform.scale([1.1, 1.1, 1.1])
-                VBx.transform.translate([Ab.Center[0], Ab.Center[2], Ab.Center[1]])
+                VisAB.transform.scale([1.1, 1.1, 1.1])
+                VisAB.transform.translate([Ab.Center[0], Ab.Center[2], Ab.Center[1]])
             else:
-                VBx.transform.translate([0, 0, -100])
+                VisAB.transform.translate([0, 0, -100])
                 
 App()
 
