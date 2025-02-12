@@ -23,9 +23,9 @@ class App:
         print("Numpy+", np.__version__)
 
         # キャンバス
-        Canvas = scene.SceneCanvas(keys = 'interactive', bgcolor = 'skyblue', size = (800, 600), show = True)
+        self.Canvas = scene.SceneCanvas(keys = 'interactive', bgcolor = 'skyblue', size = (800, 600), show = True)
         # ビューを追加
-        View = Canvas.central_widget.add_view()
+        View = self.Canvas.central_widget.add_view()
         # カメラ設定
         View.camera = 'arcball'
         View.camera.set_range(x = [-10, 10])
@@ -46,8 +46,11 @@ class App:
         # 描画用
         self.Visuals = []
         for i in self.Scene.RigidBodies:
-            #Inst = scene.visuals.Box(width = i.Shape.Extent[0] * 2.0, height = i.Shape.Extent[1] * 2.0, depth = i.Shape.Extent[2] * 2.0, color = "yellow" if i.InvMass != 0.0 else "green", edge_color = 'black', parent = View.scene)
-            Inst = scene.visuals.Sphere(radius = i.Shape.Radius, cols = 20, rows = 20, method = 'latitude', color = "yellow" if i.InvMass != 0.0 else "green", edge_color = 'black', parent = View.scene)
+            match i.Shape.GetType():
+                case Shape.ShapeType.SPHERE:
+                    Inst = scene.visuals.Sphere(radius = i.Shape.Radius, cols = 20, rows = 20, method = 'latitude', color = "yellow", edge_color = 'black', parent = View.scene)
+                case Shape.ShapeType.BOX:
+                    Inst = scene.visuals.Box(width = i.Shape.Extent[0] * 2.0, height = i.Shape.Extent[1] * 2.0, depth = i.Shape.Extent[2] * 2.0, color = "yellow", edge_color = 'black', parent = View.scene)
             Inst.transform = MatrixTransform()
             self.Visuals.append(Inst)
 
@@ -59,11 +62,12 @@ class App:
 
         TestSignedVolume()
 
-        @Canvas.events.key_press.connect
+        @self.Canvas.events.key_press.connect
         def on_key_press(event):
             Rb = self.Scene.RigidBodies[0]
             Ang = quaternion.as_euler_angles(Rb.Rotation)
             
+            # 移動、回転
             MvSpd = 0.2
             RotSpd = 10
             match event.key:
@@ -107,7 +111,7 @@ class App:
             Rb.Rotation = quaternion.from_euler_angles(Ang[0], Ang[1], Ang[2])
 
         if __name__ == '__main__' and sys.flags.interactive == 0:
-            Canvas.app.run()
+           self.Canvas.app.run()
 
     # 更新関数
     def Update(self, event):
@@ -115,13 +119,16 @@ class App:
 
         Len = len(self.Scene.RigidBodies)
 
+        # 衝突の有無で背景色を変更
+        HasIntersection = False
         for i in range(Len):
             for j in range(i + 1, Len):
                 RbA = self.Scene.RigidBodies[i]
                 RbB = self.Scene.RigidBodies[j]
                 if GJK(RbA.Shape, RbA.Position, RbA.Rotation,
                        RbB.Shape, RbB.Position, RbB.Rotation):
-                    print("Intersection")
+                    HasIntersection = True
+        self.Canvas.bgcolor = "white" if HasIntersection else "skyblue"
 
         for i in range(Len):
             Rb = self.Scene.RigidBodies[i]
@@ -138,7 +145,7 @@ class App:
             
             # YZ が入れ替わるので注意s
             Pos = [Rb.Position[0], Rb.Position[2], Rb.Position[1]]
-            # ボックス
+            # 剛体
             Vis.transform.translate(Pos)
 App()
 

@@ -20,9 +20,9 @@ class App:
         print("Numpy+", np.__version__)
 
         # キャンバス
-        Canvas = scene.SceneCanvas(keys = 'interactive', bgcolor = 'skyblue', size = (800, 600), show = True)
+        self.Canvas = scene.SceneCanvas(keys = 'interactive', bgcolor = 'skyblue', size = (800, 600), show = True)
         # ビューを追加
-        View = Canvas.central_widget.add_view()
+        View = self.Canvas.central_widget.add_view()
         # カメラ設定
         View.camera = 'arcball'
         View.camera.set_range(x = [-10, 10])
@@ -79,7 +79,7 @@ class App:
         self.Timer.start()
         self.IsStop = False
 
-        @Canvas.events.key_press.connect
+        @self.Canvas.events.key_press.connect
         def on_key_press(event):
              match event.key:
                 case ' ':
@@ -102,7 +102,7 @@ class App:
         print(np.unique(np.round(a, decimals = 4), axis = 0))
 
         if __name__ == '__main__' and sys.flags.interactive == 0:
-            Canvas.app.run()
+            self.Canvas.app.run()
 
     # 更新関数
     def Update(self, event):
@@ -127,7 +127,7 @@ class App:
             
             # YZ が入れ替わるので注意s
             Pos = [Rb.Position[0], Rb.Position[2], Rb.Position[1]]
-            # 球
+            # 剛体
             VisSp.transform.translate(Pos)
 
             # AABB
