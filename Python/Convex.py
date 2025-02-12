@@ -37,21 +37,19 @@ class App:
         for i in range(2):
             Rb = RigidBody.RigidBody()
             Rb.InvMass = 0.0
-            Rb.Shape = Shape.ShapeBox()
+            #Rb.Shape = Shape.ShapeBox()
+            Rb.Shape = Shape.ShapeSphere()
             if i == 0:
-                Rb.Position = [ -2.0, 0.0, 0.0 ]
+                Rb.Position = [ -5.0, 0.0, 0.0 ]
             self.Scene.RigidBodies.append(Rb)
 
-        # ボックス (描画用)
-        self.Boxes = []
+        # 描画用
+        self.Visuals = []
         for i in self.Scene.RigidBodies:
-            Inst = scene.visuals.Box(width = i.Shape.Extent[0], height = i.Shape.Extent[1], depth = i.Shape.Extent[2], color = "yellow" if i.InvMass != 0.0 else "green", edge_color = 'black', parent = View.scene)
+            #Inst = scene.visuals.Box(width = i.Shape.Extent[0] * 2.0, height = i.Shape.Extent[1] * 2.0, depth = i.Shape.Extent[2] * 2.0, color = "yellow" if i.InvMass != 0.0 else "green", edge_color = 'black', parent = View.scene)
+            Inst = scene.visuals.Sphere(radius = i.Shape.Radius, cols = 20, rows = 20, method = 'latitude', color = "yellow" if i.InvMass != 0.0 else "green", edge_color = 'black', parent = View.scene)
             Inst.transform = MatrixTransform()
-            self.Boxes.append(Inst)
-
-        # (描画用)
-        #self.Poly = scene.visuals.Polygon(pos = [[-5, 0, 0],[5, 0, 0],[0, 5, 0]], border_method="agg" )
-        #self.Poly.transform = MatrixTransform()
+            self.Visuals.append(Inst)
 
         # 更新処理
         FPS = 1.0 / 30.0
@@ -114,33 +112,33 @@ class App:
     # 更新関数
     def Update(self, event):
         self.Scene.Update(self.Timer.interval)
-        
-        if len(self.Scene.RigidBodies) == 0: 
-            return
 
-        RbA = self.Scene.RigidBodies[0]
-        RbB = self.Scene.RigidBodies[1]
-        if( GJK(RbA.Shape, RbA.Position, RbA.Rotation,
-            RbB.Shape, RbB.Position, RbB.Rotation, 
-            0.0)):
-            pass #print("Intersection")
+        Len = len(self.Scene.RigidBodies)
 
-        for i in range(len(self.Scene.RigidBodies)):
+        for i in range(Len):
+            for j in range(i + 1, Len):
+                RbA = self.Scene.RigidBodies[i]
+                RbB = self.Scene.RigidBodies[j]
+                if GJK(RbA.Shape, RbA.Position, RbA.Rotation,
+                       RbB.Shape, RbB.Position, RbB.Rotation):
+                    print("Intersection")
+
+        for i in range(Len):
             Rb = self.Scene.RigidBodies[i]
             
-            VisBox = self.Boxes[i]
-            VisBox.transform.reset()
+            Vis = self.Visuals[i]
+            Vis.transform.reset()
 
             # 回転軸が取れれば回転する
             Axis = quaternion.as_rotation_vector(Rb.Rotation)
             LenSq = Axis @ Axis
             if False == np.isclose(LenSq, 0.0):
                 Axis /= math.sqrt(LenSq)
-                VisBox.transform.rotate(-np.rad2deg(Rb.Rotation.angle()), [Axis[0], Axis[2], Axis[1]])
+                Vis.transform.rotate(-np.rad2deg(Rb.Rotation.angle()), [Axis[0], Axis[2], Axis[1]])
             
             # YZ が入れ替わるので注意s
             Pos = [Rb.Position[0], Rb.Position[2], Rb.Position[1]]
             # ボックス
-            VisBox.transform.translate(Pos)
+            Vis.transform.translate(Pos)
 App()
 

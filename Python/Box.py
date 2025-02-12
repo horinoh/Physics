@@ -55,7 +55,7 @@ class App:
         # ボックス (描画用)
         self.Boxes = []
         for i in self.Scene.RigidBodies:
-            Inst = scene.visuals.Box(width = i.Shape.Extent[0], height = i.Shape.Extent[1], depth = i.Shape.Extent[2], color = "yellow" if i.InvMass != 0.0 else "green", edge_color = 'black', parent = View.scene)
+            Inst = scene.visuals.Box(width = i.Shape.Extent[0] * 2.0, height = i.Shape.Extent[1] * 2.0, depth = i.Shape.Extent[2] * 2.0, color = "yellow" if i.InvMass != 0.0 else "green", edge_color = 'black', parent = View.scene)
             Inst.transform = MatrixTransform()
             self.Boxes.append(Inst)
 
@@ -117,7 +117,7 @@ class App:
             # AABB
             if IsDrawAABB and Rb.InvMass != 0.0:
                 Ab = Rb.GetAABB()
-                VisAB.transform.scale([Ab.Extent[0], Ab.Extent[2], Ab.Extent[1]])
+                VisAB.transform.scale([Ab.Extent[0] * 2.0, Ab.Extent[2] * 2.0, Ab.Extent[1] * 2.0])
                 # AABB がジャストフィットなので、表示用に少し大きくする
                 VisAB.transform.scale([1.1, 1.1, 1.1])
                 VisAB.transform.translate([Ab.Center[0], Ab.Center[2], Ab.Center[1]])

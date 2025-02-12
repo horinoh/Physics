@@ -63,8 +63,7 @@ def SphereSphereDy(PosA, RadA, VelA,
 # 原点を含むシンプレクスを作成する事で衝突を検出する
 # ある方向に一番遠い点(サポートポイント)を見つける
 def GJK(ShA, PosA, RotA,
-        ShB, PosB, RotB,
-        Bias):
+        ShB, PosB, RotB):
     # サポートポイント保持先
     Sps = []
 
@@ -94,16 +93,12 @@ def GJK(ShA, PosA, RotA,
 
         # 新しいサポートポイント Pt を追加した上で、シンプレクスが原点を含むかどうかs
         Sps.append(Pt)
-        for i in range(0, len(Sps)):
-            print("Sps", i, Sps[i].C)
         match len(Sps):
             case 2:
                 # シンプレクス (線分) 上での原点の重心座標
                 Lmd = SignedVolume1(Sps[0].C, Sps[1].C)
-                print("Lmd", Lmd)
                 # 原点へのベクトル
                 Dir = -(Sps[0].C * Lmd[0] + Sps[1].C * Lmd[1])
-                print("Dir", Dir)
             case 3:
                 # シンプレクス (三角形) 上
                 Lmd = SignedVolume2(Sps[0].C, Sps[1].C, Sps[2].C)
