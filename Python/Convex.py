@@ -37,10 +37,10 @@ class App:
         for i in range(2):
             Rb = RigidBody.RigidBody()
             Rb.InvMass = 0.0
-            #Rb.Shape = Shape.ShapeBox()
-            Rb.Shape = Shape.ShapeSphere()
+            Rb.Shape = Shape.ShapeBox()
+            #Rb.Shape = Shape.ShapeSphere()
             if i == 0:
-                Rb.Position = [ -5.0, 0.0, 0.0 ]
+                Rb.Position = [ -2.0, 0.0, 0.0 ]
             self.Scene.RigidBodies.append(Rb)
 
         # 描画用
@@ -50,7 +50,7 @@ class App:
                 case Shape.ShapeType.SPHERE:
                     Inst = scene.visuals.Sphere(radius = i.Shape.Radius, cols = 20, rows = 20, method = 'latitude', color = "yellow", edge_color = 'black', parent = View.scene)
                 case Shape.ShapeType.BOX:
-                    Inst = scene.visuals.Box(width = i.Shape.Extent[0] * 2.0, height = i.Shape.Extent[1] * 2.0, depth = i.Shape.Extent[2] * 2.0, color = "yellow", edge_color = 'black', parent = View.scene)
+                    Inst = scene.visuals.Box(width = i.Shape.Extent[0], height = i.Shape.Extent[1], depth = i.Shape.Extent[2], color = "yellow", edge_color = 'black', parent = View.scene)
             Inst.transform = MatrixTransform()
             self.Visuals.append(Inst)
 
