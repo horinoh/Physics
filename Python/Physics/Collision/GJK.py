@@ -155,6 +155,29 @@ def SignedVolume3(A, B, C, D):
      # 一番近いものを返す
     return Lambda[np.argmin(np.abs(LenSq))]
 
+# A, B の形状のミンコフスキー差の形状を C とした場合
+# C のサポートポイントは A, B のサポートポイントの差となる
+class SupportPoint:
+    """SupportPoint"""
+
+    def __init__(self, SpA, SpB):
+        self.A = SpA
+        self.B = SpB
+        self.C = self.A - self.B
+    
+        self._Shape = None
+    def __del__(self):
+        pass
+
+def GetSupportPoint(ShA, PosA, RotA,
+                    ShB, PosB, RotB,
+                    UDir, Bias):
+    # A は UDir 方向に一番遠い点、B はその反対方向に一番遠い点を求める
+    A = ShA.GetSupportPoint(PosA, RotA,  UDir, Bias)
+    B = ShB.GetSupportPoint(PosB, RotB, -UDir, Bias)
+    return SupportPoint(A, B)
+
+
 # シンプレクス計算のテスト
 def TestSignedVolume():
     Pts = [
@@ -178,25 +201,3 @@ def TestSignedVolume():
 
     # 0.29, 0.302, 0.206, 0.202
     print(SignedVolume3([51.19, 26.19, 1.91], [-51.05, -26.05, -0.43], [50.89, -24.10, -1.04], [-49.10, 25.89, -1.04]))
-
-# A, B の形状のミンコフスキー差の形状を C とした場合
-# C のサポートポイントは A, B のサポートポイントの差となる
-class SupportPoint:
-    """SupportPoint"""
-
-    def __init__(self, SpA, SpB):
-        self.A = SpA
-        self.B = SpB
-        self.C = self.A - self.B
-    
-        self._Shape = None
-    def __del__(self):
-        pass
-
-def GetSupportPoint(ShA, PosA, RotA,
-                    ShB, PosB, RotB,
-                    UDir, Bias):
-    # A は UDir 方向に一番遠い点、B はその反対方向に一番遠い点を求める
-    A = ShA.GetSupportPoint(PosA, RotA,  UDir, Bias)
-    B = ShB.GetSupportPoint(PosB, RotB, -UDir, Bias)
-    return SupportPoint(A, B)

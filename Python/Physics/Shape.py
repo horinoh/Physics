@@ -91,16 +91,10 @@ class ShapeBox(ShapeBase):
         return Ab
 
     def GetSupportPoint(self, Pos, Rot, UDir, Bias):
-        MaxPt = quaternion.rotate_vectors(Rot, self.Points[0]) + Pos
-        MaxDist = MaxPt @ UDir
-        for i in range(1, len(self.Points)):
-            Pt = quaternion.rotate_vectors(Rot, self.Points[i]) + Pos
-            Dist = Pt @ UDir
-            if Dist > MaxDist:
-                MaxDist = Dist
-                MaxPt = Pt
-        return MaxPt + UDir * Bias
-        #return max(self.Points, key = lambda rhs: (quaternion.rotate_vectors(Rot, rhs) + Pos) @ UDir) + UDir * Bias
+        # [移動回転した点, 点と UDir の内積] のリストを返す (map())
+        # 内積 [1] が最大になるような要素を見つける (max())
+        # 点 [0] に UDir * Bias を加算して返す
+        return max(list(map(lambda rhs: (lambda Pt = quaternion.rotate_vectors(Rot, rhs) + Pos: [Pt, Pt @ UDir])(), self.Points)), key = lambda rhs: rhs[1])[0] + UDir * Bias
     
     def GetFastestPointSpeed(self, AngVel, UDir):
         return max(self.Points, key = lambda rhs: UDir @ np.cross(AngVel, rhs))

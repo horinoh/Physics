@@ -40,7 +40,7 @@ class App:
             Rb.Shape = Shape.ShapeBox()
             #Rb.Shape = Shape.ShapeSphere()
             if i == 0:
-                Rb.Position = [ -2.0, 0.0, 0.0 ]
+                Rb.Position = [ -2.5, 0.0, 0.0 ]
             self.Scene.RigidBodies.append(Rb)
 
         # 描画用
@@ -118,14 +118,13 @@ class App:
         self.Scene.Update(self.Timer.interval)
 
         Len = len(self.Scene.RigidBodies)
-
         # 衝突の有無で背景色を変更
         HasIntersection = False
         for i in range(Len):
             for j in range(i + 1, Len):
                 RbA = self.Scene.RigidBodies[i]
                 RbB = self.Scene.RigidBodies[j]
-                if GJK(RbA.Shape, RbA.Position, RbA.Rotation,
+                if GJK(RbA.Shape, RbA.Position, RbA.Rotation, 
                        RbB.Shape, RbB.Position, RbB.Rotation):
                     HasIntersection = True
         self.Canvas.bgcolor = "white" if HasIntersection else "skyblue"
@@ -143,7 +142,7 @@ class App:
                 Axis /= math.sqrt(LenSq)
                 Vis.transform.rotate(-np.rad2deg(Rb.Rotation.angle()), [Axis[0], Axis[2], Axis[1]])
             
-            # YZ が入れ替わるので注意s
+            # YZ が入れ替わるので注意
             Pos = [Rb.Position[0], Rb.Position[2], Rb.Position[1]]
             # 剛体
             Vis.transform.translate(Pos)

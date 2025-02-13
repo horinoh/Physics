@@ -135,5 +135,3 @@ def GJK(ShA, PosA, RotA,
         return True
     
     return False
-
-
