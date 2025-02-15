@@ -121,7 +121,7 @@ class ShapeConvex(ShapeBase):
         return Ab
 
     def GetSupportPoint(self, Pos, Rot, UDir, Bias):
-        return max(self.Points, key = lambda rhs: (quaternion.rotate_vectors(Rot, rhs) + Pos) @ UDir) + UDir * Bias
+        return max(list(map(lambda rhs: (lambda Pt = quaternion.rotate_vectors(Rot, rhs) + Pos: [Pt, Pt @ UDir])(), self.Points)), key = lambda rhs: rhs[1])[0] + UDir * Bias
     
     def GetFastestPointSpeed(self, AngVel, UDir):
         return max(self.Points, key = lambda rhs: UDir @ np.cross(AngVel, rhs))

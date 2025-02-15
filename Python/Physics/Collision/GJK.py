@@ -155,6 +155,23 @@ def SignedVolume3(A, B, C, D):
      # 一番近いものを返す
     return Lambda[np.argmin(np.abs(LenSq))]
 
+def SignedVolume(Sps, Dir):
+    match len(Sps):
+        case 2:
+            # シンプレクス (線分) 上での原点の重心座標
+            Lmd = SignedVolume1(Sps[0].C, Sps[1].C)
+            # 原点へのベクトル
+            Dir = -(Sps[0].C * Lmd[0] + Sps[1].C * Lmd[1])
+        case 3:
+            # シンプレクス (三角形) 上
+            Lmd = SignedVolume2(Sps[0].C, Sps[1].C, Sps[2].C)
+            Dir = -(Sps[0].C * Lmd[0] + Sps[1].C * Lmd[1] + Sps[2].C * Lmd[2])
+        case 4:
+            # シンプレクス (四面体) 上
+            Lmd = SignedVolume3(Sps[0].C, Sps[1].C, Sps[2].C, Sps[3].C)
+            Dir = -(Sps[0].C * Lmd[0] + Sps[1].C * Lmd[1] + Sps[2].C * Lmd[2] + Sps[3].C * Lmd[3])
+    return Lmd, Dir
+
 # A, B の形状のミンコフスキー差の形状を C とした場合
 # C のサポートポイントは A, B のサポートポイントの差となる
 class SupportPoint:
@@ -180,6 +197,8 @@ def GetSupportPoint(ShA, PosA, RotA,
 
 # シンプレクス計算のテスト
 def TestSignedVolume():
+    print("TestSignedVolume")
+    
     Pts = [
         np.zeros(3),
         [1,0,0],

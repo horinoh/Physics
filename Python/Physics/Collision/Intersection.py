@@ -6,7 +6,7 @@ import math # math.sqrt の方が numpy.sqrt より速いらしい
 import numpy as np
 
 from Physics.Collision.Bound import AABB
-from Physics.Collision.GJK import GetSupportPoint, SignedVolume1, SignedVolume2, SignedVolume3
+from Physics.Collision.GJK import GetSupportPoint, SignedVolume
 
 # AABB vs AABB
 def AABBAABB(AbA, AbB):
@@ -91,22 +91,10 @@ def GJK(ShA, PosA, RotA,
         if Dir @ Pt.C < 0.0:
             break
 
-        # 新しいサポートポイント Pt を追加した上で、シンプレクスが原点を含むかどうかs
+        # 新しいサポートポイント Pt を追加した上で、シンプレクスが原点を含むかどうか
         Sps.append(Pt)
-        match len(Sps):
-            case 2:
-                # シンプレクス (線分) 上での原点の重心座標
-                Lmd = SignedVolume1(Sps[0].C, Sps[1].C)
-                # 原点へのベクトル
-                Dir = -(Sps[0].C * Lmd[0] + Sps[1].C * Lmd[1])
-            case 3:
-                # シンプレクス (三角形) 上
-                Lmd = SignedVolume2(Sps[0].C, Sps[1].C, Sps[2].C)
-                Dir = -(Sps[0].C * Lmd[0] + Sps[1].C * Lmd[1] + Sps[2].C * Lmd[2])
-            case 4:
-                # シンプレクス (四面体) 上
-                Lmd = SignedVolume3(Sps[0].C, Sps[1].C, Sps[2].C, Sps[3].C)
-                Dir = -(Sps[0].C * Lmd[0] + Sps[1].C * Lmd[1] + Sps[2].C * Lmd[2] + Sps[3].C * Lmd[3])
+        Lmd, Dir = SignedVolume(Sps, Dir)
+
         LenSq = Dir @ Dir
         # 原点へ向かうベクトルの長さが 0.0 なら原点を含む (衝突)
         if np.isclose(LenSq, 0.0):
@@ -114,6 +102,7 @@ def GJK(ShA, PosA, RotA,
             break
 
         # 最短距離を更新できない (衝突無し)
+        #   原点が四角形の対角線に近い場合、２つのサポートポイントが入れ替わり続けるケースが起こり得る為、原点により近づくという条件を追加する
         if LenSq >= ClosestSq:
             break
         ClosestSq = LenSq
@@ -123,7 +112,9 @@ def GJK(ShA, PosA, RotA,
         #   filter で値[1] が 0.0 でないもののみに絞り込み
         #   map で Sps[インデックス[0]] を抽出した新しいリストを作成
         #   Sps は新しいリストで上書き
-        Sps = list(map(lambda rhs: Sps[rhs[0]], filter(lambda rhs: rhs[1] != 0.0, enumerate(Lmd))))
+        SpsLmd = list(map(lambda rhs: [Sps[rhs[0]], rhs[1]], filter(lambda rhs: rhs[1] != 0.0, enumerate(Lmd))))
+        Sps = list(map(lambda rhs: rhs[0], SpsLmd))
+        #Sps = list(map(lambda rhs: Sps[rhs[0]], filter(lambda rhs: rhs[1] != 0.0, enumerate(Lmd))))
 
         # 四面体でここまで来たら原点を含む (衝突)
         Intersect = (4 == len(Sps))

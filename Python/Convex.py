@@ -13,9 +13,11 @@ from vispy.util.quaternion import Quaternion
 from Physics import Scene
 from Physics import RigidBody
 from Physics import Shape
-from Physics.Collision.Intersection import GJK
+#from Physics.Collision.Intersection import GJK
 
+import Physics.Collision.Closest
 from Physics.Collision.GJK import TestSignedVolume
+import Physics.Collision.Intersection
 
 class App:
     def __init__(self):
@@ -43,7 +45,7 @@ class App:
                 Rb.Position = [ -2.5, 0.0, 0.0 ]
             self.Scene.RigidBodies.append(Rb)
 
-        # 描画用
+        # 描画用 (形状)
         self.Visuals = []
         for i in self.Scene.RigidBodies:
             match i.Shape.GetType():
@@ -54,13 +56,23 @@ class App:
             Inst.transform = MatrixTransform()
             self.Visuals.append(Inst)
 
+        # 描画用 (最近接点)
+        self.CPts = []
+        Inst = scene.visuals.Box(width = 0.1, height = 0.1, depth = 0.1, color = "red", edge_color = 'black', parent = View.scene)
+        Inst.transform = MatrixTransform()
+        self.CPts.append(Inst)
+        Inst = scene.visuals.Box(width = 0.1, height = 0.1, depth = 0.1, color = "red", edge_color = 'black', parent = View.scene)
+        Inst.transform = MatrixTransform()
+        self.CPts.append(Inst)
+
         # 更新処理
         FPS = 1.0 / 30.0
         self.Timer = app.Timer(interval = FPS, connect = self.Update)
         self.Timer.start()
         self.IsStop = False
 
-        TestSignedVolume()
+        # SignedVolume 計算のテスト
+        #TestSignedVolume()
 
         @self.Canvas.events.key_press.connect
         def on_key_press(event):
@@ -120,13 +132,18 @@ class App:
         Len = len(self.Scene.RigidBodies)
         # 衝突の有無で背景色を変更
         HasIntersection = False
+        CPos = [np.zeros(3), np.zeros(3)]
         for i in range(Len):
             for j in range(i + 1, Len):
                 RbA = self.Scene.RigidBodies[i]
                 RbB = self.Scene.RigidBodies[j]
-                if GJK(RbA.Shape, RbA.Position, RbA.Rotation, 
-                       RbB.Shape, RbB.Position, RbB.Rotation):
+                if Physics.Collision.Intersection.GJK(RbA.Shape, RbA.Position, RbA.Rotation, 
+                                                      RbB.Shape, RbB.Position, RbB.Rotation):
                     HasIntersection = True
+                else:
+                    CPos = Physics.Collision.Closest.GJK(RbA.Shape, RbA.Position, RbA.Rotation, 
+                                                         RbB.Shape, RbB.Position, RbB.Rotation)
+
         self.Canvas.bgcolor = "white" if HasIntersection else "skyblue"
 
         for i in range(Len):
@@ -146,5 +163,12 @@ class App:
             Pos = [Rb.Position[0], Rb.Position[2], Rb.Position[1]]
             # 剛体
             Vis.transform.translate(Pos)
+        
+        # 最近接点
+        for i in range(len(self.CPts)):
+            CPt = self.CPts[i]
+            CPt.transform.reset()
+            CPt.transform.translate([CPos[i][0], CPos[i][2], CPos[i][1]])
+
 App()
 
