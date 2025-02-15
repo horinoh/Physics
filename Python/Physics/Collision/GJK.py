@@ -172,6 +172,80 @@ def SignedVolume(Sps, Dir):
             Dir = -(Sps[0].C * Lmd[0] + Sps[1].C * Lmd[1] + Sps[2].C * Lmd[2] + Sps[3].C * Lmd[3])
     return Lmd, Dir
 
+# 原点を含むシンプレクスを作成する事で衝突を検出する
+# ある方向に一番遠い点(サポートポイント)を見つける
+def GJK(ShA, PosA, RotA,
+        ShB, PosB, RotB,
+        WithClosetPt = False):
+    # サポートポイント保持先
+    Sps = []
+
+    # (1, 1, 1) 方向のサポートポイントを求める
+    Dir = np.ones(3)
+    Dir /= np.linalg.norm(Dir)
+    Sps.append(GetSupportPoint(ShA, PosA, RotA,
+                               ShB, PosB, RotB,
+                               Dir, 0.0))
+    
+    # 原点に向かう方向 (逆向き) に次のサポートポイントを求める
+    Dir = -Sps[0].C
+    ClosestSq = sys.float_info.max
+    Intersect = False
+    SpsLmd = []
+    while Intersect == False:
+        Dir /= np.linalg.norm(Dir)
+        Pt = GetSupportPoint(ShA, PosA, RotA, 
+                             ShB, PosB, RotB, Dir, 0.0)
+
+        # 新しいサポートポイント Pt が既存の場合これ以上拡張できない (衝突無し)
+        if list(filter(lambda rhs: np.isclose(rhs.C, Pt.C).all(), Sps)):
+            break
+
+        # 最近接点を求める必要がある場合は早期終了させない
+        if WithClosetPt == False:
+            # 新しいサポートポイント Pt が原点を超えていなければ、原点を含まない (衝突無し)
+            if Dir @ Pt.C < 0.0:
+                break
+
+        # 新しいサポートポイント Pt を追加した上で、シンプレクスが原点を含むかどうかを調べる
+        Sps.append(Pt)
+        Lmd, Dir = SignedVolume(Sps, Dir)
+
+        LenSq = Dir @ Dir
+        # 原点へ向かうベクトルの長さが 0.0 なら原点を含む (衝突)
+        if np.isclose(LenSq, 0.0):
+            Intersect = True
+            break
+
+        # 最短距離を更新できない (衝突無し)
+        #   原点が四角形の対角線に近い場合、２つのサポートポイントが入れ替わり続けるケースが起こり得る為、原点により近づくという条件を追加する
+        if LenSq >= ClosestSq:
+            break
+        ClosestSq = LenSq
+
+        # 有効なサポートポイントのみを残す (Lmd が非 0.0 )
+        #   enumerate で Lmd をインデックス付きにする (インデックス[0]、値[1])
+        #   filter で値[1] が 0.0 でないもののみに絞り込み
+        #   map で Sps[インデックス[0]] を抽出した新しいリストを作成
+        SpsLmd = list(map(lambda rhs: [Sps[rhs[0]], rhs[1]], filter(lambda rhs: rhs[1] != 0.0, enumerate(Lmd))))
+        # Sps だけ抜き出し
+        Sps = list(map(lambda rhs: rhs[0], SpsLmd))
+
+        # 四面体でここまで来たら原点を含む (衝突)
+        Intersect = (4 == len(Sps))
+
+    # 衝突確定
+    if Intersect:
+        # 衝突点を求め、EPA へ
+        # EPA()
+        return True, [None, None]
+    
+    # 最近接点を求める場合
+    if WithClosetPt:
+        return False, [sum(map(lambda rhs: rhs[0].A * rhs[1], SpsLmd)), sum(map(lambda rhs: rhs[0].B * rhs[1], SpsLmd))]
+    else:
+        return False, [None, None]
+
 # A, B の形状のミンコフスキー差の形状を C とした場合
 # C のサポートポイントは A, B のサポートポイントの差となる
 class SupportPoint:

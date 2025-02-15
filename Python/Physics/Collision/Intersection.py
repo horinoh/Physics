@@ -5,8 +5,8 @@ import copy
 import math # math.sqrt の方が numpy.sqrt より速いらしい
 import numpy as np
 
+import Physics
 from Physics.Collision.Bound import AABB
-from Physics.Collision.GJK import GetSupportPoint, SignedVolume
 
 # AABB vs AABB
 def AABBAABB(AbA, AbB):
@@ -60,69 +60,10 @@ def SphereSphereDy(PosA, RadA, VelA,
 
     return True, max(T0, 0.0)
 
-# 原点を含むシンプレクスを作成する事で衝突を検出する
-# ある方向に一番遠い点(サポートポイント)を見つける
+# 凸包 vs 凸包
 def GJK(ShA, PosA, RotA,
         ShB, PosB, RotB):
-    # サポートポイント保持先
-    Sps = []
-
-    # (1, 1, 1) 方向のサポートポイントを求める
-    Dir = np.ones(3)
-    Dir /= np.linalg.norm(Dir)
-    Sps.append(GetSupportPoint(ShA, PosA, RotA,
-                               ShB, PosB, RotB,
-                               Dir, 0.0))
+    return Physics.Collision.GJK.GJK(ShA, PosA, RotA,
+                                     ShB, PosB, RotB,
+                                     False)[0]
     
-    # 原点に向かう方向 (逆向き) に次のサポートポイントを求める
-    Dir = -Sps[0].C
-    ClosestSq = sys.float_info.max
-    Intersect = False
-    while Intersect == False:
-        Dir /= np.linalg.norm(Dir)
-        Pt = GetSupportPoint(ShA, PosA, RotA, 
-                             ShB, PosB, RotB, Dir, 0.0)
-
-        # 新しいサポートポイント Pt が既存の場合これ以上拡張できない (衝突無し)
-        if list(filter(lambda rhs: np.isclose(rhs.C, Pt.C).all(), Sps)):
-            break
-
-        # 新しいサポートポイント Pt が原点を超えていなければ、原点を含まない (衝突無し)
-        if Dir @ Pt.C < 0.0:
-            break
-
-        # 新しいサポートポイント Pt を追加した上で、シンプレクスが原点を含むかどうか
-        Sps.append(Pt)
-        Lmd, Dir = SignedVolume(Sps, Dir)
-
-        LenSq = Dir @ Dir
-        # 原点へ向かうベクトルの長さが 0.0 なら原点を含む (衝突)
-        if np.isclose(LenSq, 0.0):
-            Intersect = True
-            break
-
-        # 最短距離を更新できない (衝突無し)
-        #   原点が四角形の対角線に近い場合、２つのサポートポイントが入れ替わり続けるケースが起こり得る為、原点により近づくという条件を追加する
-        if LenSq >= ClosestSq:
-            break
-        ClosestSq = LenSq
-
-        # 有効なサポートポイントのみを残す (Lmd が非 0.0 )
-        #   enumerate で Lmd をインデックス付きにする (インデックス[0]、値[1])
-        #   filter で値[1] が 0.0 でないもののみに絞り込み
-        #   map で Sps[インデックス[0]] を抽出した新しいリストを作成
-        #   Sps は新しいリストで上書き
-        SpsLmd = list(map(lambda rhs: [Sps[rhs[0]], rhs[1]], filter(lambda rhs: rhs[1] != 0.0, enumerate(Lmd))))
-        Sps = list(map(lambda rhs: rhs[0], SpsLmd))
-        #Sps = list(map(lambda rhs: Sps[rhs[0]], filter(lambda rhs: rhs[1] != 0.0, enumerate(Lmd))))
-
-        # 四面体でここまで来たら原点を含む (衝突)
-        Intersect = (4 == len(Sps))
-
-    # 衝突確定
-    if Intersect:
-        # 衝突点を求め、EPA へ
-        # EPA()
-        return True
-    
-    return False

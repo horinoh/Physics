@@ -17,6 +17,7 @@ from Physics import Shape
 
 import Physics.Collision.Closest
 from Physics.Collision.GJK import TestSignedVolume
+import Physics.Collision.GJK
 import Physics.Collision.Intersection
 
 class App:
@@ -130,22 +131,25 @@ class App:
         self.Scene.Update(self.Timer.interval)
 
         Len = len(self.Scene.RigidBodies)
-        # 衝突の有無で背景色を変更
         HasIntersection = False
-        CPos = [np.zeros(3), np.zeros(3)]
+        CPos = [None, None]
         for i in range(Len):
             for j in range(i + 1, Len):
                 RbA = self.Scene.RigidBodies[i]
                 RbB = self.Scene.RigidBodies[j]
-                if Physics.Collision.Intersection.GJK(RbA.Shape, RbA.Position, RbA.Rotation, 
-                                                      RbB.Shape, RbB.Position, RbB.Rotation):
-                    HasIntersection = True
-                else:
-                    CPos = Physics.Collision.Closest.GJK(RbA.Shape, RbA.Position, RbA.Rotation, 
-                                                         RbB.Shape, RbB.Position, RbB.Rotation)
-
+                HasIntersection, CPos = Physics.Collision.GJK.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
+                                                                  RbB.Shape, RbB.Position, RbB.Rotation,
+                                                                  True)
+                #HasIntersection = Physics.Collision.Intersection.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
+                #                                                     RbB.Shape, RbB.Position, RbB.Rotation)
+                #if not HasIntersection:
+                #    CPos = Physics.Collision.Closest.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
+                #                                         RbB.Shape, RbB.Position, RbB.Rotation)
+                
+        # 衝突の有無で背景色を変更
         self.Canvas.bgcolor = "white" if HasIntersection else "skyblue"
 
+        # 描画
         for i in range(Len):
             Rb = self.Scene.RigidBodies[i]
             
@@ -168,7 +172,8 @@ class App:
         for i in range(len(self.CPts)):
             CPt = self.CPts[i]
             CPt.transform.reset()
-            CPt.transform.translate([CPos[i][0], CPos[i][2], CPos[i][1]])
+            if not CPos[i] is None:
+                CPt.transform.translate([CPos[i][0], CPos[i][2], CPos[i][1]])
 
 App()
 
