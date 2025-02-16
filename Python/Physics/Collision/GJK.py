@@ -4,6 +4,7 @@ import numpy as np
 
 from Physics import RigidBody
 from Physics import Shape
+from Physics.Collision.Distance import IsFront, PointTriangle
 
 # ABC 上での 原点 の重心座標
 def BaryCentric(A, B, C):
@@ -158,7 +159,7 @@ def SignedVolume3(A, B, C, D):
 def SignedVolume(Sps, Dir):
     match len(Sps):
         case 2:
-            # シンプレクス (線分) 上での原点の重心座標
+            # シンプレクス (線分) 上へ射影したの原点の重心座標
             Lmd = SignedVolume1(Sps[0].C, Sps[1].C)
             # 原点へのベクトル
             Dir = -(Sps[0].C * Lmd[0] + Sps[1].C * Lmd[1])
@@ -172,8 +173,14 @@ def SignedVolume(Sps, Dir):
             Dir = -(Sps[0].C * Lmd[0] + Sps[1].C * Lmd[1] + Sps[2].C * Lmd[2] + Sps[3].C * Lmd[3])
     return Lmd, Dir
 
-# 原点を含むシンプレクスを作成する事で衝突を検出する
-# ある方向に一番遠い点(サポートポイント)を見つける
+# Gilbert Johnson Keerthi
+#   最初のサポートポイント A を (例えば) (1, 1, 1) 方向に見つける
+#   原点方向 (逆方向) のサポートポイント B を見つける
+#   線分 AB が原点を含めば衝突、そうでなければ線分 AB から原点方向のサポートポイントを C を見つける
+#   三角形 ABC が原点を含めば衝突、そうでなければ三角形 ABC から原点方向のサポートポイント D を見つける
+#   四面体 ABCD が原点を含めば衝突、そうでなければ (例えば一番近い三角形をABDとすると)三角形 ABD から原点方向のサポートポイント E を見つける (Cは破棄)
+#   四面体 ABDE が原点を含むば衝突、... (この繰り返し)
+#   最終的に四面体が原点を含む(衝突)か、サポートポイントが無くなる(非衝突)まで続ける
 def GJK(ShA, PosA, RotA,
         ShB, PosB, RotB,
         WithClosetPt = False):
@@ -195,7 +202,8 @@ def GJK(ShA, PosA, RotA,
     while Intersect == False:
         Dir /= np.linalg.norm(Dir)
         Pt = GetSupportPoint(ShA, PosA, RotA, 
-                             ShB, PosB, RotB, Dir, 0.0)
+                             ShB, PosB, RotB, 
+                             Dir, 0.0)
 
         # 新しいサポートポイント Pt が既存の場合これ以上拡張できない (衝突無し)
         if list(filter(lambda rhs: np.isclose(rhs.C, Pt.C).all(), Sps)):
@@ -236,15 +244,107 @@ def GJK(ShA, PosA, RotA,
 
     # 衝突確定
     if Intersect:
-        # 衝突点を求め、EPA へ
-        # EPA()
-        return True, [None, None]
+        # 衝突時には、成否と最近接点を返す
+        return True, Sps
     
     # 最近接点を求める場合
     if WithClosetPt:
+        # 成否と最近接点を返す
         return False, [sum(map(lambda rhs: rhs[0].A * rhs[1], SpsLmd)), sum(map(lambda rhs: rhs[0].B * rhs[1], SpsLmd))]
     else:
-        return False, [None, None]
+        # 成否のみ返す
+        return False, None
+
+# Expanding Polytope Algorithm
+def EPA(ShA, PosA, RotA,
+        ShB, PosB, RotB,
+        Sps, Bias):
+    
+    # 四面体にする (サポートポイント数が 4 になるまで増やす)
+    if len(Sps) == 1:
+        Dir = -Sps[0].C
+        Dir /= np.linalg.norm(Dir)
+        Sps.append(GetSupportPoint(ShA, PosA, RotA, 
+                                   ShB, PosB, RotB, 
+                                   Dir, 0.0))
+    if len(Sps) == 2:
+        AB = Sps[1].C - Sps[0].C
+        AB /= np.linalg.norm(AB)
+        
+        W = [1, 0, 0] if AB[2] * AB[2] > 0.9 * 0.9 else [0, 0, 1]        
+        W = np.cross(W, AB)
+        W /= np.linalg.norm(W)
+
+        V = np.cross(Dir, W)
+        V /= np.linalg.norm(V)
+
+        U = np.cross(V, Dir)
+        U /= np.linalg.norm(U)
+        Sps.append(GetSupportPoint(ShA, PosA, RotA, 
+                                   ShB, PosB, RotB, 
+                                   U, 0.0))
+    if len(Sps) == 3:
+        AB = Sps[1].C - Sps[0].C
+        AC = Sps[2].C - Sps[0].C
+        Dir = np.cross(AB, AC)
+        Dir /= np.linalg.norm(Dir)
+        Sps.append(GetSupportPoint(ShA, PosA, RotA, 
+                                   ShB, PosB, RotB, 
+                                   Dir, 0.0))
+
+    Center = sum(map(lambda rhs: rhs.C, Sps)) * 0.25
+
+    # バイアス分拡張する
+    Sps = list(map(lambda rhs: 
+                   (lambda Dir = rhs.C - Center:
+                    (lambda Dir = Dir / np.linalg.norm(Dir) * Bias:
+                     SupportPoint(rhs.A + Dir, rhs.B - Dir)
+                     )()
+                    )(), Sps))
+    
+    # 三角形のインデックスを作成
+    Tris = []
+    for i in range(4):
+        j = (i + 1) % 4
+        k = (i + 2) % 4
+        l = (i + 3) % 4
+
+        Tris.append([j, i, k] if IsFront(Sps[l].C, 
+                                         Sps[i].C, Sps[j].C, Sps[k].C) else [i, j, k])
+        
+    while True:
+        # 原点に最も近い三角形を見つける
+        Tri = Tris[np.argmin(map(lambda rhs: PointTriangle(np.zeros(3), Sps[rhs[0]].C, Sps[rhs[1]].C, Sps[rhs[2]].C), Tris))]
+        A = Sps[Tri[0]].C
+        B = Sps[Tri[1]].C
+        C = Sps[Tri[2]].C
+
+        # 三角形の法線
+        N = np.cross(B - A, C - A)
+        N /= np.linalg.norm(N)
+
+        # 法線方向のサポートポイント    
+        Pt = GetSupportPoint(ShA, PosA, RotA, 
+                             ShB, PosB, RotB, 
+                             N, Bias)
+
+        # 既存の場合これ以上拡張できない
+        if list(filter(lambda rhs: np.isclose(rhs.C, Pt.C).all(), Sps)):
+            break
+
+        # これ以上拡張できない
+        if PointTriangle(Pt.C, A, B, C) <= 0.0:
+            break
+
+        Sps.append(Pt)
+
+        # Pt を向く三角形を削除、削除できない場合は終了 TODO
+
+        # ぶら下がった辺を収集、見つからなければ終了 TODO
+
+        # Pt を頂点とする新しい三角形を生成する TODO
+
+
 
 # A, B の形状のミンコフスキー差の形状を C とした場合
 # C のサポートポイントは A, B のサポートポイントの差となる

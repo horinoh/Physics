@@ -16,9 +16,10 @@ from Physics import Shape
 #from Physics.Collision.Intersection import GJK
 
 import Physics.Collision.Closest
-from Physics.Collision.GJK import TestSignedVolume
 import Physics.Collision.GJK
 import Physics.Collision.Intersection
+
+#sfrom Physics.Collision.GJK import TestSignedVolume
 
 class App:
     def __init__(self):
@@ -48,21 +49,26 @@ class App:
 
         # 描画用 (形状)
         self.Visuals = []
+        Color = (0, 1, 0, 0.5)
         for i in self.Scene.RigidBodies:
             match i.Shape.GetType():
                 case Shape.ShapeType.SPHERE:
-                    Inst = scene.visuals.Sphere(radius = i.Shape.Radius, cols = 20, rows = 20, method = 'latitude', color = "yellow", edge_color = 'black', parent = View.scene)
+                    Inst = scene.visuals.Sphere(radius = i.Shape.Radius, cols = 20, rows = 20, method = 'latitude', color = Color, edge_color = 'black', parent = View.scene)
                 case Shape.ShapeType.BOX:
-                    Inst = scene.visuals.Box(width = i.Shape.Extent[0], height = i.Shape.Extent[1], depth = i.Shape.Extent[2], color = "yellow", edge_color = 'black', parent = View.scene)
+                    Inst = scene.visuals.Box(width = i.Shape.Extent[0], height = i.Shape.Extent[1], depth = i.Shape.Extent[2], color = Color, edge_color = 'black', parent = View.scene)
             Inst.transform = MatrixTransform()
             self.Visuals.append(Inst)
 
+        # 描画用 (衝突点)
+        self.IPos = scene.visuals.Box(width = 0.05, height = 0.05, depth = 0.05, color = "red", edge_color = 'black', parent = View.scene)
+        self.IPos.transform = MatrixTransform()
+
         # 描画用 (最近接点)
         self.CPts = []
-        Inst = scene.visuals.Box(width = 0.1, height = 0.1, depth = 0.1, color = "red", edge_color = 'black', parent = View.scene)
+        Inst = scene.visuals.Box(width = 0.05, height = 0.05, depth = 0.05, color = "yellow", edge_color = 'black', parent = View.scene)
         Inst.transform = MatrixTransform()
         self.CPts.append(Inst)
-        Inst = scene.visuals.Box(width = 0.1, height = 0.1, depth = 0.1, color = "red", edge_color = 'black', parent = View.scene)
+        Inst = scene.visuals.Box(width = 0.05, height = 0.05, depth = 0.05, color = "yellow", edge_color = 'black', parent = View.scene)
         Inst.transform = MatrixTransform()
         self.CPts.append(Inst)
 
@@ -132,22 +138,31 @@ class App:
 
         Len = len(self.Scene.RigidBodies)
         HasIntersection = False
-        CPos = [None, None]
+        IPos = None
+        Res = []
         for i in range(Len):
             for j in range(i + 1, Len):
                 RbA = self.Scene.RigidBodies[i]
                 RbB = self.Scene.RigidBodies[j]
-                HasIntersection, CPos = Physics.Collision.GJK.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
-                                                                  RbB.Shape, RbB.Position, RbB.Rotation,
-                                                                  True)
+                HasIntersection, Res = Physics.Collision.GJK.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
+                                                                 RbB.Shape, RbB.Position, RbB.Rotation,
+                                                                 True)
                 #HasIntersection = Physics.Collision.Intersection.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
                 #                                                     RbB.Shape, RbB.Position, RbB.Rotation)
                 #if not HasIntersection:
-                #    CPos = Physics.Collision.Closest.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
-                #                                         RbB.Shape, RbB.Position, RbB.Rotation)
-                
+                #    Res = Physics.Collision.Closest.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
+                #                                        RbB.Shape, RbB.Position, RbB.Rotation)
+
+        # 衝突がある場合、衝突点を求める
+        if HasIntersection and not Res is None:
+            #for i in Res:
+            #    print(i.C)
+            Physics.Collision.GJK.EPA(RbA.Shape, RbA.Position, RbA.Rotation,
+                                      RbB.Shape, RbB.Position, RbB.Rotation,
+                                      Res, 0.1)
+
         # 衝突の有無で背景色を変更
-        self.Canvas.bgcolor = "white" if HasIntersection else "skyblue"
+        self.Canvas.bgcolor = "blue" if HasIntersection else "skyblue"
 
         # 描画
         for i in range(Len):
@@ -168,12 +183,18 @@ class App:
             # 剛体
             Vis.transform.translate(Pos)
         
+        # 衝突点
+        self.IPos.transform.reset()
+        if not IPos is None:
+            self.IPos.transform.translate([IPos[0], IPos[2], IPos[1]])
+
         # 最近接点
-        for i in range(len(self.CPts)):
-            CPt = self.CPts[i]
-            CPt.transform.reset()
-            if not CPos[i] is None:
-                CPt.transform.translate([CPos[i][0], CPos[i][2], CPos[i][1]])
+        if not HasIntersection:
+            if not Res is None:
+                for i in range(len(self.CPts)):
+                    CPt = self.CPts[i]
+                    CPt.transform.reset()
+                    CPt.transform.translate([Res[i][0], Res[i][2], Res[i][1]])
 
 App()
 
