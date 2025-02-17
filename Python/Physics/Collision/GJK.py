@@ -338,11 +338,52 @@ def EPA(ShA, PosA, RotA,
 
         Sps.append(Pt)
 
-        # Pt を向く三角形を削除、削除できない場合は終了 TODO
+        # Pt を向く三角形を削除、削除できない場合は終了
+        Len = len(Tris)
+        Tris = list(filter(lambda rhs: False == IsFront(Pt.C, Sps[rhs[0]].C, Sps[rhs[1]].C, Sps[rhs[2]].C), Tris))
+        if Len == len(Tris):
+            break
 
-        # ぶら下がった辺を収集、見つからなければ終了 TODO
+        # ぶら下がった辺を収集、見つからなければ終了
+        DanglingEdges = []
+        Len = len(Tris)
+        for i in range(Len):
+            TriA = Tris[i]
+            EdgesA = [
+                [ TriA[0], TriA[1] ], 
+                [ TriA[1], TriA[2] ], 
+                [ TriA[2], TriA[0] ], 
+            ]
+            # 出現回数
+            Count = [ 0, 0, 0 ]
 
-        # Pt を頂点とする新しい三角形を生成する TODO
+            for j in range(Len):
+                # 自身以外と比較
+                if i == j:
+                    continue
+
+                TriB = Tris[j]
+                EdgesB = [
+                    [ TriB[0], TriB[1] ], 
+                    [ TriB[1], TriB[2] ], 
+                    [ TriB[2], TriB[0] ], 
+                ]
+
+                # 出現回数をカウント
+                for k in range(3):
+                    for l in range(3):
+                        # 逆向きも同一とみなす
+                        if (EdgesA[k][0] == EdgesB[l][0] and EdgesA[k][1] == EdgesB[l][1]) or (EdgesA[k][1] == EdgesB[l][0] and EdgesA[k][0] == EdgesB[l][1]):
+                            Count[k] += 1
+                
+                # ユニークな辺はぶら下がり
+                for k in range(3):
+                    if Count[k] == 9:
+                        DanglingEdges.append(EdgesA[k])
+        if len(DanglingEdges) == 0:
+            break
+
+        # Pt とぶら下がり辺との新しい三角形を追加
 
 
 

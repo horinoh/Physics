@@ -60,8 +60,8 @@ class App:
             self.Visuals.append(Inst)
 
         # 描画用 (衝突点)
-        self.IPos = scene.visuals.Box(width = 0.05, height = 0.05, depth = 0.05, color = "red", edge_color = 'black', parent = View.scene)
-        self.IPos.transform = MatrixTransform()
+        self.IPts = scene.visuals.Box(width = 0.05, height = 0.05, depth = 0.05, color = "red", edge_color = 'black', parent = View.scene)
+        self.IPts.transform = MatrixTransform()
 
         # 描画用 (最近接点)
         self.CPts = []
@@ -136,9 +136,9 @@ class App:
     def Update(self, event):
         self.Scene.Update(self.Timer.interval)
 
+        # 衝突検出 (GJK)
         Len = len(self.Scene.RigidBodies)
         HasIntersection = False
-        IPos = None
         Res = []
         for i in range(Len):
             for j in range(i + 1, Len):
@@ -153,48 +153,50 @@ class App:
                 #    Res = Physics.Collision.Closest.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
                 #                                        RbB.Shape, RbB.Position, RbB.Rotation)
 
-        # 衝突がある場合、衝突点を求める
-        if HasIntersection and not Res is None:
-            #for i in Res:
-            #    print(i.C)
-            Physics.Collision.GJK.EPA(RbA.Shape, RbA.Position, RbA.Rotation,
-                                      RbB.Shape, RbB.Position, RbB.Rotation,
-                                      Res, 0.1)
+        # 衝突点、最近接点があれば格納
+        IPos = None
+        CPos = None
+        # 衝突点 (EPA)
+        if HasIntersection:
+            if not Res is None:
+                Physics.Collision.GJK.EPA(RbA.Shape, RbA.Position, RbA.Rotation,
+                                          RbB.Shape, RbB.Position, RbB.Rotation,
+                                          Res, 0.1)
+                # TODO
+                IPos = None
+        else:
+            CPos = Res
 
         # 衝突の有無で背景色を変更
         self.Canvas.bgcolor = "blue" if HasIntersection else "skyblue"
 
-        # 描画
+        # 剛体の描画
         for i in range(Len):
             Rb = self.Scene.RigidBodies[i]
-            
             Vis = self.Visuals[i]
             Vis.transform.reset()
-
             # 回転軸が取れれば回転する
             Axis = quaternion.as_rotation_vector(Rb.Rotation)
             LenSq = Axis @ Axis
             if False == np.isclose(LenSq, 0.0):
                 Axis /= math.sqrt(LenSq)
                 Vis.transform.rotate(-np.rad2deg(Rb.Rotation.angle()), [Axis[0], Axis[2], Axis[1]])
-            
             # YZ が入れ替わるので注意
             Pos = [Rb.Position[0], Rb.Position[2], Rb.Position[1]]
             # 剛体
             Vis.transform.translate(Pos)
         
-        # 衝突点
-        self.IPos.transform.reset()
+        # 衝突点、最近接点のリセット
+        self.IPts.transform.reset()
+        for i in range(len(self.CPts)):
+            self.CPts[i].transform.reset()
+        # 衝突点の描画
         if not IPos is None:
-            self.IPos.transform.translate([IPos[0], IPos[2], IPos[1]])
-
-        # 最近接点
-        if not HasIntersection:
-            if not Res is None:
-                for i in range(len(self.CPts)):
-                    CPt = self.CPts[i]
-                    CPt.transform.reset()
-                    CPt.transform.translate([Res[i][0], Res[i][2], Res[i][1]])
+            self.IPts.transform.translate([IPos[0], IPos[2], IPos[1]])
+        # 最近接点の描画
+        if not CPos is None:
+            for i in range(len(self.CPts)):
+                self.CPts[i].transform.translate([CPos[i][0], CPos[i][2], CPos[i][1]])
 
 App()
 
