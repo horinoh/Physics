@@ -10,6 +10,9 @@ from vispy import scene
 from vispy.visuals.transforms import MatrixTransform
 from vispy.util.quaternion import Quaternion
 
+from vispy.scene.visuals import Mesh
+#from vispy.visuals.mesh import MeshVisual
+
 from Physics import Scene
 from Physics import RigidBody
 from Physics import Shape
@@ -59,18 +62,26 @@ class App:
             Inst.transform = MatrixTransform()
             self.Visuals.append(Inst)
 
+        #Vertices = [(0, 0, 0), (1, 0, 1), (1, 1, 1), (0, 1, 0)]
+        #Faces = [(0, 1, 2), (0, 2, 3)]
+        #Msh = Mesh(vertices = Vertices, faces = Faces, color = Color)
+        #Msh = MeshVisual(meshdata = create_, color = Color)
+        #Msh.transform = MatrixTransform()
+
         # 描画用 (衝突点)
-        self.IPts = scene.visuals.Box(width = 0.05, height = 0.05, depth = 0.05, color = "red", edge_color = 'black', parent = View.scene)
-        self.IPts.transform = MatrixTransform()
+        self.IPts = []
+        for i in range(2):
+            #Inst = scene.visuals.Box(width = 0.05, height = 0.05, depth = 0.05, color = "red" if i == 0 else "green", edge_color = 'black', parent = View.scene)
+            Inst = scene.visuals.Box(width = 0.05, height = 0.05, depth = 0.05, color = "red", edge_color = 'black', parent = View.scene)
+            Inst.transform = MatrixTransform()
+            self.IPts.append(Inst)
 
         # 描画用 (最近接点)
         self.CPts = []
-        Inst = scene.visuals.Box(width = 0.05, height = 0.05, depth = 0.05, color = "yellow", edge_color = 'black', parent = View.scene)
-        Inst.transform = MatrixTransform()
-        self.CPts.append(Inst)
-        Inst = scene.visuals.Box(width = 0.05, height = 0.05, depth = 0.05, color = "yellow", edge_color = 'black', parent = View.scene)
-        Inst.transform = MatrixTransform()
-        self.CPts.append(Inst)
+        for i in range(2):
+            Inst = scene.visuals.Box(width = 0.05, height = 0.05, depth = 0.05, color = "yellow", edge_color = 'black', parent = View.scene)
+            Inst.transform = MatrixTransform()
+            self.CPts.append(Inst)
 
         # 更新処理
         FPS = 1.0 / 30.0
@@ -90,6 +101,7 @@ class App:
             MvSpd = 0.2
             RotSpd = 10
             match event.key:
+                #case 'Enter':
                 case ' ':
                     self.IsStop = False if self.IsStop else True
                     if self.IsStop:
@@ -159,18 +171,18 @@ class App:
         # 衝突点 (EPA)
         if HasIntersection:
             if not Res is None:
-                Physics.Collision.GJK.EPA(RbA.Shape, RbA.Position, RbA.Rotation,
-                                          RbB.Shape, RbB.Position, RbB.Rotation,
-                                          Res, 0.1)
-                # TODO
-                IPos = None
+                IPos = Physics.Collision.GJK.EPA(RbA.Shape, RbA.Position, RbA.Rotation,
+                                                 RbB.Shape, RbB.Position, RbB.Rotation,
+                                                 Res, 0.1)
         else:
             CPos = Res
 
         # 衝突の有無で背景色を変更
-        self.Canvas.bgcolor = "blue" if HasIntersection else "skyblue"
-
+        self.Canvas.bgcolor = "yellow" if HasIntersection else "skyblue"
+  
         # 剛体の描画
+        for i in self.Visuals:
+            i.transform.reset()
         for i in range(Len):
             Rb = self.Scene.RigidBodies[i]
             Vis = self.Visuals[i]
@@ -181,22 +193,37 @@ class App:
             if False == np.isclose(LenSq, 0.0):
                 Axis /= math.sqrt(LenSq)
                 Vis.transform.rotate(-np.rad2deg(Rb.Rotation.angle()), [Axis[0], Axis[2], Axis[1]])
+
             # YZ が入れ替わるので注意
             Pos = [Rb.Position[0], Rb.Position[2], Rb.Position[1]]
             # 剛体
             Vis.transform.translate(Pos)
-        
+
+            # 点滅
+            Flt, Int = math.modf(self.Timer.elapsed)
+            Flt, Int = math.modf(Flt * 10)
+            if Flt < 0.5:
+                Vis.transform.translate([0, 0, -100])
+
         # 衝突点、最近接点のリセット
-        self.IPts.transform.reset()
-        for i in range(len(self.CPts)):
-            self.CPts[i].transform.reset()
+        for i in self.IPts:
+            i.transform.reset()
+        for i in self.CPts:
+            i.transform.reset()
         # 衝突点の描画
         if not IPos is None:
-            self.IPts.transform.translate([IPos[0], IPos[2], IPos[1]])
+            for i in range(len(self.IPts)):
+                self.IPts[i].transform.translate([IPos[i][0], IPos[i][2], IPos[i][1]])
+        else:
+            for i in self.IPts:
+                i.transform.translate([0, 0, -100])
         # 最近接点の描画
         if not CPos is None:
             for i in range(len(self.CPts)):
                 self.CPts[i].transform.translate([CPos[i][0], CPos[i][2], CPos[i][1]])
+        else:
+            for i in self.CPts:
+                i.transform.translate([0, 0, -100])
 
 App()
 

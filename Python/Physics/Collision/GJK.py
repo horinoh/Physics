@@ -336,6 +336,7 @@ def EPA(ShA, PosA, RotA,
         if PointTriangle(Pt.C, A, B, C) <= 0.0:
             break
 
+        PtIdx = len(Sps)
         Sps.append(Pt)
 
         # Pt を向く三角形を削除、削除できない場合は終了
@@ -376,7 +377,7 @@ def EPA(ShA, PosA, RotA,
                         if (EdgesA[k][0] == EdgesB[l][0] and EdgesA[k][1] == EdgesB[l][1]) or (EdgesA[k][1] == EdgesB[l][0] and EdgesA[k][0] == EdgesB[l][1]):
                             Count[k] += 1
                 
-                # ユニークな辺はぶら下がり
+                # ユニークな辺 (ぶら下がり) を収集
                 for k in range(3):
                     if Count[k] == 9:
                         DanglingEdges.append(EdgesA[k])
@@ -384,7 +385,17 @@ def EPA(ShA, PosA, RotA,
             break
 
         # Pt とぶら下がり辺との新しい三角形を追加
-
+        for i in DanglingEdges:
+            Tri = [PtIdx, i[1], i[0]]
+            Tris.append(Tri if PointTriangle(Center, Sps[Tri[0]].C, Sps[Tri[1]].C, Sps[Tri[2]].C) <= 0.0 else [PtIdx, i[0], i[1]])
+    
+    # 原点に最も近い三角形を見つける
+    CTri = Tris[np.argmin(map(lambda rhs: PointTriangle(np.zeros(3), Sps[rhs[0]].C, Sps[rhs[1]].C,Sps[rhs[2]].C), Tris))]
+    IA = CTri[0]
+    IB = CTri[1]
+    IC = CTri[2]
+    b, Lmd = BaryCentric(Sps[IA].C, Sps[IB].C, Sps[IC].C)
+    return [Sps[IA].A * Lmd[0] + Sps[IB].A * Lmd[1] + Sps[IC].A * Lmd[2], Sps[IA].B * Lmd[0] + Sps[IB].B * Lmd[1] + Sps[IC].B * Lmd[2]]
 
 
 # A, B の形状のミンコフスキー差の形状を C とした場合

@@ -125,3 +125,24 @@ class ShapeConvex(ShapeBase):
     
     def GetFastestPointSpeed(self, AngVel, UDir):
         return max(self.Points, key = lambda rhs: UDir @ np.cross(AngVel, rhs))
+
+    def Diamond():
+        Rad = 2.0 * np.pi * 0.125
+        Rot = quaternion.from_euler_angles(0, 0, Rad * 0.5)
+        Pts = [
+            [0.1, 0.0, -1.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.1],
+            [0.4, 0.0, 0.],
+        ]
+        Pts.append(quaternion.rotate_vectors(Rot, [0.8, 0.0, 0.3]))
+        Pts.append(quaternion.rotate_vectors(Rot, Pts[1]))
+        Pts.append(quaternion.rotate_vectors(Rot, Pts[2]))
+
+        Rot = quaternion.from_euler_angles(0, 0, Rad)
+        Accm = quaternion.identity()
+        for i in range(1, 8):
+            Accm = Accm * Rot
+            for j in range(7):
+                Pts.append(quaternion.rotate_vectors(Accm, Pts[j]))
+        return Pts
