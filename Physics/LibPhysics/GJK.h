@@ -86,14 +86,14 @@ namespace Collision
 			[[nodiscard]] static auto Farthest(const Math::Vec3& Pt, const std::vector<SupportPoint::Points>& Sps, const std::vector<Collision::TriInds>& Indices)
 			{
 				return std::ranges::max_element(Indices, [&](const auto& lhs, const auto& rhs) {
-					return Collision::Distance::PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC()) < Collision::Distance::PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC());
+					return std::abs(Collision::Distance::PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC())) < std::abs(Collision::Distance::PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC()));
 				});
 			}
 			//!< 三角形から一番近い点のイテレータを返す
 			[[nodiscard]] static auto Closest(const Math::Vec3& Pt, const std::vector<SupportPoint::Points>& Sps, const std::vector<Collision::TriInds>& Indices)
 			{
 				return std::ranges::min_element(Indices, [&](const auto& lhs, const auto& rhs) {
-					return Collision::Distance::PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC()) < Collision::Distance::PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC());
+					return std::abs(Collision::Distance::PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC())) < std::abs(Collision::Distance::PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC()));
 				});
 			}
 		}

@@ -295,9 +295,8 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 	}
 
 	{
-		//!< 原点に最も近い三角形を取得 #TODO
-		const auto& CTri = *SupportPoint::Distance::Farthest(Math::Vec3::Zero(), Sps, Tris);
-		//const auto& CTri = *SupportPoint::Distance::Closest(Math::Vec3::Zero(), Sps, Tris);
+		//!< 原点に最も近い三角形を取得
+		const auto& CTri = *SupportPoint::Distance::Closest(Math::Vec3::Zero(), Sps, Tris);
 		const auto A = CTri[0], B = CTri[1], C = CTri[2];
 		//!< それ上での、原点の重心座標を取得
 		//const auto Lambda = Barycentric(Math::Vec3::Zero(), Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC());

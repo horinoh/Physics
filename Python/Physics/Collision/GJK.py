@@ -314,7 +314,7 @@ def EPA(ShA, PosA, RotA,
         
     while True:
         # 原点に最も近い三角形を見つける
-        Tri = Tris[np.argmin(map(lambda rhs: PointTriangle(np.zeros(3), Sps[rhs[0]].C, Sps[rhs[1]].C, Sps[rhs[2]].C), Tris))]
+        Tri = Tris[np.argmin(map(lambda rhs: np.abs(PointTriangle(np.zeros(3), Sps[rhs[0]].C, Sps[rhs[1]].C, Sps[rhs[2]].C)), Tris))]
         A = Sps[Tri[0]].C
         B = Sps[Tri[1]].C
         C = Sps[Tri[2]].C
@@ -390,7 +390,7 @@ def EPA(ShA, PosA, RotA,
             Tris.append(Tri if PointTriangle(Center, Sps[Tri[0]].C, Sps[Tri[1]].C, Sps[Tri[2]].C) <= 0.0 else [PtIdx, i[0], i[1]])
     
     # 原点に最も近い三角形を見つける
-    CTri = Tris[np.argmin(map(lambda rhs: PointTriangle(np.zeros(3), Sps[rhs[0]].C, Sps[rhs[1]].C,Sps[rhs[2]].C), Tris))]
+    CTri = Tris[np.argmin(map(lambda rhs: np.abs(PointTriangle(np.zeros(3), Sps[rhs[0]].C, Sps[rhs[1]].C,Sps[rhs[2]].C)), Tris))]
     IA = CTri[0]
     IB = CTri[1]
     IC = CTri[2]
