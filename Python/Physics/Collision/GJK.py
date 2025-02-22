@@ -197,9 +197,9 @@ def GJK(ShA, PosA, RotA,
     # 原点に向かう方向 (逆向き) に次のサポートポイントを求める
     Dir = -Sps[0].C
     ClosestSq = sys.float_info.max
-    Intersect = False
+    HasIntersection = False
     SpsLmd = []
-    while Intersect == False:
+    while HasIntersection == False:
         Dir /= np.linalg.norm(Dir)
         Pt = GetSupportPoint(ShA, PosA, RotA, 
                              ShB, PosB, RotB, 
@@ -222,7 +222,7 @@ def GJK(ShA, PosA, RotA,
         LenSq = Dir @ Dir
         # 原点へ向かうベクトルの長さが 0.0 なら原点を含む (衝突)
         if np.isclose(LenSq, 0.0):
-            Intersect = True
+            HasIntersection = True
             break
 
         # 最短距離を更新できない (衝突無し)
@@ -240,10 +240,10 @@ def GJK(ShA, PosA, RotA,
         Sps = list(map(lambda rhs: rhs[0], SpsLmd))
 
         # 四面体でここまで来たら原点を含む (衝突)
-        Intersect = (4 == len(Sps))
+        HasIntersection = (4 == len(Sps))
 
     # 衝突確定
-    if Intersect:
+    if HasIntersection:
         # 衝突時には、成否と最近接点を返す
         return True, Sps
     

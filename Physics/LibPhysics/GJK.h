@@ -102,33 +102,59 @@ namespace Collision
 	namespace Intersection 
 	{
 		//!< 衝突点算出用 (EPA 等)
-		using OnIntersectGJK = std::function<void(const Physics::Shape*, const Math::Vec3&, const Math::Quat&, const Physics::Shape*, const Math::Vec3&, const Math::Quat&, const std::vector<SupportPoint::Points>&, const float, Math::Vec3&, Math::Vec3&)>;
+		using OnIntersectGJK = std::function<void(const Physics::Shape*, const Math::Vec3&, const Math::Quat&, 
+			const Physics::Shape*, const Math::Vec3&, const Math::Quat&, 
+			const std::vector<SupportPoint::Points>&, 
+			const float, Math::Vec3&, Math::Vec3&)>;
 		//!< EPA (Expanding Polytope Algorithm)
-		void EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB);
+		void EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, 
+			const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 
+			const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, 
+			Math::Vec3& OnA, Math::Vec3& OnB);
+		static void OnIntersectDummy([[maybe_unused]] const Physics::Shape* ShA, [[maybe_unused]] const Math::Vec3& PosA, [[maybe_unused]] const Math::Quat& RotA,
+			[[maybe_unused]] const Physics::Shape* ShB, [[maybe_unused]] const Math::Vec3& PosB, [[maybe_unused]] const Math::Quat& RotB,
+			[[maybe_unused]] const std::vector<SupportPoint::Points>& SupportPoints, [[maybe_unused]] const float Bias,
+			[[maybe_unused]] Math::Vec3& OnA, [[maybe_unused]] Math::Vec3& OnB) {
+		}
 
 		//!< GJK 本体
-		[[nodiscard]] bool GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA,
+		bool GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA,
 			const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB,
 			OnIntersectGJK OnIntersect, const float Bias, 
+			const bool WidthClosestPoint,
 			Math::Vec3& OnA, Math::Vec3& OnB);
-		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA, 
-			const Physics::RigidBody* RbB, 
-			OnIntersectGJK OnIntersect, const float Bias, 
-			Math::Vec3& OnA, Math::Vec3& OnB);
-
-		//!< 衝突点算出に EPA と組み合わせて使用
-		[[nodiscard]] static bool GJK_EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB) 
+		
+		//!< 衝突点を EPA を用いて求める
+		//!< 衝突が無い場合は最近接点を求める
+		[[nodiscard]] static bool GJK_EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, 
+			const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 
+			const float Bias, 
+			const bool WidthClosestPoint,
+			Math::Vec3& OnA, Math::Vec3& OnB) 
 		{
-			return GJK(ShA, PosA, RotA, ShB, PosB, RotB, EPA, Bias, OnA, OnB);
+			return GJK(ShA, PosA, RotA, 
+				ShB, PosB, RotB, 
+				EPA, Bias, 
+				WidthClosestPoint,
+				OnA, OnB);
 		}
-		[[nodiscard]] bool GJK_EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB);
+		[[nodiscard]] bool GJK_EPA(const Physics::RigidBody* RbA,
+			const Physics::RigidBody* RbB,
+			const float Bias, 
+			bool WidthClosestPoint,
+			Math::Vec3& OnA, Math::Vec3& OnB);
 
-		//!< 衝突点が不要な場合
+		//!< 判定のみ (衝突点、最近接点が不要な場合)
 		[[nodiscard]] static bool GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA,
-			const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB)
+			const Physics::Shape* ShB,
+			const Math::Vec3& PosB, const Math::Quat& RotB)
 		{
 			Math::Vec3 OnA, OnB;
-			return GJK(ShA, PosA, RotA, ShB, PosB, RotB, [](const Physics::Shape*, const Math::Vec3&, const Math::Quat&, const Physics::Shape*, const Math::Vec3&, const Math::Quat&, const std::vector<SupportPoint::Points>&, const float, Math::Vec3&, Math::Vec3&) {}, 0.0f, OnA, OnB);
+			return GJK(ShA, PosA, RotA, 
+				ShB, PosB, RotB, 
+				OnIntersectDummy, 0.0f,
+				false,
+				OnA, OnB);
 		}
 		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
 	}

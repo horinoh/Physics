@@ -289,12 +289,16 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 			//!< 衝突点、最近接点
 			Math::Vec3 OnA, OnB;
 			constexpr auto Bias = 0.001f;
-			//if (Intersection::GJK_EPA(&WRbA, &WRbB, Bias, OnA, OnB)) {
-			if (Intersection::GJK_EPA(WRbA.Shape, WRbA.Position, WRbA.Rotation, WRbB.Shape, WRbB.Position, WRbB.Rotation, Bias, OnA, OnB)) {
+			constexpr auto WithClosestPoint = true;
+			if (Intersection::GJK_EPA(&WRbA,
+					&WRbB,
+					Bias,
+					WithClosestPoint,
+					OnA, OnB)) {
 				Ct.TimeOfImpact = TOI;
 
-				//!< 法線 A -> B #TODO
-				Ct.WNormal = -(OnB - OnA).Normalize();
+				//!< 法線 A -> B
+				Ct.WNormal = (OnA - OnB).Normalize();
 
 				//!< シンプレックスを拡張しているので、その分をキャンセルする
 				OnA -= Ct.WNormal * Bias;
@@ -314,8 +318,8 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 
 				return true;
 			}
-			else {
-				//!< 衝突が無い場合は最近接点を求める
+			else if (!WithClosestPoint) {
+				//!< 最近接点を求める
 				Closest::GJK(&WRbA, &WRbB, OnA, OnB);
 			}
 
