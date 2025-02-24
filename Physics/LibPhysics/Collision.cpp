@@ -296,10 +296,13 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 					WithClosestPoint,
 					OnA, OnB)) {
 				Ct.TimeOfImpact = TOI;
-
+#if true
 				//!< 法線 A -> B
 				Ct.WNormal = (OnA - OnB).Normalize();
-
+#else
+				//!< 法線 A -> B
+				Ct.WNormal = (OnB - OnA).Normalize();
+#endif
 				//!< シンプレックスを拡張しているので、その分をキャンセルする
 				OnA -= Ct.WNormal * Bias;
 				OnB += Ct.WNormal * Bias;
@@ -329,9 +332,12 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 				break;
 			}
 
+			const auto AB = OnB - OnA;
+			const auto SeparationDistance = AB.Length();
+
 			//!< 回転を考慮した相対速度を求める
 			//!< A -> B 方向
-			const auto Dir = (OnB - OnA).Normalize();
+			const auto Dir = AB / SeparationDistance;
 			//!< A の相対速度、角速度
 			const auto LVel = (WRbA.LinearVelocity - WRbB.LinearVelocity).Dot(Dir);
 			const auto AVel = WRbA.Shape->GetFastestPointSpeed(WRbA.AngularVelocity, Dir) - WRbB.Shape->GetFastestPointSpeed(WRbB.AngularVelocity, Dir);
@@ -342,7 +348,6 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 			}
 
 			//!< 衝突するであろう直前までの時間を求める
-			const auto SeparationDistance = (OnB - OnA).Length();
 			const auto TimeToGo = SeparationDistance / OrthoSpeed;
 			if (TimeToGo > DT) {
 				//!< DT 以内には存在しない

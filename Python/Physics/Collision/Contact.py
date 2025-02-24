@@ -1,10 +1,12 @@
 # 接触
 import numpy as np
 import math # math.sqrt の方が numpy.sqrt より速いらしい
+import copy
 
 from Physics import RigidBody
 from Physics import Shape
 from Physics.Collision import Intersection
+from Physics.Collision.GJK import GJK, EPA
 
 class Info:
     """Info"""
@@ -56,6 +58,68 @@ def GetContactInfo(RbA, RbB, DeltaSec):
     
     # TOI が直接求まらないので、シミュレーションを進めることで求める (Conservative Advance)
     
+    # ワークでシミュレーションを進める
+    WRbA = copy.deepcopy(RbA)
+    WRbB = copy.deepcopy(RbB)
+
+    DT = DeltaSec
+    TOI = 0.0
+    ItCount = 0
+    while DT > 0.0:
+        Res = []
+        b, Res = GJK(WRbA.Shape, WRbA.Position, WRbA.Rotation,
+                     WRbB.Shape, WRbB.Position, WRbB.Rotation, 
+                     True)
+        # GJK で衝突していれば EPA に帰着
+        if b:
+            IPos = []
+            IPos = EPA(WRbA.Shape, WRbA.Position, WRbA.Rotation,
+                       WRbB.Shape, WRbB.Position, WRbB.Rotation,
+                       Res, 0.1)
+            Ci = Info()
+            Ci.TimeOfImpact = TOI
+            Ci.RbA = RbA
+            Ci.RbB = RbB
+            Ci.WOnA = IPos[0]
+            Ci.WOnB = IPos[1]
+            AB = Ci.WOnB - Ci.WOnA
+            Ci.WNrm = AB / np.linalg.norm(AB)
+            return Ci
+
+        # 移動せずその場で回転しているような場合、ループから抜け出さない事があるのでループに上限回数を設ける
+        ItCount += 1
+        if ItCount > 10:
+            return None
+
+        # 最近接点を結ぶ AB        
+        AB = Res[1] - Res[0]
+        SepDist = np.linalg.norm(AB)
+        AB /= SepDist
+
+        # 線形相対速度
+        RelVel = (WRbA.LinearVelocity - WRbB.LinearVelocity) @ AB
+
+        # 角相対速度
+        RelVel += WRbA.Shape.GetFastestPointSpeed(WRbA.AngularVelocity, AB) - WRbB.Shape.GetFastestPointSpeed(WRbB.AngularVelocity, AB)
+
+        # 近づいてなければ早期終了
+        if RelVel < 0.0:
+            return None
+
+        # 進めても良い時間 (衝突寸前まで)
+        ToAdv = SepDist / RelVel
+
+        # デルタ時間内に起こらないなら早期終了
+        if DT > ToAdv:
+            return None
+        
+        DT -= ToAdv
+        TOI += ToAdv
+        
+        # シミュレーションを進める
+        WRbA.Update(ToAdv)
+        WRbB.Update(ToAdv)
+
     return None
 
 def ResolveLinear(Ci):

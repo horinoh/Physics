@@ -109,17 +109,17 @@ class App:
                     else:
                         self.Timer.start()
                 case 'w':
-                    Rb.Position[2] += MvSpd
+                    Rb.Position[1] += MvSpd
                 case 'a':
                     Rb.Position[0] -= MvSpd
                 case 's':
-                    Rb.Position[2] -= MvSpd
+                    Rb.Position[1] -= MvSpd
                 case 'd':
                     Rb.Position[0] += MvSpd
                 case 'q':
-                    Rb.Position[1] -= MvSpd
+                    Rb.Position[2] -= MvSpd
                 case 'e':
-                    Rb.Position[1] += MvSpd
+                    Rb.Position[2] += MvSpd
                 case 'Up':
                     Ang[0] += np.deg2rad(RotSpd)
                 case 'Left':
@@ -151,6 +151,7 @@ class App:
         # 衝突検出 (GJK)
         Len = len(self.Scene.RigidBodies)
         HasIntersection = False
+        WithClosestPoint = True
         Res = []
         for i in range(Len):
             for j in range(i + 1, Len):
@@ -158,12 +159,10 @@ class App:
                 RbB = self.Scene.RigidBodies[j]
                 HasIntersection, Res = Physics.Collision.GJK.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
                                                                  RbB.Shape, RbB.Position, RbB.Rotation,
-                                                                 True)
-                #HasIntersection = Physics.Collision.Intersection.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
-                #                                                     RbB.Shape, RbB.Position, RbB.Rotation)
-                #if not HasIntersection:
-                #    Res = Physics.Collision.Closest.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
-                #                                        RbB.Shape, RbB.Position, RbB.Rotation)
+                                                                 WithClosestPoint)
+                if not WithClosestPoint and not HasIntersection:
+                    Res = Physics.Collision.Closest.GJK(RbA.Shape, RbA.Position, RbA.Rotation,
+                                                        RbB.Shape, RbB.Position, RbB.Rotation)
 
         # 衝突点、最近接点があれば格納
         IPos = None

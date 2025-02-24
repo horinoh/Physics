@@ -244,7 +244,7 @@ def GJK(ShA, PosA, RotA,
 
     # 衝突確定
     if HasIntersection:
-        # 衝突時には、成否と最近接点を返す
+        # 衝突時には、成否とサポートポイントを返す
         return True, Sps
     
     # 最近接点を求める場合

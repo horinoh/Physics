@@ -15,9 +15,10 @@ namespace Convex
 	[[nodiscard]] static bool IsInternal(const Math::Vec3& Pt, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
 	{
 		//!< 全ての三角形に対し、負の側にあれば内部点
-		return std::ranges::all_of(Indices, [&](const auto rhs) {
-			return !Collision::Distance::IsFront(Pt, Vertices[rhs[0]], Vertices[rhs[1]], Vertices[rhs[2]]);
-		});
+		return std::ranges::all_of(Indices,
+			[&](const auto rhs) {
+				return !Collision::Distance::IsFront(Pt, Vertices[rhs[0]], Vertices[rhs[1]], Vertices[rhs[2]]);
+			});
 	}
 
 	//!< 凸包の内部点を削除

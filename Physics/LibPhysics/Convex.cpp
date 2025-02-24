@@ -277,28 +277,31 @@ Math::Vec3 Convex::Tetrahedron::CalcCenterOfMass(const std::vector<Math::Vec3>& 
 	const auto MeshCenter = std::accumulate(std::begin(Vertices), std::end(Vertices), Math::Vec3::Zero()) / static_cast<float>(std::size(Vertices));
 	auto CenterOfMass = Math::Vec3::Zero();
 	auto TotalVolume = 0.0f;
-	std::ranges::for_each(Indices, [&](const auto& i) {
-		const auto& A = MeshCenter;
-		const auto& B = Vertices[i[0]];
-		const auto& C = Vertices[i[1]];
-		const auto& D = Vertices[i[2]];
+	std::ranges::for_each(Indices, 
+		[&](const auto& i) {
+			const auto& A = MeshCenter;
+			const auto& B = Vertices[i[0]];
+			const auto& C = Vertices[i[1]];
+			const auto& D = Vertices[i[2]];
 
-		const auto TetraCenter = (A + B + C + D) * 0.25f;
-		const auto Volume = Collision::Volume::Tetrahedron(A, B, C, D);
+			const auto TetraCenter = (A + B + C + D) * 0.25f;
+			const auto Volume = Collision::Volume::Tetrahedron(A, B, C, D);
 
-		CenterOfMass += TetraCenter * Volume;
-		TotalVolume += Volume;
-	});
+			CenterOfMass += TetraCenter * Volume;
+			TotalVolume += Volume;
+		});
 	return CenterOfMass / TotalVolume;
 }
 Math::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D)
 {
 	//!< Žl–Ê‘Ì‚Ì 4 ’¸“_‚©‚ç‚È‚és—ñ
-	const auto M = Math::Mat3(
-		Math::Vec3(B.X() - A.X(), C.X() - A.X(), D.X() - A.X()),
-		Math::Vec3(B.Y() - A.Y(), C.Y() - A.Y(), D.Y() - A.Y()),
-		Math::Vec3(B.Z() - A.Z(), C.Z() - A.Z(), D.Z() - A.Z()));
-	const auto Det = M.Determinant();
+	const auto AB = B - A;
+	const auto AC = C - A;
+	const auto AD = D - A;
+	const auto Det = Math::Mat3(
+		Math::Vec3(AB.X(), AC.X(), AD.X()),
+		Math::Vec3(AB.Y(), AC.Y(), AD.Y()),
+		Math::Vec3(AB.Z(), AC.Z(), AD.Z())).Determinant();
 
 	auto XX = 0.0f, YY = 0.0f, ZZ = 0.0f, XY = 0.0f, XZ = 0.0f, YZ = 0.0f;
 	const std::array Pts = { A, B, C, D };
