@@ -20,6 +20,7 @@ class RigidBody:
         self.Friction = 0.5
     
         self._Shape = None
+    
     def __del__(self):
         pass         
 

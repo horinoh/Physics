@@ -97,7 +97,7 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
-	const auto BA = WAnchorA - WAnchorB;
+	//const auto BA = WAnchorA - WAnchorB;
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
@@ -105,7 +105,8 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
-		const auto J3 = -BA * 2.0f;
+		//const auto J3 = -BA * 2.0f;
+		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
 		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
@@ -143,7 +144,7 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
-	const auto BA = WAnchorA - WAnchorB;
+	//const auto BA = WAnchorA - WAnchorB;
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
@@ -151,7 +152,8 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
-		const auto J3 = -BA * 2.0f;
+		//const auto J3 = -BA * 2.0f;
+		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
 		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
@@ -220,14 +222,15 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
-	const auto BA = WAnchorA - WAnchorB;
+	//const auto BA = WAnchorA - WAnchorB;
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
-		const auto J3 = -BA * 2.0f;
+		//const auto J3 = -BA * 2.0f;
+		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
 		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
@@ -318,14 +321,15 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
-	const auto BA = WAnchorA - WAnchorB;
+	//const auto BA = WAnchorA - WAnchorB;
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
-		const auto J3 = -BA * 2.0f;
+		//const auto J3 = -BA * 2.0f;
+		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
 		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
@@ -380,14 +384,15 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
-	const auto BA = WAnchorA - WAnchorB;
+	//const auto BA = WAnchorA - WAnchorB;
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
-		const auto J3 = -BA * 2.0f;
+		//const auto J3 = -BA * 2.0f;
+		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
 		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
@@ -500,13 +505,14 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
-	const auto BA = WAnchorA - WAnchorB;
+	//const auto BA = WAnchorA - WAnchorB;
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	const auto J1 = -AB * 2.0f;
 	const auto J2 = RA.Cross(J1);
-	const auto J3 = -BA * 2.0f;
+	//const auto J3 = -BA * 2.0f;
+	const auto J3 = -J1;
 	const auto J4 = RB.Cross(J3);
 	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 
@@ -604,7 +610,8 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 
 	const auto J1 = -WNormal;
 	const auto J2 = RA.Cross(J1);
-	const auto J3 = WNormal;
+	//const auto J3 = WNormal;
+	const auto J3 = -J1;
 	const auto J4 = RB.Cross(J3);
 	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 

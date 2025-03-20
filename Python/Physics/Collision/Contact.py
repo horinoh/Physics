@@ -40,7 +40,7 @@ def GetContactInfoSphere(RbA, RbB, DeltaSec):
         PosA = Ci.RbA.Position + Ci.RbA.LinearVelocity * Ci.TimeOfImpact
         PosB = Ci.RbB.Position + Ci.RbB.LinearVelocity * Ci.TimeOfImpact
         
-        # 法線
+        # 法線 (A視点)
         AB = PosB - PosA
         Ci.WNrm = AB / np.linalg.norm(AB)
 

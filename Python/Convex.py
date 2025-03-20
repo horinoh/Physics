@@ -22,7 +22,8 @@ import Physics.Collision.Closest
 import Physics.Collision.GJK
 import Physics.Collision.Intersection
 
-#sfrom Physics.Collision.GJK import TestSignedVolume
+#from Physics.Collision.GJK import TestSignedVolume
+#from Physics.Collision.Constraint import TestGaussSiedel
 
 class App:
     def __init__(self):
@@ -91,6 +92,9 @@ class App:
 
         # SignedVolume 計算のテスト
         #TestSignedVolume()
+
+        # GaussSiedel 計算のテスト
+        #TestGaussSiedel()
 
         @self.Canvas.events.key_press.connect
         def on_key_press(event):

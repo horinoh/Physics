@@ -7,11 +7,13 @@ from Physics.Collision import Intersection
 from Physics.Collision import Contact
 from Physics.Collision.Bound import AABB
 from Physics.Collision.Bound import BoundEdge
+from Physics.Collision.Constraint import Penetration
 
 class Scene:
     """Scene"""
     def __init__(self):
         self.RigidBodies = []
+        self.Constrains = []
     def __del__(self):
         pass
 
@@ -163,6 +165,15 @@ class Scene:
             Contact.Resolve(Ci)
 
             AccumTime += Delta
+
+        # コンストレイント
+        for i in self.Constrains:
+            i.PreSolve(Delta)
+        for _ in range(5):
+            for i in self.Constrains:
+                i.Solve()
+        for i in self.Constrains:
+            i.PostSolve()
 
         # 残りの時間分進める
         Delta = DeltaSec - AccumTime

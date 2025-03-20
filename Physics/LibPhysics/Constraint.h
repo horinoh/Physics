@@ -311,11 +311,11 @@ namespace Physics
 	//!<		|xy_ij| >= Sigma_j,j!=i |xy_ij|
 	//!<		‘ÎŠp¬•ª‚Ì˜a‚Ìâ‘Î’l‚ªA”ñ‘ÎŠp¬•ª‚Ì˜a‚Ìâ‘Î’lˆÈã‚Æ‚È‚é‚æ‚¤‚Ès—ñ
 	template<size_t N>
-	static Math::Vec<N> GaussSiedel(const Math::Mat<N, N>& A, const Math::Vec<N>& b)
+	static Math::Vec<N> GaussSiedel(const Math::Mat<N, N>& A, const Math::Vec<N>& b, const uint32_t ItCount = 10)
 	{
 		auto x = Math::Vec<N>();
 
-		for (auto It = 0; It < N; ++It) {
+		for (uint32_t It = 0; It < ItCount; ++It) {
 			for (auto i = 0; i < N; ++i) {
 				const auto dx = (b[i] - A[i].Dot(x)) / A[i][i];
 				if (dx * 0.01f == dx * 0.01f) {
