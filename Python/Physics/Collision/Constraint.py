@@ -3,6 +3,7 @@ import numpy as np
 
 from Physics import RigidBody
 from Physics.Collision.Contact import Info
+from Physics.Collision.GJK import GetOrtho
 
 class ConstraintBase:
     """ConstraintBase"""
@@ -170,8 +171,6 @@ class Penetration(ConstraintBase):
 
         # オブジェクトが動くことを考慮して、都度ワールドへ変換
         WNrm = self.RbA.ToWorldDir(self.Normal)
-        # TODO
-        #WNrm.GetOrtho(U, V);
 
         # ヤコビ行列を作成
         J1 = -WNrm
@@ -185,6 +184,9 @@ class Penetration(ConstraintBase):
 
         # 摩擦
         if self.Friction > 0.0:
+            # 直交ベクトル U, V を求める
+            U, V = GetOrtho(WNrm)
+
             J1 = -U
             J2 = np.cross(RA, J1)
             J3 = -J1
@@ -205,13 +207,16 @@ class Penetration(ConstraintBase):
         
         self.ApplyImpulse(self.Jacobian * self.CachedLambda)
 
-        C = min((WAnchorB - WAnchorA) @ WNrm + 0.02, 0.0)
+        C = (WAnchorB - WAnchorA) @ WNrm
+        C = min(C + 0.02, 0.0)
         self.Baumgarte = 0.25 * C / DeltaSec
 
     def Solve(self):
         JT = np.transpose(self.Jacobian)
         A = JT @ self.InvMass @ self.Jacobian
-        B = -JT @ self.Velocities - np.array(self.Baumgarte, 0.0, 0.0)
+        #B = -JT @ self.Velocities - np.array(self.Baumgarte, 0.0, 0.0)
+        B = -JT @ self.Velocities
+        B[0] -= self.Baumgarte
         
         Lambda = GaussSiedel(A, B)
 
@@ -222,9 +227,7 @@ class Penetration(ConstraintBase):
             uMg = self.Friction * abs(9.8 / (self.RbA.InvMass + self.RbB.InvMass))
             NFrc = abs(Lambda[0] * self.Friction)
             Frc = max(uMg, NFrc)
-            # TODO
-            #self.CachedLambda[0] = clamp(self.CachedLambda[0], -Frc, Frc)
-            #self.CachedLambda[1] = clamp(self.CachedLambda[1], -Frc, Frc)
+            self.CachedLambda = np.clip(self.CachedLambda, -Frc, Frc)
         Lambda = self.CachedLambda - PreCL
 
         self.ApplyImpulse(self.Jacobian * Lambda)

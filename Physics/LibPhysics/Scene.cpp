@@ -115,6 +115,7 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 }
 #endif
 
+// 静的コンストレイント、動的コンストレイントを解決
 void Physics::Scene::SolveConstraint(const float DeltaSec, const uint32_t ItCount)
 {
 	for (auto& i : Constraints) {
@@ -122,7 +123,7 @@ void Physics::Scene::SolveConstraint(const float DeltaSec, const uint32_t ItCoun
 	}
 	Manifolds.PreSolve(DeltaSec);
 
-	//!< １度には２剛体間のコンストレイントしか解決しないので、繰り返さないと収束しない
+	//!< Solve() は繰り返すことで収束させる (１度には２剛体間のコンストレイントしか解決しない為)
 	for (uint32_t c = 0; c < ItCount; ++c) {
 		for (auto& i : Constraints) {
 			i->Solve();

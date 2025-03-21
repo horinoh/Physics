@@ -103,9 +103,9 @@ def GetContactInfo(RbA, RbB, DeltaSec):
         RelVel += WRbA.Shape.GetFastestPointSpeed(WRbA.AngularVelocity, AB) - WRbB.Shape.GetFastestPointSpeed(WRbB.AngularVelocity, AB)
 
         # 近づいてなければ早期終了
-        if RelVel < 0.0:
+        if RelVel < 0.0 or math.isclose(RelVel, 0.0):
             return None
-
+        
         # 進めても良い時間 (衝突寸前まで)
         ToAdv = SepDist / RelVel
 

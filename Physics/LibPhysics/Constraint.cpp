@@ -97,7 +97,6 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
-	//const auto BA = WAnchorA - WAnchorB;
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
@@ -105,7 +104,6 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
-		//const auto J3 = -BA * 2.0f;
 		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
 		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
@@ -144,7 +142,6 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
-	//const auto BA = WAnchorA - WAnchorB;
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
@@ -152,7 +149,6 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
-		//const auto J3 = -BA * 2.0f;
 		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
 		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
@@ -162,10 +158,6 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	const auto& QB = RigidBodyB->Rotation;
 	const auto InvQA = QA.Inverse();
 
-	//!< ヒンジ軸に垂直な U, V
-	Math::Vec3 U, V;
-	LAxisA.GetOrtho(U, V);
-
 	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
 	//!< (ここでは) 転置する意味が無い
 	const auto& PT = P; //P.Transpose();
@@ -173,6 +165,9 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
 	const auto MatA = -MatB;
 
+	//!< ヒンジ軸に垂直な U, V
+	Math::Vec3 U, V;
+	LAxisA.GetOrtho(U, V);
 	//!< U
 	{
 		const auto J1 = Math::Vec3::Zero();
@@ -222,14 +217,12 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
-	//const auto BA = WAnchorA - WAnchorB;
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
-		//const auto J3 = -BA * 2.0f;
 		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
 		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
@@ -238,9 +231,6 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 	const auto& QA = RigidBodyA->Rotation;
 	const auto& QB = RigidBodyB->Rotation;
 	const auto InvQA = QA.Inverse();
-
-	Math::Vec3 U, V;
-	LAxisA.GetOrtho(U, V);
 
 	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
 	const auto& PT = P; // P.Transpose();
@@ -254,6 +244,8 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 	Angle = TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(LAxisA)));
 	IsAngleViolated = std::fabsf(Angle) > LimitAngle;
 
+	Math::Vec3 U, V;
+	LAxisA.GetOrtho(U, V);
 	{
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(U);
@@ -321,14 +313,12 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
-	//const auto BA = WAnchorA - WAnchorB;
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
-		//const auto J3 = -BA * 2.0f;
 		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
 		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
@@ -384,14 +374,12 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
-	//const auto BA = WAnchorA - WAnchorB;
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
-		//const auto J3 = -BA * 2.0f;
 		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
 		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
@@ -505,13 +493,11 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
-	//const auto BA = WAnchorA - WAnchorB;
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	const auto J1 = -AB * 2.0f;
 	const auto J2 = RA.Cross(J1);
-	//const auto J3 = -BA * 2.0f;
 	const auto J3 = -J1;
 	const auto J4 = RB.Cross(J3);
 	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
@@ -521,15 +507,15 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 	const auto InvQA = QA.Inverse();
 
 	const auto WAxis = RigidBodyA->ToWorldDir(LAxisA);
-	Math::Vec3 U, V;
-	WAxis.GetOrtho(U, V);
-
+	
 	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
 	const auto& PT = P; // P.Transpose();
 
 	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
 	const auto MatA = -MatB;
-
+	
+	Math::Vec3 U, V;
+	WAxis.GetOrtho(U, V);
 	{
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(U);
@@ -605,28 +591,29 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 
 	//!< 法線をワールドスペースへ
 	const auto WNormal = RigidBodyA->ToWorldDir(LNormal);
-	Math::Vec3 U, V;
-	WNormal.GetOrtho(U, V);
-
+	
 	const auto J1 = -WNormal;
 	const auto J2 = RA.Cross(J1);
-	//const auto J3 = WNormal;
 	const auto J3 = -J1;
 	const auto J4 = RB.Cross(J3);
 	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 
 	if (Friction > 0.0f) {
+		// 直交ベクトル U, V を求める
+		Math::Vec3 U, V;
+		WNormal.GetOrtho(U, V);
+
 		{
 			const auto J1 = -U;
 			const auto J2 = RA.Cross(J1);
-			const auto J3 = U;
+			const auto J3 = -J1;
 			const auto J4 = RB.Cross(J3);
 			Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 		}
 		{
 			const auto J1 = -V;
 			const auto J2 = RA.Cross(J1);
-			const auto J3 = V;
+			const auto J3 = -J1;
 			const auto J4 = RB.Cross(J3);
 			Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 		}

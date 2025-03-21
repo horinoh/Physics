@@ -34,7 +34,10 @@ namespace Physics
 
 		std::vector<std::unique_ptr<Physics::Shape>> Shapes;
 		std::vector<std::unique_ptr<Physics::RigidBody>> RigidBodies;
+
+		// 静的なコンストレイント (距離、ヒンジ、...)
 		std::vector<std::unique_ptr<Physics::Constraint>> Constraints;
+		// 動的なコンストレイント (貫通)
 		Physics::ManifoldCollector Manifolds;
 	};
 }

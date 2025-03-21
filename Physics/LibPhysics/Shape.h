@@ -73,7 +73,6 @@ namespace Physics
 		float Radius = 1.0f;
 	};
 
-	//!< #TODO –¢ŒŸØ
 	class ShapeBox : public Shape
 	{
 	private:

@@ -42,13 +42,14 @@ class App:
         # 剛体
         CXZ = 2; CY = 2
         DXZ = 3; DY = 3
+        BASEY = 0
         Ofs = CXZ * DXZ * 0.5
         for i in range(CY):
             for j in range(CXZ):
                 for k in range(CXZ):
                     Rb = RigidBody.RigidBody()
                     Rb.Shape = Shape.ShapeBox()
-                    Rb.Position = [ j * DXZ - Ofs, i * DY + 3, k * DXZ - Ofs]
+                    Rb.Position = [ j * DXZ - Ofs, i * DY + BASEY, k * DXZ - Ofs]
                     #Rb.Rotation = quaternion.from_euler_angles(i * 20, 0, j*20)
                     self.Scene.RigidBodies.append(Rb)
 

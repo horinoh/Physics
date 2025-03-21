@@ -6,6 +6,19 @@ from Physics import RigidBody
 from Physics import Shape
 from Physics.Collision.Distance import IsFront, PointTriangle
 
+def GetOrtho(N):
+    W = [1, 0, 0] if N[2] * N[2] > 0.9 * 0.9 else [0, 0, 1]
+
+    V = np.cross(W, N)
+    V /= np.linalg.norm(V)
+    V = np.cross(N, V)
+    V /= np.linalg.norm(V)
+
+    U = np.cross(V, N)
+    U /= np.linalg.norm(U)
+    
+    return U, V
+
 # ABC 上での 原点 の重心座標
 def BaryCentric(A, B, C):
     # 法線
@@ -267,19 +280,13 @@ def EPA(ShA, PosA, RotA,
         Sps.append(GetSupportPoint(ShA, PosA, RotA, 
                                    ShB, PosB, RotB, 
                                    Dir, 0.0))
-    if len(Sps) == 2:
-        AB = Sps[1].C - Sps[0].C
-        AB /= np.linalg.norm(AB)
+    if len(Sps) == 2:        
+        Dir = Sps[1].C - Sps[0].C
+        Dir /= np.linalg.norm(Dir)
         
-        W = [1, 0, 0] if AB[2] * AB[2] > 0.9 * 0.9 else [0, 0, 1]        
-        W = np.cross(W, AB)
-        W /= np.linalg.norm(W)
-
-        V = np.cross(Dir, W)
-        V /= np.linalg.norm(V)
-
-        U = np.cross(V, Dir)
-        U /= np.linalg.norm(U)
+        # 直交ベクトル(Orthogonal) U, V を求める
+        U, V = GetOrtho(Dir)
+                
         Sps.append(GetSupportPoint(ShA, PosA, RotA, 
                                    ShB, PosB, RotB, 
                                    U, 0.0))

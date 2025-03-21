@@ -122,11 +122,13 @@ public:
 #if 1
 			const auto n = 4;
 			const auto n2 = n >> 1;
-			for (auto x = 0; x < n; ++x) {
-				for (auto z = 0; z < n; ++z) {
-					auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
-					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
-					Rb->Init(Scene->Shapes.back().get());
+			for (auto y = 0; y < 2; ++y) {
+				for (auto x = 0; x < n; ++x) {
+					for (auto z = 0; z < n; ++z) {
+						auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
+						Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y + static_cast<float>(y) * 1.5f, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+						Rb->Init(Scene->Shapes.back().get());
+					}
 				}
 			}
 #else

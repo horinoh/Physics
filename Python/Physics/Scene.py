@@ -118,6 +118,15 @@ class Scene:
             # 衝突情報を収集
             Ci = Contact.GetContactInfo(RbA, RbB, DeltaSec)
             if Ci != None:
+
+                # TODO
+                #if Ci.TimeOfImpact == 0.0:
+                #    # 静的衝突
+                #    Manifold.Add(Ci)
+                #else:
+                #    # 動的衝突
+                #    ContactInfos.append(Ci)    
+
                 ContactInfos.append(Ci)
     
     # 衝突情報の収集 (ブルートフォース or ブロードフェーズ + ナローフェーズ)
