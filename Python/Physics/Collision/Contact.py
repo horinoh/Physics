@@ -179,3 +179,14 @@ def Resolve(Ci):
         AB = Ci.WOnB - Ci.WOnA
         Ci.RbA.Position += AB * Ci.RbA.InvMass / TotalInvMass
         Ci.RbB.Position -= AB * Ci.RbB.InvMass / TotalInvMass
+
+# 2 オブジェクト間の接触情報
+class Manifold:
+    """Manifold"""
+
+    def __init__(self):
+        # 剛体
+        self.RbA = None
+        self.RbB = None
+        # 接触情報と貫通コンストレイント
+        self.Constraints = []

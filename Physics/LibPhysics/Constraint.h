@@ -11,6 +11,7 @@ namespace Physics
 {
 	class RigidBody;
 
+	//!< コンストレイント基底
 	class Constraint
 	{
 	public:
@@ -34,6 +35,8 @@ namespace Physics
 	protected:
 		Physics::RigidBody* RigidBodyA = nullptr;
 	};
+
+	//!< 剛体 A, B とそれぞれのアンカー位置、質量逆行列を持つ基底
 	class ConstraintAnchor : public Constraint
 	{
 	public:
@@ -55,6 +58,8 @@ namespace Physics
 
 		MassMatrix InvMass;
 	};
+
+	//!< 軸を持つ基底
 	class ConstraintAnchorAxis : public ConstraintAnchor
 	{
 	public:
@@ -64,9 +69,7 @@ namespace Physics
 
 	protected:
 		Math::Vec3 LAxisA;
-		//Math::Vec3 LAxisB;
 
-		//!< ある瞬間の回転を CurRot = QA.Inverse() * QB * InitRot.Inverse() とすると、初期位置からの回転角は Theta = 2.0f * asin(CurRot.Dot(Hinge)) で求まる
 		Math::Quat InvInitRot;
 	};
 
@@ -173,8 +176,9 @@ namespace Physics
 
 		ConstraintBallSocketLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float LimAngU = 45.0f, const float LimAngV = 45.0f) {
 			Super::Init(RbA, RbB, WAnchor, WAxis);
-			LimitAngleU = LimAngU;
-			LimitAngleV = LimAngV;
+
+			LimitAngles = { LimAngU, LimAngV };
+
 			return *this;
 		}
 
@@ -188,32 +192,9 @@ namespace Physics
 
 		float Baumgarte = 0.0f;
 
-		bool IsAngleUViolated;
-		bool IsAngleVViolated;
-		float AngleU;
-		float AngleV;
-		float LimitAngleU;
-		float LimitAngleV;
-	};
-
-	class ConstraintMover : public Constraint
-	{
-	public:
-		ConstraintMover& Init(const Physics::RigidBody* Rb) { RigidBodyA = const_cast<Physics::RigidBody*>(Rb); return *this; }
-	};
-	class ConstraintMoverRotate : public ConstraintMover
-	{
-	public:
-		using Super = ConstraintMover;
-		virtual void PreSolve(const float DeltaSec) override;
-	};
-	class ConstraintMoverUpDown : public ConstraintMover
-	{
-	public:
-		using Super = ConstraintMover;
-		virtual void PreSolve(const float DeltaSec) override;
-	protected:
-		float Timer = 0.0f;
+		std::array<bool, 2> IsAngleViolated = { false, false };
+		std::array<float, 2> Angles;
+		std::array<float, 2> LimitAngles;
 	};
 
 	class ConstraintMotor : public ConstraintAnchorAxis
@@ -239,6 +220,26 @@ namespace Physics
 		float Speed;
 	};
 
+	class ConstraintMover : public Constraint
+	{
+	public:
+		ConstraintMover& Init(const Physics::RigidBody* Rb) { RigidBodyA = const_cast<Physics::RigidBody*>(Rb); return *this; }
+	};
+	class ConstraintMoverUpDown : public ConstraintMover
+	{
+	public:
+		using Super = ConstraintMover;
+		virtual void PreSolve(const float DeltaSec) override;
+	protected:
+		float Timer = 0.0f;
+	}; 
+	class ConstraintMoverRotate : public ConstraintMover
+	{
+	public:
+		using Super = ConstraintMover;
+		virtual void PreSolve(const float DeltaSec) override;
+	};
+	
 	class ConstraintPenetration : public ConstraintAnchor
 	{
 	public:
@@ -262,7 +263,10 @@ namespace Physics
 		Math::Vec3 LNormal;
 		float Friction = 0.0f;
 	};
-	class Manifold 
+
+	//!< 2 オブジェクト間の衝突情報
+	//!< 新しい衝突を追加、無効になった衝突は削除
+	class Manifold
 	{
 	public:
 		Manifold(const Collision::Contact& Ct);
@@ -272,6 +276,7 @@ namespace Physics
 
 	protected:
 		friend class ManifoldCollector;
+		static constexpr uint8_t MaxContacts = 4; //!< 覚えておく衝突数
 
 		//!< コンストラクト時にセットした A, B の順序を覚えておく、以降の追加はこの順に従う
 		Physics::RigidBody* RigidBodyA = nullptr;
@@ -286,7 +291,9 @@ namespace Physics
 		void Add(const Collision::Contact& Ct);
 		void RemoveExpired() {
 			for (auto& i : Manifolds) { i.RemoveExpired(); }
-			const auto Range = std::ranges::remove_if(Manifolds, [](const auto& i) {return std::empty(i.Constraints); });
+
+			//!< 有効な衝突が無くなったマニフォールドは削除
+			const auto Range = std::ranges::remove_if(Manifolds, [](const auto& i) { return std::empty(i.Constraints); });
 			Manifolds.erase(std::cbegin(Range), std::cend(Range));
 		}
 
@@ -302,7 +309,7 @@ namespace Physics
 	//!<	A * x = b 
 	//!<	行列 A, ベクトル b が既知の時、未知のベクトル x を求める
 
-	//!< ガウスザイデル法では以下のいずれかの場合に LCP を解くことができる (これから扱う行列は対角優位なので、ガウスザイデル法が使用可能)
+	//!< ガウスザイデル法では以下のいずれかの場合に LCP を解くことができる (ここで扱う行列は対角優位なので、ガウスザイデル法が使用可能)
 	//!<	[1] 正定値 (positive definite) 
 	//!<		v^t * M * v > 0 
 	//!<		ベクトル v の転地と v で挟むように掛けたときに結果が正となるような行列 M

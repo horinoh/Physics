@@ -65,7 +65,7 @@ Physics::ConstraintAnchor& Physics::ConstraintAnchor::Init(const Physics::RigidB
 {
 	Init(RbA, RbB);
 
-	//!< 初期位置はローカルで保存しておく、(オブジェクトが動く事を考慮して) 都度ワールドへと変換して使う
+	//!< 初期位置はローカルで保存しておき (オブジェクトが動く事を考慮して) 都度ワールドへと変換して使う
 	LAnchorA = RigidBodyA->ToLocalPos(WAnchor);
 	LAnchorB = RigidBodyB->ToLocalPos(WAnchor);
 
@@ -74,17 +74,12 @@ Physics::ConstraintAnchor& Physics::ConstraintAnchor::Init(const Physics::RigidB
 
 Physics::ConstraintAnchorAxis& Physics::ConstraintAnchorAxis::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis)
 {
-	RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
-	RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
-
-	LAnchorA = RigidBodyA->ToLocalPos(WAnchor);
-	LAnchorB = RigidBodyB->ToLocalPos(WAnchor);
-
-	InvMass = CreateInverseMassMatrix(RigidBodyA, RigidBodyB);
+	Super::Init(RbA, RbB, WAnchor);
 
 	LAxisA = RigidBodyA->ToLocalDir(WAxis);
 
-	//!< A, B の初期位置における QA.Inverse() * QB (の逆四元数を求めることにどうせなるので、ここでやってしまう)
+	//!< A, B の初期位置における (QA.Inverse() * QB).Inverse()
+	//!< ある瞬間の回転を CurRot = QA.Inverse() * QB * InitRot.Inverse() とすると、初期位置からの回転角は Theta = 2.0f * asin(CurRot.Dot(Hinge)) で求まる
 	InvInitRot = (RigidBodyA->Rotation.Inverse() * RigidBodyB->Rotation).Inverse();
 
 	return *this;
@@ -145,7 +140,7 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
-	//!< 距離
+	//!< 距離コンストレイント
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
@@ -159,16 +154,16 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	const auto InvQA = QA.Inverse();
 
 	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
-	//!< (ここでは) 転置する意味が無い
+	//!< 本来は P の転置行列を求めるが、ここでは意味がない
 	const auto& PT = P; //P.Transpose();
 
-	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
-	const auto MatA = -MatB;
+	const auto MatA = - P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
+	const auto MatB = - MatA;
 
-	//!< ヒンジ軸に垂直な U, V
+	//!< (Aローカル) ヒンジ軸 (LAxisA) に垂直な U, V 軸 
 	Math::Vec3 U, V;
 	LAxisA.GetOrtho(U, V);
-	//!< U
+	//!< U コンストレイント
 	{
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(U);
@@ -176,7 +171,7 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 		const auto J4 = MatB * Math::Vec4(U);
 		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
-	//!< V
+	//!< V コンストレイント
 	{
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(V);
@@ -233,16 +228,10 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 	const auto InvQA = QA.Inverse();
 
 	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
-	const auto& PT = P; // P.Transpose();
+	const auto& PT = P;
 
-	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
-	const auto MatA = -MatB;
-
-	//!< 現在の回転
-	const auto CurRot = InvQA * QB * InvInitRot;
-	//!< 初期位置からの回転角度を求め、破綻しているかどうか調査
-	Angle = TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(LAxisA)));
-	IsAngleViolated = std::fabsf(Angle) > LimitAngle;
+	const auto MatA = - P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
+	const auto MatB = - MatA;
 
 	Math::Vec3 U, V;
 	LAxisA.GetOrtho(U, V);
@@ -260,7 +249,14 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 		const auto J4 = MatB * Math::Vec4(V);
 		Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
-	//!< 角度制限
+
+	//!< 現在の回転
+	const auto CurRot = InvQA * QB * InvInitRot;
+	//!< 初期位置からの回転角度を求め、破綻しているかどうか調査
+	Angle = TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(LAxisA)));
+	IsAngleViolated = std::fabsf(Angle) > LimitAngle;
+
+	//!< 角度制限コンストレイント
 	if (IsAngleViolated) {
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(LAxisA);
@@ -329,10 +325,10 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 	const auto InvQA = QA.Inverse();
 
 	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
-	const auto& PT = P; // P.Transpose();
+	const auto& PT = P;
 
-	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
-	const auto MatA = -MatB;
+	const auto MatA = - P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
+	const auto MatB = - MatA;
 
 	{
 		const auto J1 = Math::Vec3::Zero();
@@ -390,10 +386,10 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 	const auto InvQA = QA.Inverse();
 
 	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
-	const auto& PT = P; // P.Transpose();
+	const auto& PT = P;
 
-	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
-	const auto MatA = -MatB;
+	const auto MatA = -P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
+	const auto MatB = -MatA;
 
 	{
 		const auto J1 = Math::Vec3::Zero();
@@ -407,12 +403,16 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 	LAxisA.GetOrtho(U, V);
 
 	const auto CurRot = InvQA * QB * InvInitRot;
-	AngleU = TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(U)));
-	IsAngleUViolated = std::fabsf(AngleU) > LimitAngleU;
-	AngleV = TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(V)));
-	IsAngleVViolated = std::fabsf(AngleV) > LimitAngleV;
+	Angles = { 
+		TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(U))), 
+		TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(V))) 
+	};
+	IsAngleViolated = { 
+		std::fabsf(Angles[0]) > LimitAngles[0],
+		std::fabsf(Angles[1]) > LimitAngles[1]
+	};
 
-	if (IsAngleUViolated) {
+	if (IsAngleViolated[0]) {
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(U);
 		const auto J3 = Math::Vec3::Zero();
@@ -422,7 +422,7 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 	else {
 		Jacobian[2].ToZero();
 	}
-	if (IsAngleVViolated) {
+	if (IsAngleViolated[1]) {
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(V);
 		const auto J3 = Math::Vec3::Zero();
@@ -446,20 +446,15 @@ void Physics::ConstraintBallSocketLimited::Solve()
 
 	auto Lambda = GaussSiedel(A, B);
 
-	if (IsAngleUViolated) {
-		if (AngleU > 0.0f) {
-			Lambda[2] = (std::min)(Lambda[2], 0.0f);
-		}
-		if (AngleU < 0.0f) {
-			Lambda[2] = (std::max)(Lambda[2], 0.0f);
-		}
-	}
-	if (IsAngleVViolated) {
-		if (AngleV > 0.0f) {
-			Lambda[3] = (std::min)(Lambda[3], 0.0f);
-		}
-		if (AngleU < 0.0f) {
-			Lambda[3] = (std::max)(Lambda[3], 0.0f);
+	for (auto i = 0; i < std::size(IsAngleViolated); ++i) {
+		if (IsAngleViolated[i]) {
+			const auto LmdIdx = i + 2;
+			if (Angles[i] > 0.0f) {
+				Lambda[LmdIdx] = (std::min)(Lambda[LmdIdx], 0.0f);
+			}
+			if (Angles[i] < 0.0f) {
+				Lambda[LmdIdx] = (std::max)(Lambda[LmdIdx], 0.0f);
+			}
 		}
 	}
 
@@ -475,16 +470,6 @@ void Physics::ConstraintBallSocketLimited::PostSolve()
 		if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
 		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
 	}
-}
-
-void Physics::ConstraintMoverRotate::PreSolve(const float DeltaSec)
-{
-	RigidBodyA->AngularVelocity[1] = TO_RADIAN(60.0f);
-}
-void Physics::ConstraintMoverUpDown::PreSolve(const float DeltaSec)
-{
-	RigidBodyA->LinearVelocity[1] = std::cosf(Timer) * 4.0f;
-	Timer += DeltaSec;
 }
 
 void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
@@ -505,17 +490,16 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 	const auto& QA = RigidBodyA->Rotation;
 	const auto& QB = RigidBodyB->Rotation;
 	const auto InvQA = QA.Inverse();
-
-	const auto WAxis = RigidBodyA->ToWorldDir(LAxisA);
 	
 	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
-	const auto& PT = P; // P.Transpose();
+	const auto& PT = P;
 
-	const auto MatB = P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
-	const auto MatA = -MatB;
+	const auto MatA = - P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
+	const auto MatB = - MatA;
 	
+	const auto W = RigidBodyA->ToWorldDir(LAxisA);
 	Math::Vec3 U, V;
-	WAxis.GetOrtho(U, V);
+	W.GetOrtho(U, V);
 	{
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(U);
@@ -532,9 +516,9 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 	}
 	{
 		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(WAxis);
+		const auto J2 = MatA * Math::Vec4(W);
 		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(WAxis);
+		const auto J4 = MatB * Math::Vec4(W);
 		Jacobian[3] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 	}
 
@@ -543,7 +527,13 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 	//!< ワールドでの相対回転軸
 	const auto WRelAxis = RigidBodyA->ToWorldDir(RelRot.XYZ());
 	const auto C = AB.Dot(AB);
-	Baumgarte = { 0.05f * C / DeltaSec, 0.05f * U.Dot(WRelAxis) / DeltaSec, 0.05f * V.Dot(WRelAxis) / DeltaSec };
+	constexpr auto Beta = 0.05f;
+	const auto BDS = Beta / DeltaSec;
+	Baumgarte = { 
+		BDS * C,
+		BDS * U.Dot(WRelAxis),
+		BDS * V.Dot(WRelAxis)
+	};
 }
 void Physics::ConstraintMotor::Solve() 
 {
@@ -551,13 +541,16 @@ void Physics::ConstraintMotor::Solve()
 	const auto A = Jacobian * GetInverseMassMatrix() * JT;
 	Math::Vec<12> Vel;
 	{
-		const auto WAxis = RigidBodyA->ToWorldDir(LAxisA) * Speed;
-		Vel[3] = -WAxis[0];
-		Vel[4] = -WAxis[1];
-		Vel[5] = -WAxis[2];
-		Vel[9] = WAxis[0];
-		Vel[10] = WAxis[1];
-		Vel[11] = WAxis[2];
+		const auto WAxis = RigidBodyA->ToWorldDir(LAxisA);
+		const auto WASpd = WAxis * Speed;
+		//!< A の角速度
+		Vel[3] = -WASpd[0];
+		Vel[4] = -WASpd[1];
+		Vel[5] = -WASpd[2];
+		//!< B の角速度
+		Vel[9] = WASpd[0];
+		Vel[10] = WASpd[1];
+		Vel[11] = WASpd[2];
 	}
 	//!< 与えたい速度を減算してから適用することで、目的の速度になるような力積を与えるようになる
 	const auto B = -Jacobian * (GetVelocties() - Vel) - Math::Vec<4>(Baumgarte.X(), Baumgarte.Y(), Baumgarte.Z(), 0.0f);
@@ -565,6 +558,19 @@ void Physics::ConstraintMotor::Solve()
 	const auto Lambda = GaussSiedel(A, B);
 
 	ApplyImpulse(JT * Lambda);
+}
+
+void Physics::ConstraintMoverUpDown::PreSolve(const float DeltaSec)
+{
+	//!< Y 軸方向に半径 4 のコサイン軌道
+	constexpr auto Radius = 4.0f;
+	RigidBodyA->LinearVelocity[1] = std::cosf(Timer) * Radius;
+	Timer += DeltaSec;
+}
+void Physics::ConstraintMoverRotate::PreSolve(const float DeltaSec)
+{
+	//!< Y 軸回りの角速度
+	RigidBodyA->AngularVelocity[1] = TO_RADIAN(60.0f);
 }
 
 Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Collision::Contact& Ct)
@@ -598,11 +604,13 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 	const auto J4 = RB.Cross(J3);
 	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 
+	//!< 摩擦がある場合、接線方向のコンストレイントを考慮
 	if (Friction > 0.0f) {
-		// 直交ベクトル U, V を求める
+		//!< 直交ベクトル U, V を求める
 		Math::Vec3 U, V;
 		WNormal.GetOrtho(U, V);
-
+		
+		//!< U
 		{
 			const auto J1 = -U;
 			const auto J2 = RA.Cross(J1);
@@ -610,6 +618,7 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 			const auto J4 = RB.Cross(J3);
 			Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
 		}
+		//!< V
 		{
 			const auto J1 = -V;
 			const auto J2 = RA.Cross(J1);
@@ -655,47 +664,60 @@ void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 	auto Ct = CtOrig;
 	if (RigidBodyA != CtOrig.RigidBodyA) { Ct.Swap(); }
 
-	//!< 既存とほぼ同じ接触位置の場合は何もしない
+	//!< 既存とほぼ同じ接触位置の場合は何もしない (既存を残し新規を破棄、古い要素の方が収束している傾向)
 	constexpr auto Eps2 = 0.02f * 0.02f;
-	if (std::ranges::any_of(Constraints, [&](const auto& i) {
-		return (i.first.RigidBodyA->ToWorldPos(i.first.LPointA) - Ct.RigidBodyA->ToWorldPos(Ct.LPointA)).LengthSq() < Eps2 ||
-			(i.first.RigidBodyB->ToWorldPos(i.first.LPointB) - Ct.RigidBodyB->ToWorldPos(Ct.LPointB)).LengthSq() < Eps2;
-	})) {
+	if (std::ranges::any_of(Constraints,
+		[&](const auto& i) {
+			return (i.first.RigidBodyA->ToWorldPos(i.first.LPointA) - Ct.RigidBodyA->ToWorldPos(Ct.LPointA)).LengthSq() < Eps2 ||
+				(i.first.RigidBodyB->ToWorldPos(i.first.LPointB) - Ct.RigidBodyB->ToWorldPos(Ct.LPointB)).LengthSq() < Eps2;
+		})) {
 		return;
 	}
 
 	const auto NewItem = ContactAndConstraint({ Ct, ConstraintPenetration(Ct) });
-	if (std::size(Constraints) < 4) {
+	if (std::size(Constraints) < MaxContacts) {
 		//!< 空きがある場合は追加
 		Constraints.emplace_back(NewItem);
 	}
 	else {
-		//!< 平均値
-		const auto Avg = (std::accumulate(std::cbegin(Constraints), std::cend(Constraints), Math::Vec3::Zero(), [](const auto& Acc, const auto& i) {
-			return Acc + i.first.LPointA; 
-		}) + Ct.LPointA) / 5.0f;
-
-		//!< (新規を含め) 平均値に一番近い要素を削除する為、一旦追加してしまう
+		//!< (新規を) 一旦追加してしまう
 		Constraints.emplace_back(NewItem);
-		//!< 平均値に一番近い要素を見つけ削除
-		Constraints.erase(std::ranges::min_element(Constraints, [&](const auto& lhs, const auto& rhs) {
-			return (Avg - lhs.first.LPointA).LengthSq() < (Avg - rhs.first.LPointA).LengthSq();
-		}));
+		
+		//!< (新規を含めた) 平均値
+		const auto Avg = (std::accumulate(std::cbegin(Constraints), std::cend(Constraints), Math::Vec3::Zero(),
+			[](const auto& Acc, const auto& i) {
+				return Acc + i.first.LPointA;
+			})) / static_cast<float>(std::size(Constraints));
+
+		//!< 平均値に一番近い要素を削除 (大きく貫通しているであろう要素を残す)
+		Constraints.erase(std::ranges::min_element(Constraints,
+			[&](const auto& lhs, const auto& rhs) {
+				return (Avg - lhs.first.LPointA).LengthSq() < (Avg - rhs.first.LPointA).LengthSq();
+			}));
 	}
 }
 void Physics::Manifold::RemoveExpired()
 {
 	constexpr auto Eps2 = 0.02f * 0.02f;
-	const auto Range = std::ranges::remove_if(Constraints, [&](const auto& i) {
+	const auto Range = std::ranges::remove_if(Constraints, 
+		[&](const auto& i) {
 		const auto& Ct = i.first;
 		const auto AB = Ct.RigidBodyB->ToWorldPos(Ct.LPointB) - Ct.RigidBodyA->ToWorldPos(Ct.LPointA);
-		const auto WNormal = Ct.RigidBodyA->ToWorldDir(Ct.WNormal);
-		const auto PenetrateDepth = WNormal.Dot(AB);
-		return PenetrateDepth > 0.0f || (AB - WNormal * PenetrateDepth).LengthSq() >= Eps2;
+		const auto WNrm = Ct.RigidBodyA->ToWorldDir(Ct.WNormal);
+		const auto PenetrateDepth = WNrm.Dot(AB);
+		//!< AB と A の法線が同じ向き (めり込んでいない)
+		if (PenetrateDepth > 0.0f) {
+			return true;
+		}
+		//!< 接線方向の距離が一定以上ズレた
+		const auto ABNrm = WNrm * PenetrateDepth;
+		const auto ABTan = (AB - ABNrm);
+		return ABTan.LengthSq() >= Eps2;
 	});
 	Constraints.erase(std::cbegin(Range), std::cend(Range));
 }
 
+//!< 衝突を追加 (既存か新規かで適切に処理する)
 void Physics::ManifoldCollector::Add(const Collision::Contact& Ct)
 {
 	//!< 同じ剛体 A, B 間のマニフォールドか存在するか
@@ -707,7 +729,7 @@ void Physics::ManifoldCollector::Add(const Collision::Contact& Ct)
 		It->Add(Ct);
 	}
 	else {
-		//!< 既存でなければ、マニフォールド(と衝突)を追加
+		//!< 既存でなければ、マニフォールドを追加
 		Manifolds.emplace_back(Manifold(Ct));
 	}
 }
