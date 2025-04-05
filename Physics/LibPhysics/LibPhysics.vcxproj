@@ -154,6 +154,7 @@
     <ClInclude Include="RigidBody.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shape.h" />
+    <ClInclude Include="Util.h" />
     <ClInclude Include="Vec.h" />
   </ItemGroup>
   <ItemGroup>

@@ -12,10 +12,6 @@ namespace Physics
 	class RigidBody;
 }
 
-template<typename T> static [[nodiscard]] size_t IndexOf(const std::vector<T>& Vector, const T& rhs) {
-	return static_cast<size_t>(&rhs - &*std::begin(Vector));
-}
-
 namespace Collision
 {
 	//!< SignedVolue : ŽË‰e‚ªÅ‘å‚Æ‚È‚éŽ²‚â•½–Ê‚ðŒ©‚Â‚¯A‚»‚ê‚É‘Î‚µŒ´“_‚ðŽË‰e‚µ‚Ä“à•”‚É‚ ‚ê‚ÎdS‚ð•Ô‚·

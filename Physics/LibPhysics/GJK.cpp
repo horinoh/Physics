@@ -3,6 +3,7 @@
 #include "Shape.h"
 #include "Collision.h"
 #include "Convex.h"
+#include "Util.h"
 
 #include "Log.h"
 
@@ -417,6 +418,11 @@ bool Collision::Intersection::GJK_EPA(const Physics::RigidBody* RbA,
 		Bias,
 		WidthClosestPoint,
 		OnA, OnB);
+}
+bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB) 
+{
+	return GJK(RbA->Shape, RbA->Position, RbA->Rotation,
+		RbB->Shape, RbB->Position, RbB->Rotation);
 }
 void Collision::Closest::GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, 
 	const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 

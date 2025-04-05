@@ -151,20 +151,16 @@ void Physics::Scene::Update(const float DeltaSec)
 #ifdef USE_BRUTE_FORCE
 	BruteForce(DeltaSec, Contacts);
 #else
-	{
-		std::vector<CollidablePair> CollidablePairs;
-		BroadPhase(DeltaSec, CollidablePairs);
+	std::vector<CollidablePair> CollidablePairs;
+	BroadPhase(DeltaSec, CollidablePairs);
 #ifdef _DEBUG
-		//auto Cnt = 0;
-		//for (auto i = 0; i < std::size(RigidBodies); ++i) { 
-		//	for (auto j = i + 1; j < std::size(RigidBodies); ++j) {
-		//		Cnt++;
-		//	}
-		//}
-		//LOG(std::data(std::format("Collidable / BruteForce = {} / {}\n", std::size(CollidablePairs), Cnt)));
-#endif
-		NarrowPhase(DeltaSec, CollidablePairs, Contacts);
+	{
+		//!< BruteForce に比べてどのくらい削減できているか
+		const auto BFC = BruteForceCount();
+		LOG(std::data(std::format("Collidable / BruteForce = {} / {} = {} %\n", std::size(CollidablePairs), BFC, std::size(CollidablePairs) * 100 / BFC)));
 	}
+#endif
+	NarrowPhase(DeltaSec, CollidablePairs, Contacts);
 #endif
 
 	//!< コンストレイントの解決

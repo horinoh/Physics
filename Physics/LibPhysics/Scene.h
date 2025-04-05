@@ -4,6 +4,7 @@
 
 #include "Collision.h"
 #include "Constraint.h"
+#include "Util.h"
 
 //#define USE_BRUTE_FORCE
 
@@ -19,7 +20,14 @@ namespace Physics
 		using CollidablePair = std::pair<int, int>;
 
 		//virtual ~Scene() { for (auto& i : RigidBodies) { i.reset(); } }
-		
+	
+		//!< BruteForce の場合チェックする回数 (Check count on brute force)
+		int BruteForceCount() const {
+			return std::accumulate(std::cbegin(RigidBodies), std::cend(RigidBodies), 0,
+				[&](const auto& Acc, const auto& rhs) {
+					return Acc + static_cast<int>(IndexOf(RigidBodies, rhs));
+				});
+		}
 #ifdef USE_BRUTE_FORCE
 		virtual void BruteForce(const float DeltaSec, std::vector<Collision::Contact>& Contacts);
 #else
