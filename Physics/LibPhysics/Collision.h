@@ -246,8 +246,13 @@ namespace Collision
 			const Math::Vec3& VelA, const Math::Vec3& VelB,
 			float& T);
 
-		//[[nodiscard]] bool RigidBodyRigidBody(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const float DeltaSec, Contact& Ct);
-		[[nodiscard]] bool RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct);
+		[[nodiscard]] bool SphereSphere(const Physics::RigidBody* RbA,
+			const Physics::RigidBody* RbB,
+			const float DeltaSec, Contact& Ct);
+
+		[[nodiscard]] bool RigidBodyRigidBody(const Physics::RigidBody* RbA, 
+			const Physics::RigidBody* RbB, 
+			const float DeltaSec, Contact& Ct);
 	}
 
 	namespace Closest 

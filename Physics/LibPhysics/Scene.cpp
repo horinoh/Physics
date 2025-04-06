@@ -98,14 +98,21 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 		const auto RbB = RigidBodies[i.second].get();
 		if (0.0f != RbA->InvMass || 0.0f != RbB->InvMass) {
 			Collision::Contact Ct;
-			if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
-				if (0.0f == Ct.TimeOfImpact) {
-					//!< 静的衝突
-					Manifolds.Add(Ct);
-				}
-				else {
-					//!< 動的衝突
+			if (RbA->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE && RbB->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE) {
+				if (Collision::Intersection::SphereSphere(RbA, RbB, DeltaSec, Ct)) {
 					Contacts.emplace_back(Ct);
+				}
+			}
+			else {
+				if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
+					if (0.0f == Ct.TimeOfImpact) {
+						//!< 静的衝突
+						Manifolds.Add(Ct);
+					}
+					else {
+						//!< 動的衝突
+						Contacts.emplace_back(Ct);
+					}
 				}
 			}
 		}

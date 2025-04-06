@@ -240,126 +240,130 @@ Math::Vec3 Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math
 	return SegA + AB * T0;
 }
 
-bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const float DeltaSec, Contact& Ct)
+[[nodiscard]] bool Collision::Intersection::SphereSphere(const Physics::RigidBody* RbA,
+	const Physics::RigidBody* RbB,
+	const float DeltaSec, Contact& Ct) 
 {
-	if (RbA->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE && RbB->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE) {
-		const auto SpA = static_cast<const Physics::ShapeSphere*>(RbA->Shape);
-		const auto SpB = static_cast<const Physics::ShapeSphere*>(RbB->Shape);
-		float T;
-		//!< TOI が直接求められる
-		//!< 速度はデルタ時間のものを渡すこと
-		if (Intersection::SphereShpere(SpA->Radius, SpB->Radius, RbA->Position, RbB->Position, RbA->LinearVelocity * DeltaSec, RbB->LinearVelocity * DeltaSec, T)) {
-			Ct.TimeOfImpact = T * DeltaSec;
+	const auto SpA = static_cast<const Physics::ShapeSphere*>(RbA->Shape);
+	const auto SpB = static_cast<const Physics::ShapeSphere*>(RbB->Shape);
+	float T;
+	//!< TOI が直接求められる
+	//!< 速度はデルタ時間のものを渡すこと
+	if (Intersection::SphereShpere(SpA->Radius, SpB->Radius, RbA->Position, RbB->Position, RbA->LinearVelocity * DeltaSec, RbB->LinearVelocity * DeltaSec, T)) {
+		Ct.TimeOfImpact = T * DeltaSec;
 
-			//!< 衝突時刻の(中心)位置
-			const auto CPosA = RbA->Position + RbA->LinearVelocity * Ct.TimeOfImpact;
-			const auto CPosB = RbB->Position + RbB->LinearVelocity * Ct.TimeOfImpact;
+		//!< 衝突時刻の(中心)位置
+		const auto CPosA = RbA->Position + RbA->LinearVelocity * Ct.TimeOfImpact;
+		const auto CPosB = RbB->Position + RbB->LinearVelocity * Ct.TimeOfImpact;
 
-			//!< 法線 A -> B
-			Ct.WNormal = (CPosB - CPosA).Normalize();
+		//!< 法線 A -> B
+		Ct.WNormal = (CPosB - CPosA).Normalize();
 
-			//!< 衝突点 (半径の分オフセット)
+		//!< 衝突点 (半径の分オフセット)
 #ifdef WORLD_CONTACT_POINT
-			Ct.WPointA = CPosA + Ct.Normal * SpA->Radius;
-			Ct.WPointB = CPosB + Ct.Normal * SpB->Radius;
-			Ct.PointA = RbA->ToLocalPos(Ct.WPointA);
-			Ct.PointB = RbB->ToLocalPos(Ct.WPointB);
+		Ct.WPointA = CPosA + Ct.Normal * SpA->Radius;
+		Ct.WPointB = CPosB + Ct.Normal * SpB->Radius;
+		Ct.PointA = RbA->ToLocalPos(Ct.WPointA);
+		Ct.PointB = RbB->ToLocalPos(Ct.WPointB);
 #else
-			Ct.LPointA = RbA->ToLocalPos(CPosA + Ct.WNormal * SpA->Radius);
-			Ct.LPointB = RbB->ToLocalPos(CPosB - Ct.WNormal * SpB->Radius); 
+		Ct.LPointA = RbA->ToLocalPos(CPosA + Ct.WNormal * SpA->Radius);
+		Ct.LPointB = RbB->ToLocalPos(CPosB - Ct.WNormal * SpB->Radius);
 #endif
+		//!< 衝突剛体を覚えておく
+		Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
+		Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
+
+		return true;
+	}
+	return false;
+}
+
+bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
+	const Physics::RigidBody* RbB, 
+	const float DeltaSec, Contact& Ct)
+{
+	//!< ワーク
+	auto WRbA = *RbA, WRbB = *RbB;
+
+	//!< TOI が直接求まらないので、シミュレーションを進めることで求める (Conservative Advance)
+	auto DT = DeltaSec;
+	auto TOI = 0.0f;
+	//!< 上限
+	auto ItCount = 0;
+	while (DT > 0.0f) {
+		//!< 衝突点、最近接点
+		Math::Vec3 OnA, OnB;
+		constexpr auto Bias = 0.001f;
+		constexpr auto WithClosestPoint = true;
+		if (Intersection::GJK_EPA(&WRbA,
+				&WRbB,
+				Bias,
+				WithClosestPoint,
+				OnA, OnB)) {
+			Ct.TimeOfImpact = TOI;
+#if true
+			//!< 法線 A -> B
+			Ct.WNormal = (OnA - OnB).Normalize();
+#else
+			//!< 法線 A -> B
+			Ct.WNormal = (OnB - OnA).Normalize();
+#endif
+			//!< シンプレックスを拡張しているので、その分をキャンセルする
+			OnA -= Ct.WNormal * Bias;
+			OnB += Ct.WNormal * Bias;
+
+			//!< 衝突点
+#ifdef WORLD_CONTACT_POINT
+			Ct.WPointA = OnA;
+			Ct.WPointB = OnB;
+#endif
+			Ct.LPointA = RbA->ToLocalPos(OnA);
+			Ct.LPointB = RbB->ToLocalPos(OnB);
+
 			//!< 衝突剛体を覚えておく
 			Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
 			Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
 
 			return true;
 		}
-		return false;
-	}
-	else {
-		//!< ワーク
-		auto WRbA = *RbA, WRbB = *RbB;
-
-		//!< TOI が直接求まらないので、シミュレーションを進めることで求める (Conservative Advance)
-		auto DT = DeltaSec;
-		auto TOI = 0.0f;
-		//!< 上限
-		auto ItCount = 0;
-		while (DT > 0.0f) {
-			//!< 衝突点、最近接点
-			Math::Vec3 OnA, OnB;
-			constexpr auto Bias = 0.001f;
-			constexpr auto WithClosestPoint = true;
-			if (Intersection::GJK_EPA(&WRbA,
-					&WRbB,
-					Bias,
-					WithClosestPoint,
-					OnA, OnB)) {
-				Ct.TimeOfImpact = TOI;
-#if true
-				//!< 法線 A -> B
-				Ct.WNormal = (OnA - OnB).Normalize();
-#else
-				//!< 法線 A -> B
-				Ct.WNormal = (OnB - OnA).Normalize();
-#endif
-				//!< シンプレックスを拡張しているので、その分をキャンセルする
-				OnA -= Ct.WNormal * Bias;
-				OnB += Ct.WNormal * Bias;
-
-				//!< 衝突点
-#ifdef WORLD_CONTACT_POINT
-				Ct.WPointA = OnA;
-				Ct.WPointB = OnB;
-#endif
-				Ct.LPointA = RbA->ToLocalPos(OnA);
-				Ct.LPointB = RbB->ToLocalPos(OnB);
-
-				//!< 衝突剛体を覚えておく
-				Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
-				Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
-
-				return true;
-			}
-			else if (!WithClosestPoint) {
-				//!< 最近接点を求める
-				Closest::GJK(&WRbA, &WRbB, OnA, OnB);
-			}
-
-			//!< 移動せずその場で回転しているような場合、ループから抜け出さない事があるのでループに上限回数を設ける
-			++ItCount;
-			if (ItCount > 10) {
-				break;
-			}
-
-			const auto AB = OnB - OnA;
-			const auto SeparationDistance = AB.Length();
-
-			//!< 回転を考慮した相対速度を求める
-			//!< A -> B 方向
-			const auto Dir = AB / SeparationDistance;
-			//!< A の相対速度、角速度
-			const auto LVel = (WRbA.LinearVelocity - WRbB.LinearVelocity).Dot(Dir);
-			const auto AVel = WRbA.Shape->GetFastestPointSpeed(WRbA.AngularVelocity, Dir) - WRbB.Shape->GetFastestPointSpeed(WRbB.AngularVelocity, Dir);
-			const auto OrthoSpeed = LVel + AVel;
-			if (OrthoSpeed <= 0.0f) {
-				//!< 近づいていない
-				break;
-			}
-
-			//!< 衝突するであろう直前までの時間を求める
-			const auto TimeToGo = SeparationDistance / OrthoSpeed;
-			if (TimeToGo > DT) {
-				//!< DT 以内には存在しない
-				break;
-			}
-
-			//!< 衝突するであろう直前まで時間を進める
-			DT -= TimeToGo;
-			TOI += TimeToGo;
-			WRbA.Update(TimeToGo);
-			WRbB.Update(TimeToGo);
+		else if (!WithClosestPoint) {
+			//!< 最近接点を求める
+			Closest::GJK(&WRbA, &WRbB, OnA, OnB);
 		}
+
+		//!< 移動せずその場で回転しているような場合、ループから抜け出さない事があるのでループに上限回数を設ける
+		++ItCount;
+		if (ItCount > 10) {
+			break;
+		}
+
+		const auto AB = OnB - OnA;
+		const auto SeparationDistance = AB.Length();
+
+		//!< 回転を考慮した相対速度を求める
+		//!< A -> B 方向
+		const auto Dir = AB / SeparationDistance;
+		//!< A の相対速度、角速度
+		const auto LVel = (WRbA.LinearVelocity - WRbB.LinearVelocity).Dot(Dir);
+		const auto AVel = WRbA.Shape->GetFastestPointSpeed(WRbA.AngularVelocity, Dir) - WRbB.Shape->GetFastestPointSpeed(WRbB.AngularVelocity, Dir);
+		const auto OrthoSpeed = LVel + AVel;
+		if (OrthoSpeed <= 0.0f) {
+			//!< 近づいていない
+			break;
+		}
+
+		//!< 衝突するであろう直前までの時間を求める
+		const auto TimeToGo = SeparationDistance / OrthoSpeed;
+		if (TimeToGo > DT) {
+			//!< DT 以内には存在しない
+			break;
+		}
+
+		//!< 衝突するであろう直前まで時間を進める
+		DT -= TimeToGo;
+		TOI += TimeToGo;
+		WRbA.Update(TimeToGo);
+		WRbB.Update(TimeToGo);
 	}
 	return false;
 }
