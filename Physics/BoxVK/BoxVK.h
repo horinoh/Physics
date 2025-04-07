@@ -119,10 +119,14 @@ public:
 
 			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius)).get())->Init();
 
-#if 1
-			const auto n = 4;
-			const auto n2 = n >> 1;
-			for (auto y = 0; y < 2; ++y) {
+#ifdef _DEBUG
+			constexpr auto Stack = 1;
+#else
+			constexpr auto Stack = 3;
+#endif
+			constexpr auto n = 4;
+			constexpr auto n2 = n >> 1;
+			for (auto y = 0; y < Stack; ++y) {
 				for (auto x = 0; x < n; ++x) {
 					for (auto z = 0; z < n; ++z) {
 						auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
@@ -131,14 +135,6 @@ public:
 					}
 				}
 			}
-#else
-			constexpr auto StackCount = 5;
-			for (auto i = 0; i < StackCount; ++i) {
-				auto Rb = Scene->RigidBodies.emplace_back(new Physics::RigidBody());
-				Rb->Position = Math::Vec3(0.0f, i * 1.3f + 0.6f, 0.0f);
-				Rb->Init(Scene->Shapes.back());
-			}
-#endif
 		}
 		//!< 静的オブジェクト配置
 		{

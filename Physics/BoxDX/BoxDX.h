@@ -119,9 +119,14 @@ public:
 
 			static_cast<Physics::ShapeBox*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius)).get())->Init();
 
-			const auto n = 4;
-			const auto n2 = n >> 1;
-			for (auto y = 0; y < 2; ++y) {
+#ifdef _DEBUG
+			constexpr auto Stack = 1;
+#else
+			constexpr auto Stack = 3;
+#endif
+			constexpr auto n = 4;
+			constexpr auto n2 = n >> 1;
+			for (auto y = 0; y < Stack; ++y) {
 				for (auto x = 0; x < n; ++x) {
 					for (auto z = 0; z < n; ++z) {
 						auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
