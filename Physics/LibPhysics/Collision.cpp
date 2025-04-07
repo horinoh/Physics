@@ -260,15 +260,9 @@ Math::Vec3 Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math
 		Ct.WNormal = (CPosB - CPosA).Normalize();
 
 		//!< 衝突点 (半径の分オフセット)
-#ifdef WORLD_CONTACT_POINT
-		Ct.WPointA = CPosA + Ct.Normal * SpA->Radius;
-		Ct.WPointB = CPosB + Ct.Normal * SpB->Radius;
-		Ct.PointA = RbA->ToLocalPos(Ct.WPointA);
-		Ct.PointB = RbB->ToLocalPos(Ct.WPointB);
-#else
-		Ct.LPointA = RbA->ToLocalPos(CPosA + Ct.WNormal * SpA->Radius);
-		Ct.LPointB = RbB->ToLocalPos(CPosB - Ct.WNormal * SpB->Radius);
-#endif
+		Ct.LPointA = RbA->ToLocalPos((Ct.WPointA = CPosA + Ct.WNormal * SpA->Radius));
+		Ct.LPointB = RbB->ToLocalPos((Ct.WPointB = CPosB - Ct.WNormal * SpB->Radius));
+
 		//!< 衝突剛体を覚えておく
 		Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
 		Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
@@ -313,12 +307,8 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 			OnB += Ct.WNormal * Bias;
 
 			//!< 衝突点
-#ifdef WORLD_CONTACT_POINT
-			Ct.WPointA = OnA;
-			Ct.WPointB = OnB;
-#endif
-			Ct.LPointA = RbA->ToLocalPos(OnA);
-			Ct.LPointB = RbB->ToLocalPos(OnB);
+			Ct.LPointA = RbA->ToLocalPos((Ct.WPointA = OnA));
+			Ct.LPointB = RbB->ToLocalPos((Ct.WPointB = OnB));
 
 			//!< 衝突剛体を覚えておく
 			Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
@@ -369,8 +359,8 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 }
 void Collision::ResolveContact(const Contact& Ct)
 {
-	const auto WPointA = Ct.RigidBodyA->ToWorldPos(Ct.LPointA);
-	const auto WPointB = Ct.RigidBodyB->ToWorldPos(Ct.LPointB);
+	const auto& WPointA = Ct.WPointA;
+	const auto& WPointB = Ct.WPointB; 
 	const auto TotalInvMass = Ct.RigidBodyA->InvMass + Ct.RigidBodyB->InvMass;
 	{
 		//!< 半径 (重心 -> 衝突点)

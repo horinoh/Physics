@@ -55,8 +55,6 @@ namespace Collision
 		bool IsMin;
 	};
 
-//!< 不要な気がする
-//#define WORLD_CONTACT_POINT
 	struct Contact
 	{
 		float TimeOfImpact = 0.0f;
@@ -64,25 +62,21 @@ namespace Collision
 		Physics::RigidBody* RigidBodyA = nullptr;
 		Physics::RigidBody* RigidBodyB = nullptr;
 
-		//!< ローカルスペース
-		Math::Vec3 LPointA;
-		Math::Vec3 LPointB;
-
-#ifdef WORLD_CONTACT_POINT
 		//!< ワールドスペース
 		Math::Vec3 WPointA;
 		Math::Vec3 WPointB;
-#endif
+		//!< ローカルスペース 
+		//!<	衝突時のローカル位置を、新しいトランスフォームで変換する必要があるの (ConstraintPenetration)
+		Math::Vec3 LPointA;
+		Math::Vec3 LPointB;
 
 		//!< ワールドスペース A -> B
 		Math::Vec3 WNormal;
 
 		Contact& Swap() {
 			std::swap(RigidBodyA, RigidBodyB);
-			std::swap(LPointA, LPointB);
-#ifdef WORLD_CONTACT_POINT
 			std::swap(WPointA, WPointB);
-#endif
+			std::swap(LPointA, LPointB);
 			WNormal = -WNormal;
 			return *this;
 		}

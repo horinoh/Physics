@@ -668,8 +668,7 @@ void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 	constexpr auto Eps2 = 0.02f * 0.02f;
 	if (std::ranges::any_of(Constraints,
 		[&](const auto& i) {
-			return (i.first.RigidBodyA->ToWorldPos(i.first.LPointA) - Ct.RigidBodyA->ToWorldPos(Ct.LPointA)).LengthSq() < Eps2 ||
-				(i.first.RigidBodyB->ToWorldPos(i.first.LPointB) - Ct.RigidBodyB->ToWorldPos(Ct.LPointB)).LengthSq() < Eps2;
+			return (i.first.WPointA - Ct.WPointA).LengthSq() < Eps2 || (i.first.WPointB - Ct.WPointB).LengthSq() < Eps2;
 		})) {
 		return;
 	}
@@ -686,13 +685,13 @@ void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 		//!< (新規を含めた) 平均値
 		const auto Avg = (std::accumulate(std::cbegin(Constraints), std::cend(Constraints), Math::Vec3::Zero(),
 			[](const auto& Acc, const auto& i) {
-				return Acc + i.first.LPointA;
+				return Acc + i.first.WPointA;
 			})) / static_cast<float>(std::size(Constraints));
 
 		//!< 平均値に一番近い要素を削除 (大きく貫通しているであろう要素を残す)
 		Constraints.erase(std::ranges::min_element(Constraints,
 			[&](const auto& lhs, const auto& rhs) {
-				return (Avg - lhs.first.LPointA).LengthSq() < (Avg - rhs.first.LPointA).LengthSq();
+				return (Avg - lhs.first.WPointA).LengthSq() < (Avg - rhs.first.WPointA).LengthSq();
 			}));
 	}
 }
@@ -702,8 +701,9 @@ void Physics::Manifold::RemoveExpired()
 	const auto Range = std::ranges::remove_if(Constraints, 
 		[&](const auto& i) {
 		const auto& Ct = i.first;
+		//!< 衝突時のローカル位置を、現在のトランスフォームで変換 (衝突時のローカル位置が必要、LPointA, LPointB が必要になる場面)
 		const auto AB = Ct.RigidBodyB->ToWorldPos(Ct.LPointB) - Ct.RigidBodyA->ToWorldPos(Ct.LPointA);
-		const auto WNrm = Ct.RigidBodyA->ToWorldDir(Ct.WNormal);
+		const auto& WNrm = Ct.WNormal;
 		const auto PenetrateDepth = WNrm.Dot(AB);
 		//!< AB と A の法線が同じ向き (めり込んでいない)
 		if (PenetrateDepth > 0.0f) {
