@@ -323,27 +323,32 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& P
 	//!< (1, 1, 1) 方向のサポートポイントを求める
 	Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, Math::Vec3::One().Normalize(), 0.0f));
 
+	//!< 原点を元に反対側
 	auto Dir = -Sps.back().GetC();
 	auto ClosestDistSq = (std::numeric_limits<float>::max)();
 	auto HasIntersection = false;
 	Math::Vec4 Lambda;
 	do {
+		//!< Dir 方向のサポートポイントを求める
 		const auto Pt = Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, Dir.ToNormalized(), 0.0f);
 
 		//!< Pt は既存の点、もうこれ以上拡張できない -> 衝突無し
-		if (std::ranges::any_of(Sps, [&](const auto& i) { return Pt.GetC().NearlyEqual(i.GetC()); })) { 
+		if (std::ranges::any_of(Sps, 
+			[&](const auto& i) {
+				return Pt.GetC().NearlyEqual(i.GetC());
+			})) { 
 			break; 
 		}
 
-		//!< 最近接点を求める場合は早期終了させない
-		if (WidthClosestPoint) {
-			//!< 新しいサポートポイント Pt が原点を超えていない場合は原点を含まない
-			if (Dir.Dot(Pt.GetC() - Math::Vec3::Zero()) < 0.0f) {
+		//!< 最近接点を求めない場合は早期終了できる可能性がある
+		if (!WidthClosestPoint) {
+			//!< 新しいサポートポイント Pt が原点を超えていない場合は原点を含まない、早期終了
+			if (Dir.Dot(Pt.GetC()) < 0.0f) {
 				break;
 			}
 		}
 
-		//!< 新しいサポートポイントを追加した上で
+		//!< 新しいサポートポイントを追加
 		Sps.emplace_back(Pt);
 
 		//!< シンプレックスが原点を含むなら衝突
@@ -351,28 +356,29 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& P
 			break;
 		}
 
-		//!< 最短距離を更新できなれば終了
+		//!< 最短距離を更新、更新できなれば終了
 		const auto DistSq = Dir.LengthSq();
 		if (DistSq >= ClosestDistSq) {
 			break;
 		}
 		ClosestDistSq = DistSq;
 
-		//!< 有効な Sps だけを残す
+		//!< 有効な Sps (対応する Lamnda が非 0.0 のコンポーネント) だけを残す
 		const auto SpsRange = std::ranges::remove_if(Sps, 
-			[&](const auto& i) { 
+			[&](const auto& i) {
 				return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, i))];
 			});
 		Sps.erase(std::ranges::cbegin(SpsRange), std::ranges::cend(SpsRange));
 
+		//!< Lambda の 非 0.0 コンポーネントを前へ
 		[[maybe_unused]] const auto Dmy = std::ranges::remove(static_cast<Math::Component4&>(Lambda), 0.0f);
 
 		//!< 3-シンプレックス (四面体) でここまで来たら原点を含む
-		HasIntersection = (4 == size(Sps));
+		HasIntersection = (4 == std::size(Sps));
 	} while (!HasIntersection); //!< 原点を含まずここまで来たらループ
 
-	//!< 衝突点を求める
-	if (HasIntersection) {
+	//!< (EPA 等で) 衝突点を求める
+	if (HasIntersection && nullptr != OnIntersect) {
 		OnIntersect(ShA, PosA, RotA, 
 			ShB, PosB, RotB, 
 			Sps, 
@@ -380,7 +386,7 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& P
 		return true;
 	}
 
-	//!< 最近接点を求める
+	//!< 最近接点を求める (Lamnda のケツにはゴミが存在するが、Sps 個数分しかアクセスしない)
 	if (WidthClosestPoint) {
 		OnA = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(), 
 			[&](const auto& Acc, const auto& i) {

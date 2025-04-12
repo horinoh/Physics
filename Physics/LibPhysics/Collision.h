@@ -22,7 +22,11 @@ namespace Collision
 		AABB(const Math::Vec3& MinVal, const Math::Vec3& MaxVal) : Min(MinVal), Max(MaxVal) {}
 		AABB(const AABB& rhs) : Min(rhs.Min), Max(rhs.Max) {}
 		AABB(const std::vector<Math::Vec3>& Vertices) { Expand(Vertices); }
-		AABB& operator=(const AABB& rhs) { Min = rhs.Min; Max = rhs.Max; return *this; }
+		AABB& operator=(const AABB& rhs) { 
+			Min = rhs.Min; 
+			Max = rhs.Max; 
+			return *this; 
+		}
 
 		AABB& Clear() {
 			Min = Math::Vec3::Max();
@@ -34,7 +38,12 @@ namespace Collision
 			Max = { (std::max)(Max.X(), rhs.X()), (std::max)(Max.Y(), rhs.Y()), (std::max)(Max.Z(), rhs.Z()) };
 			return *this;
 		}
-		AABB& Expand(const std::vector<Math::Vec3>& Vertices) { for (auto& i : Vertices) { Expand(i); } return *this; }
+		AABB& Expand(const std::vector<Math::Vec3>& Vertices) { 
+			for (auto& i : Vertices) { 
+				Expand(i);
+			}
+			return *this;
+		}
 		AABB& Expand(const AABB& rhs) {
 			Expand(rhs.Min);
 			Expand(rhs.Max);
@@ -65,8 +74,9 @@ namespace Collision
 		//!< ワールドスペース
 		Math::Vec3 WPointA;
 		Math::Vec3 WPointB;
+
 		//!< ローカルスペース 
-		//!<	衝突時のローカル位置を、新しいトランスフォームで変換する必要があるの (ConstraintPenetration)
+		//!<	ConstraintPenetration で衝突時のローカル位置を、新しいトランスフォームで変換する必要がある
 		Math::Vec3 LPointA;
 		Math::Vec3 LPointB;
 
@@ -148,8 +158,7 @@ namespace Collision
 		}
 
 		[[nodiscard]] static float PlanePoint(const Math::Vec3& PlN, const float PlD,
-			const Math::Vec3 Pt)
-		{
+			const Math::Vec3 Pt) {
 			return PlN.Dot(Pt) + PlD;
 		}
 
@@ -164,27 +173,45 @@ namespace Collision
 
 		//!< 指定の方向に一番遠い点のイテレータを返す 
 		[[nodiscard]] static auto Farthest(const std::vector<Math::Vec3>& Pts, const Math::Vec3& Dir) {
-			return std::ranges::max_element(Pts, [&](const auto& lhs, const auto& rhs) { return Dir.Dot(lhs) < Dir.Dot(rhs); });
+			return std::ranges::max_element(Pts, 
+				[&](const auto& lhs, const auto& rhs) { 
+					return Dir.Dot(lhs) < Dir.Dot(rhs); 
+				});
 		}
 		//!< 指定の方向に一番近い点のイテレータを返す 
 		[[nodiscard]] static auto Closest(const std::vector<Math::Vec3>& Pts, const Math::Vec3& Dir) {
-			return std::ranges::min_element(Pts, [&](const auto& lhs, const auto& rhs) { return Dir.Dot(lhs) < Dir.Dot(rhs); });
+			return std::ranges::min_element(Pts, 
+				[&](const auto& lhs, const auto& rhs) {
+					return Dir.Dot(lhs) < Dir.Dot(rhs);
+				});
 		}
 		//!< レイから一番遠い点のイテレータを返す
 		[[nodiscard]] static auto Farthest(const std::vector<Math::Vec3>& Pts, const Math::Vec3& RayPos, const Math::Vec3& RayDir) {
-			return std::ranges::max_element(Pts, [&](const auto& lhs, const auto& rhs) { return PointRaySq(lhs, RayPos, RayDir) < PointRaySq(rhs, RayPos, RayDir); });
+			return std::ranges::max_element(Pts,
+				[&](const auto& lhs, const auto& rhs) { 
+					return PointRaySq(lhs, RayPos, RayDir) < PointRaySq(rhs, RayPos, RayDir);
+				});
 		}
 		//!< レイから一番近い点のイテレータを返す
 		[[nodiscard]] static auto Closest(const std::vector<Math::Vec3>& Pts, const Math::Vec3& RayPos, const Math::Vec3& RayDir) {
-			return std::ranges::min_element(Pts, [&](const auto& lhs, const auto& rhs) { return PointRaySq(lhs, RayPos, RayDir) < PointRaySq(rhs, RayPos, RayDir); });
+			return std::ranges::min_element(Pts, 
+				[&](const auto& lhs, const auto& rhs) { 
+					return PointRaySq(lhs, RayPos, RayDir) < PointRaySq(rhs, RayPos, RayDir); 
+				});
 		}
 		//!< 三角形から一番遠い点のイテレータを返す
 		[[nodiscard]] static auto Farthest(const std::vector<Math::Vec3>& Pts, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C) {
-			return std::ranges::max_element(Pts, [&](const auto& lhs, const auto& rhs) { return PointTriangle(lhs, A, B, C) < PointTriangle(rhs, A, B, C); });
+			return std::ranges::max_element(Pts, 
+				[&](const auto& lhs, const auto& rhs) { 
+					return PointTriangle(lhs, A, B, C) < PointTriangle(rhs, A, B, C); 
+				});
 		}
 		//!< 三角形から一番近い点のイテレータを返す
 		[[nodiscard]] static auto Closest(const std::vector<Math::Vec3>& Pts, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C) {
-			return std::ranges::min_element(Pts, [&](const auto& lhs, const auto& rhs) { return PointTriangle(lhs, A, B, C) < PointTriangle(rhs, A, B, C); });
+			return std::ranges::min_element(Pts, 
+				[&](const auto& lhs, const auto& rhs) { 
+					return PointTriangle(lhs, A, B, C) < PointTriangle(rhs, A, B, C);
+				});
 		}
 	}
 
@@ -315,8 +342,7 @@ namespace Collision
 
 	namespace Volume
 	{
-		[[nodiscard]] static float Tetrahedron(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D)
-		{
+		[[nodiscard]] static float Tetrahedron(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D) {
 			return std::fabsf((D - A).Dot((D - B).Cross(D - C)) / 6.0f);
 		}
 	}

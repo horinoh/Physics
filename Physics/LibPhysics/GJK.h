@@ -79,17 +79,17 @@ namespace Collision
 		namespace Distance
 		{
 			//!< 三角形から一番遠い点のイテレータを返す
-			[[nodiscard]] static auto Farthest(const Math::Vec3& Pt, const std::vector<SupportPoint::Points>& Sps, const std::vector<Collision::TriInds>& Indices)
-			{
+			[[nodiscard]] static auto Farthest(const Math::Vec3& Pt, const std::vector<SupportPoint::Points>& Sps, const std::vector<Collision::TriInds>& Indices) {
 				return std::ranges::max_element(Indices, [&](const auto& lhs, const auto& rhs) {
-					return std::abs(Collision::Distance::PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC())) < std::abs(Collision::Distance::PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC()));
+					using namespace Collision::Distance;
+					return std::abs(PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC())) < std::abs(PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC()));
 				});
 			}
 			//!< 三角形から一番近い点のイテレータを返す
-			[[nodiscard]] static auto Closest(const Math::Vec3& Pt, const std::vector<SupportPoint::Points>& Sps, const std::vector<Collision::TriInds>& Indices)
-			{
+			[[nodiscard]] static auto Closest(const Math::Vec3& Pt, const std::vector<SupportPoint::Points>& Sps, const std::vector<Collision::TriInds>& Indices) {
 				return std::ranges::min_element(Indices, [&](const auto& lhs, const auto& rhs) {
-					return std::abs(Collision::Distance::PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC())) < std::abs(Collision::Distance::PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC()));
+					using namespace Collision::Distance;
+					return std::abs(PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC())) < std::abs(PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC()));
 				});
 			}
 		}
@@ -126,11 +126,10 @@ namespace Collision
 			const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 
 			const float Bias, 
 			const bool WidthClosestPoint,
-			Math::Vec3& OnA, Math::Vec3& OnB) 
-		{
+			Math::Vec3& OnA, Math::Vec3& OnB) {
 			return GJK(ShA, PosA, RotA, 
 				ShB, PosB, RotB, 
-				EPA, Bias, 
+				EPA, Bias,
 				WidthClosestPoint,
 				OnA, OnB);
 		}
