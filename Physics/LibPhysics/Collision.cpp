@@ -21,8 +21,16 @@ float Collision::Distance::SegmentSegmentSq(const Math::Vec3& SegA, const Math::
 	const Math::Vec3& SegC, const Math::Vec3& SegD,
 	float& T0, float& T1)
 {
-	Collision::Closest::SegmentSegment(SegA, SegB, SegC, SegD, T0, T1);
-	return ((SegA + (SegB - SegA) * T0) - (SegC + (SegD - SegC) * T1)).LengthSq();
+	Math::Vec3 OnAB, OnCD;
+	Collision::Closest::SegmentSegment(SegA, SegB, SegC, SegD, T0, T1, &OnAB, &OnCD);
+	return (OnAB - OnCD).LengthSq();
+}
+float Collision::Distance::SegmentSegmentSq(const Math::Vec3& SegA, const Math::Vec3& SegB,
+	const Math::Vec3& SegC, const Math::Vec3& SegD) {
+	float T0, T1;
+	return SegmentSegmentSq(SegA, SegB,
+		SegC, SegD,
+		T0, T1);
 }
 
 bool Collision::Intersection::AABBAABB(const AABB& AbA, const AABB& AbB,
@@ -194,9 +202,10 @@ Math::Vec3 Collision::Closest::PlanePoint(const Math::Vec3 & PlN, const float Pl
 	return Pt - Collision::Distance::PlanePoint(PlN, PlD, Pt) * PlN;
 }
 
-Math::Vec3 Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
+void Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
 	const Math::Vec3& SegC, const Math::Vec3& SegD,
-	float& T0, float& T1)
+	float& T0, float& T1,
+	Math::Vec3* OnAB, Math::Vec3* OnCD)
 {
 	const auto AB = SegB - SegA;
 	const auto CD = SegD - SegC;
@@ -204,7 +213,17 @@ Math::Vec3 Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math
 	const auto E = CD.LengthSq();
 
 	//< ２つの線分ともが点に縮退している
-	if (A <= std::numeric_limits<float>::epsilon() && E <= std::numeric_limits<float>::epsilon()) { T0 = 0.0f; T1 = 0.0f; return Math::Vec3::Zero(); }
+	if (A <= std::numeric_limits<float>::epsilon() && E <= std::numeric_limits<float>::epsilon()) { 
+		T0 = 0.0f; 
+		T1 = 0.0f;
+		if (nullptr != OnAB) {
+			*OnAB = SegA;
+		}
+		if (nullptr != OnCD) {
+			*OnCD = SegC;
+		}
+		return;
+	}
 
 	const auto CA = SegA - SegC;
 	const auto F = CD.Dot(CA);
@@ -236,8 +255,23 @@ Math::Vec3 Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math
 
 	T0 = S;
 	T1 = T;
-
-	return SegA + AB * T0;
+	if (nullptr != OnAB) {
+		*OnAB = SegA + AB * T0;
+	}
+	if (nullptr != OnCD) {
+		*OnCD = SegC + CD * T1;
+	}
+	return;
+}
+void Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
+	const Math::Vec3& SegC, const Math::Vec3& SegD,
+	Math::Vec3& OnAB, Math::Vec3& OnCD) 
+{
+	float T0, T1;
+	SegmentSegment(SegA, SegB,
+		SegC, SegD,
+		T0, T1,
+		&OnAB, &OnCD);
 }
 
 [[nodiscard]] bool Collision::Intersection::SphereSphere(const Physics::RigidBody* RbA,
@@ -295,17 +329,19 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 				WithClosestPoint,
 				OnA, OnB)) {
 			Ct.TimeOfImpact = TOI;
-#if true
+#ifdef NRMB
 			//!< 法線 A -> B
 			Ct.WNormal = (OnA - OnB).Normalize();
+			//!< シンプレックスを拡張しているので、その分をキャンセルする
+			OnA += Ct.WNormal * Bias;
+			OnB -= Ct.WNormal * Bias;
 #else
 			//!< 法線 A -> B
 			Ct.WNormal = (OnB - OnA).Normalize();
-#endif
 			//!< シンプレックスを拡張しているので、その分をキャンセルする
 			OnA -= Ct.WNormal * Bias;
 			OnB += Ct.WNormal * Bias;
-
+#endif
 			//!< 衝突点
 			Ct.LPointA = RbA->ToLocalPos((Ct.WPointA = OnA));
 			Ct.LPointB = RbB->ToLocalPos((Ct.WPointB = OnB));
@@ -374,7 +410,7 @@ void Collision::ResolveContact(const Contact& Ct)
 			//!< (A 視点の) 相対速度 A -> B
 			const auto VelA = Ct.RigidBodyA->LinearVelocity + Ct.RigidBodyA->AngularVelocity.Cross(RA);
 			const auto VelB = Ct.RigidBodyB->LinearVelocity + Ct.RigidBodyB->AngularVelocity.Cross(RB);
-			const auto VelAB = VelA - VelB;
+			const auto RelVelA = VelA - VelB;
 	
 			auto Apply = [&](const auto& Axis, const auto& Vel, const float Coef) {
 				const auto AngJA = (WorldInvInertiaA * RA.Cross(Axis)).Cross(RA);
@@ -389,17 +425,17 @@ void Collision::ResolveContact(const Contact& Ct)
 
 			//!< 法線方向 力積J (運動量変化)
 			//!< 速度の法線成分
-			const auto NVelAB = Ct.WNormal * VelAB.Dot(Ct.WNormal);
+			const auto NRelVelA = Ct.WNormal * RelVelA.Dot(Ct.WNormal);
 			//!< 両者の弾性係数を掛けただけの簡易な実装とする
 			const auto TotalElasticity = 1.0f + Ct.RigidBodyA->Elasticity * Ct.RigidBodyB->Elasticity;
-			Apply(Ct.WNormal, NVelAB, TotalElasticity);
+			Apply(Ct.WNormal, NRelVelA, TotalElasticity);
 
 			//!< 接線方向 力積J (摩擦力)
 			//!< 速度の接線成分
-			const auto TVelAB = VelAB - NVelAB;
-			const auto Tan = TVelAB.Normalize();
+			const auto TRelVelA = RelVelA - NRelVelA;
+			const auto Tan = TRelVelA.Normalize();
 			const auto TotalFriction = Ct.RigidBodyA->Friction * Ct.RigidBodyB->Friction;
-			Apply(Tan, TVelAB, TotalFriction);
+			Apply(Tan, TRelVelA, TotalFriction);
 		}
 	}
 

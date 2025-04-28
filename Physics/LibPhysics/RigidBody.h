@@ -9,7 +9,7 @@ namespace Physics
 	class RigidBody
 	{
 	public:
-		void Init(const Shape* Sh);
+		RigidBody(const Shape* Sh, const float InvMass);
 
 		[[nodiscard]] Math::Vec3 ToLocal(const Math::Vec3& rhs, const Math::Vec3& Center) const {
 			return Rotation.Inverse().Rotate(rhs - Center);

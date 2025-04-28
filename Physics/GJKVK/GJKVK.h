@@ -224,9 +224,8 @@ public:
 		std::ranges::copy(ShapeVert, std::back_inserter(Vec3s));
 #endif
 
-		auto Convex = static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>()).get());
 		//!< 凸包を構築
-		Convex->Init(Vec3s);
+		auto Convex = static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>(Vec3s)).get());
 		//!< 描画用の頂点、インデックスを構築
 		for (auto& i : Convex->Vertices) {
 			Vertices_CH.emplace_back(glm::vec3(i.X(), i.Y(), i.Z()));
@@ -238,11 +237,9 @@ public:
 		}
 
 		for (auto i = 0; i < _countof(WorldBuffer.Instances); ++i) {
-			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
+			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
 			Rb->Position = 0 == i ? Math::Vec3::AxisZ() * 5.0f : Math::Vec3::Zero();
 			Rb->Rotation = Math::Quat::Identity();
-			Rb->InvMass = 0.0f;
-			Rb->Init(Scene->Shapes.back().get());
 		}
 
 		const auto& CB = CommandBuffers[0];

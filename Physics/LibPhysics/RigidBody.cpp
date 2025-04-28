@@ -1,9 +1,9 @@
 #include "RigidBody.h"
 #include "Shape.h"
 
-void Physics::RigidBody::Init(const Physics::Shape* Sh) 
+Physics::RigidBody::RigidBody(const Physics::Shape* Sh, const float InvMass) 
+	: Shape(Sh), InvMass(InvMass)
 {
-	Shape = Sh;
 	//!< InvMass を加味したもの (加味しないものはシェイプから取得すること)
 	InvInertiaTensor = Shape->GetInvInertiaTensor() * InvMass;
 }

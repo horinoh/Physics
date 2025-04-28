@@ -46,11 +46,10 @@ namespace Physics
 		using Super = Shape;
 	public:
 		ShapeSphere() {}
-		ShapeSphere(const float R) : Radius(R) {}
+		ShapeSphere(const float R) : Radius(R) { Init(); }
 		virtual ~ShapeSphere() {}
 
 		ShapeSphere& Init() {
-			//CenterOfMass = Math::Vec3::Zero();
 			InertiaTensor = CalcInertiaTensor();
 			InvInertiaTensor = InertiaTensor.Inverse();
 			return *this;
@@ -90,11 +89,11 @@ namespace Physics
 				Math::Vec3(-R, -R, R),
 				Math::Vec3(-R)
 			};
+			Init();
 		}
 		virtual ~ShapeBox() {}
 
 		ShapeBox& Init() {
-			//CenterOfMass = Math::Vec3::Zero();
 			InertiaTensor = CalcInertiaTensor();
 			InvInertiaTensor = InertiaTensor.Inverse();
 			return *this;
@@ -166,6 +165,7 @@ namespace Physics
 		using Super = Shape;
 	public:
 		ShapeConvex() {}
+		ShapeConvex(const std::vector<Math::Vec3>& Vert) { Init(Vert); }
 		virtual ~ShapeConvex() {}
 
 		virtual ShapeConvex& Init(const std::vector<Math::Vec3>& Vert);

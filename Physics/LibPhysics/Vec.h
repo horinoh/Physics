@@ -16,7 +16,7 @@ namespace Math
 		Vec2(const float x, const float y) : Comps({x, y}) {}
 		Vec2(const float rhs) : Comps({rhs, rhs}) {}
 
-		inline static Vec2 Zero() { return Vec2(); }
+		inline static Vec2 Zero() { return Vec2(0.0f); }
 		inline static Vec2 One() { return Vec2(1.0f); }
 		inline static Vec2 AxisX() { return { 1.0f, 0.0f }; }
 		inline static Vec2 AxisY() { return { 0.0f, 1.0f }; }
@@ -112,7 +112,7 @@ namespace Math
 		Vec3(const float rhs) : Comps({rhs, rhs, rhs}) {}
 		Vec3(const Vec2& rhs) : Comps({ rhs.X(), rhs.Y(), 0.0f }) {}
 
-		inline static Vec3 Zero() { return Vec3(); }
+		inline static Vec3 Zero() { return Vec3(0.0f); }
 		inline static Vec3 One() { return Vec3(1.0f); }
 		inline static Vec3 AxisX() { return { 1.0f, 0.0f, 0.0f }; }
 		inline static Vec3 AxisY() { return { 0.0f, 1.0f, 0.0f }; }
@@ -226,7 +226,7 @@ namespace Math
 		Vec4(const float rhs) : Comps({ rhs, rhs, rhs, rhs }) {}
 		Vec4(const Vec3& rhs) : Comps({ rhs.X(), rhs.Y(), rhs.Z(), 0.0f }) {}
 
-		inline static Vec4 Zero() { return Vec4(); }
+		inline static Vec4 Zero() { return Vec4(0.0f); }
 		inline static Vec4 One() { return Vec4(1.0f); }
 		inline static Vec4 AxisX() { return { 1.0f, 0.0f, 0.0f, 0.0f }; }
 		inline static Vec4 AxisY() { return { 0.0f, 1.0f, 0.0f, 0.0f }; }
@@ -329,6 +329,7 @@ namespace Math
 	class Vec
 	{
 	public:
+		//!< Vec<N> ではデフォルトコンストラクタでゼロクリアとしておく
 		Vec() { std::ranges::fill(Comps, 0.0f); }
 		Vec(const float rhs) { std::ranges::fill(Comps, rhs); }
 		template<typename...A> Vec(A...Args) {

@@ -120,25 +120,23 @@ public:
 			constexpr auto Offset = Radius * 2.0f * 1.5f;
 			constexpr auto Y = 10.0f;
 
-			static_cast<Physics::ShapeSphere*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius)).get())->Init();
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius));
 
 			const auto n = 6;
 			const auto n2 = n >> 1;
 #ifdef _DEBUG
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
-					auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
+					auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 1.0f)).get();
 					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Offset, Y, static_cast<float>(z - n2) * Offset);
-					Rb->Init(Scene->Shapes.back().get());
 				}
 			}
 #else
 			for (auto x = 0; x < n; ++x) {
 				for (auto y = 0; y < n; ++y) {
 					for (auto z = 0; z < n; ++z) {
-						auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
+						auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 1.0f)).get();
 						Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Offset, Y + y * Offset, static_cast<float>(z - n2) * Offset);
-						Rb->Init(Scene->Shapes.back().get());
 					}
 				}
 			}
@@ -150,17 +148,15 @@ public:
 			constexpr auto Radius = 80.0f;
 			constexpr auto Y = -Radius;
 
-			static_cast<Physics::ShapeSphere*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius)).get())->Init();
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius));
 
 			const auto n = 3;
 			const auto n2 = n >> 1;
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
-					auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
+					auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
 					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Radius * 0.25f, Y, static_cast<float>(z - n2) * Radius * 0.25f);
-					Rb->InvMass = 0;
 					Rb->Elasticity = 0.99f;
-					Rb->Init(Scene->Shapes.back().get());
 				}
 			}
 		}

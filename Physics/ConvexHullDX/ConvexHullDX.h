@@ -123,7 +123,7 @@ public:
 			constexpr auto Offset = 3.0f * 1.5f;
 			constexpr auto Y = 10.0f;
 
-			static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>()).get())->Init(Vertices);
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>(Vertices));
 
 #ifdef _DEBUG
 			const auto n = 3;
@@ -133,10 +133,9 @@ public:
 			const auto n2 = n >> 1;
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
-					auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
+					auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 1.0f)).get();
 					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Offset, Y, static_cast<float>(z - n2) * Offset);
 					Rb->Rotation = Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(90.0f));
-					Rb->Init(Scene->Shapes.back().get());
 				}
 			}
 		}
@@ -148,14 +147,12 @@ public:
 			std::vector<Math::Vec3> ExpandedVertices(std::size(Vertices));
 			std::ranges::transform(Vertices, std::back_inserter(ExpandedVertices), [&](const auto& i) { return i * FloorScale; });
 
-			static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>()).get())->Init(ExpandedVertices);
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>(ExpandedVertices));
 
-			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>()).get();
+			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
 			Rb->Position = Math::Vec3::AxisY() * Y;
 			Rb->Rotation = Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(270.0f));
-			Rb->InvMass = 0;
 			Rb->Elasticity = 0.99f;
-			Rb->Init(Scene->Shapes.back().get());
 		}
 	}
 

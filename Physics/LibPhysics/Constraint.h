@@ -40,6 +40,14 @@ namespace Physics
 	class ConstraintAnchor : public Constraint
 	{
 	public:
+		ConstraintAnchor() {}
+		ConstraintAnchor(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB) {
+			Init(RbA, RbB);
+		}
+		ConstraintAnchor(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor) {
+			Init(RbA, RbB, WAnchor);
+		}
+
 		static MassMatrix CreateInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
 		static Velocities CreateVelocties(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
 
@@ -65,6 +73,11 @@ namespace Physics
 	public:
 		using Super = ConstraintAnchor;
 
+		ConstraintAnchorAxis() {}
+		ConstraintAnchorAxis(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis) {
+			Init(RbA, RbB, WAnchor, WAxis);
+		}
+
 		ConstraintAnchorAxis& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis);
 
 	protected:
@@ -77,6 +90,11 @@ namespace Physics
 	{
 	public:
 		using Super = ConstraintAnchor;
+
+		ConstraintDistance() {}
+		ConstraintDistance(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor) {
+			Init(RbA, RbB, WAnchor);
+		}
 
 		ConstraintDistance& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor) {
 			Super::Init(RbA, RbB, WAnchor);
@@ -102,6 +120,11 @@ namespace Physics
 	{
 	public:
 		using Super = ConstraintAnchorAxis;
+		
+		ConstraintHinge() {}
+		ConstraintHinge(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis) {
+			Init(RbA, RbB, WAnchor, WAxis);
+		}
 
 		ConstraintHinge& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis) {
 			Super::Init(RbA, RbB, WAnchor, WAxis);
@@ -124,6 +147,11 @@ namespace Physics
 	{
 	public:
 		using Super = ConstraintAnchorAxis;
+		
+		ConstraintHingeLimited() {}
+		ConstraintHingeLimited(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float LimAng = 45.0f) {
+			Init(RbA, RbB, WAnchor, WAxis, LimAng);
+		}
 
 		ConstraintHingeLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float LimAng = 45.0f) {
 			Super::Init(RbA, RbB, WAnchor, WAxis);
@@ -152,6 +180,11 @@ namespace Physics
 	public:
 		using Super = ConstraintAnchorAxis;
 
+		ConstraintBallSocket() {}
+		ConstraintBallSocket(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis) {
+			Init(RbA, RbB, WAnchor, WAxis);
+		}
+
 		ConstraintBallSocket& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis) {
 			Super::Init(RbA, RbB, WAnchor, WAxis);
 			return *this;
@@ -173,6 +206,11 @@ namespace Physics
 	{
 	public:
 		using Super = ConstraintAnchorAxis;
+
+		ConstraintBallSocketLimited() {}
+		ConstraintBallSocketLimited(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float LimAngU = 45.0f, const float LimAngV = 45.0f) {
+			Init(RbA, RbB, WAnchor, WAxis, LimAngU, LimAngV);
+		}
 
 		ConstraintBallSocketLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float LimAngU = 45.0f, const float LimAngV = 45.0f) {
 			Super::Init(RbA, RbB, WAnchor, WAxis);
@@ -202,6 +240,11 @@ namespace Physics
 	public:
 		using Super = ConstraintAnchorAxis;
 
+		ConstraintMotor() {}
+		ConstraintMotor(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float Spd) {
+			Init(RbA, RbB, WAnchor, WAxis, Spd);
+		}
+
 		ConstraintMotor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float Spd) {
 			Super::Init(RbA, RbB, WAnchor, WAxis);
 			Speed = Spd;
@@ -223,12 +266,19 @@ namespace Physics
 	class ConstraintMover : public Constraint
 	{
 	public:
+		ConstraintMover() {}
+		ConstraintMover(const Physics::RigidBody* Rb) { Init(Rb); }
+
 		ConstraintMover& Init(const Physics::RigidBody* Rb) { RigidBodyA = const_cast<Physics::RigidBody*>(Rb); return *this; }
 	};
 	class ConstraintMoverUpDown : public ConstraintMover
 	{
 	public:
 		using Super = ConstraintMover;
+		
+		ConstraintMoverUpDown() {}
+		ConstraintMoverUpDown(const Physics::RigidBody* Rb) { Init(Rb); }
+
 		virtual void PreSolve(const float DeltaSec) override;
 	protected:
 		float Timer = 0.0f;
@@ -237,6 +287,10 @@ namespace Physics
 	{
 	public:
 		using Super = ConstraintMover;
+		
+		ConstraintMoverRotate() {}
+		ConstraintMoverRotate(const Physics::RigidBody* Rb) { Init(Rb); }
+		
 		virtual void PreSolve(const float DeltaSec) override;
 	};
 	

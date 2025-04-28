@@ -64,6 +64,7 @@ namespace Collision
 		bool IsMin;
 	};
 
+#define NRMB
 	struct Contact
 	{
 		float TimeOfImpact = 0.0f;
@@ -165,10 +166,16 @@ namespace Collision
 		[[nodiscard]] float SegmentSegmentSq(const Math::Vec3& SegA, const Math::Vec3& SegB,
 			const Math::Vec3& SegC, const Math::Vec3& SegD,
 			float& T0, float& T1);
+		[[nodiscard]] float SegmentSegmentSq(const Math::Vec3& SegA, const Math::Vec3& SegB,
+			const Math::Vec3& SegC, const Math::Vec3& SegD);
 		[[nodiscard]] static float SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
 			const Math::Vec3& SegC, const Math::Vec3& SegD,
 			float& T0, float& T1) {
 			return std::sqrtf(SegmentSegmentSq(SegA, SegB, SegC, SegD, T0, T1));
+		}
+		[[nodiscard]] static float SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
+			const Math::Vec3& SegC, const Math::Vec3& SegD) {
+			return std::sqrtf(SegmentSegmentSq(SegA, SegB, SegC, SegD));
 		}
 
 		//!< 指定の方向に一番遠い点のイテレータを返す 
@@ -327,10 +334,14 @@ namespace Collision
 		[[nodiscard]] static Math::Vec3 PlanePoint(const Math::Vec3& PlN, const float PlD,
 			const Math::Vec3& Pt);
 
-		Math::Vec3 SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
+		void SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
 			const Math::Vec3& SegC, const Math::Vec3& SegD,
-			float& T0, float& T1);
-
+			float& T0, float& T1,
+			Math::Vec3* OnAB = nullptr, Math::Vec3* OnCD = nullptr);
+		void SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
+			const Math::Vec3& SegC, const Math::Vec3& SegD,
+			Math::Vec3& OnAB, Math::Vec3& OnCD);
+		
 		static void SphereSphere(const Math::Vec3& SpPosA, const float SpRadA,
 			const Math::Vec3& SpPosB, const float SpRadB,
 			Math::Vec3& OnA, Math::Vec3& OnB) {

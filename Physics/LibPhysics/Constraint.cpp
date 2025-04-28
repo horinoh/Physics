@@ -596,8 +596,12 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	//!< 法線をワールドスペースへ
+#ifdef NRMB
 	const auto WNormal = RigidBodyA->ToWorldDir(LNormal);
-	
+#else
+	const auto WNormal = -RigidBodyA->ToWorldDir(LNormal);
+#endif
+
 	const auto J1 = -WNormal;
 	const auto J2 = RA.Cross(J1);
 	const auto J3 = -J1;
