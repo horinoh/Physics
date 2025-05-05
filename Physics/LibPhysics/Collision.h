@@ -65,7 +65,7 @@ namespace Collision
 	};
 
 #define NRMB
-	struct Contact
+	struct ContactBase
 	{
 		float TimeOfImpact = 0.0f;
 
@@ -76,19 +76,30 @@ namespace Collision
 		Math::Vec3 WPointA;
 		Math::Vec3 WPointB;
 
-		//!< ローカルスペース 
-		//!<	ConstraintPenetration で衝突時のローカル位置を、新しいトランスフォームで変換する必要がある
+#ifdef NRMB
+		//!< ワールドスペース B -> A
+#else
+		//!< ワールドスペース A -> B
+#endif
+		Math::Vec3 WNormal;
+
+		ContactBase& Swap() {
+			std::swap(RigidBodyA, RigidBodyB);
+			WNormal = -WNormal;
+			return *this;
+		}
+	};
+	struct Contact : ContactBase
+	{
+		//!< ローカルスペース (ConstraintPenetration で使用、衝突時のローカル位置を覚えおいて新しいトランスフォームで変換する)
 		Math::Vec3 LPointA;
 		Math::Vec3 LPointB;
 
-		//!< ワールドスペース A -> B
-		Math::Vec3 WNormal;
+		void CalcLocal();
 
 		Contact& Swap() {
-			std::swap(RigidBodyA, RigidBodyB);
-			std::swap(WPointA, WPointB);
+			ContactBase::Swap();
 			std::swap(LPointA, LPointB);
-			WNormal = -WNormal;
 			return *this;
 		}
 	};
@@ -276,7 +287,7 @@ namespace Collision
 
 		[[nodiscard]] bool SphereSphere(const Physics::RigidBody* RbA,
 			const Physics::RigidBody* RbB,
-			const float DeltaSec, Contact& Ct);
+			const float DeltaSec, ContactBase& Ct);
 
 		[[nodiscard]] bool RigidBodyRigidBody(const Physics::RigidBody* RbA, 
 			const Physics::RigidBody* RbB, 

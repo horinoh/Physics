@@ -1,9 +1,12 @@
 #include "RigidBody.h"
 #include "Shape.h"
 
-Physics::RigidBody::RigidBody(const Physics::Shape* Sh, const float InvMass) 
+Physics::RigidBody::RigidBody(const Physics::Shape* Sh, const float InvMass)
 	: Shape(Sh), InvMass(InvMass)
 {
+	if (0.0f != InvMass) {
+		InertiaTensor = Shape->GetInertiaTensor() / InvMass;
+	}
 	//!< InvMass を加味したもの (加味しないものはシェイプから取得すること)
 	InvInertiaTensor = Shape->GetInvInertiaTensor() * InvMass;
 }
@@ -15,6 +18,11 @@ Math::Vec3 Physics::RigidBody::GetCenterOfMass() const
 
 void Physics::RigidBody::Update(const float DeltaSec)
 {
+	//!< 質量無限扱いだが動くものがあるので早期終了できない、動かないことが分かっているのであれば可能
+	//if (0.0f == InvMass) {
+	//	return;
+	//}
+
 	//!< (速度による) 位置の更新
 	{
 		Position += LinearVelocity * DeltaSec;
@@ -22,17 +30,24 @@ void Physics::RigidBody::Update(const float DeltaSec)
 
 	//!< (角速度による) 位置、回転の更新
 	{
-		//!< 角加速度 AngAccel = Inv(I) * (w x (I ・ w))
-		const auto AngAccel = ToWorld(Shape->GetInvInertiaTensor()) * (AngularVelocity.Cross(ToWorld(Shape->GetInertiaTensor()) * AngularVelocity));
-		//!< 角速度
+		//!< ワールド空間の (逆) 慣性テンソル
+		const auto InvWIT = GetWorldSpaceInverseInertiaTensor();
+		const auto WIT = GetWorldSpaceInertiaTensor();
+
+		//!< 角加速度 AngAccel = InvWIT * (w x (WIT * w))
+		const auto AngAccel = InvWIT * (AngularVelocity.Cross(WIT * AngularVelocity));
+		
+		//!< 角速度の更新
 		AngularVelocity += AngAccel * DeltaSec;
 
-		//!< 回転の更新 Quat' = dQuat * Quat
+		//!< 角変化の四元数表現
 		const auto DeltaAng = AngularVelocity * DeltaSec;
 		const auto DeltaQuat = Math::Quat(DeltaAng, DeltaAng.Length());
+	
+		//!< (角変化による) 回転の更新
 		Rotation = (DeltaQuat * Rotation).Normalize();
 
-		//!< 位置の更新
+		//!< (角変化による) 位置の更新
 		const auto WorldCenter = GetWorldSpaceCenterOfMass();
 		Position = WorldCenter + DeltaQuat.Rotate(Position - WorldCenter);
 	}

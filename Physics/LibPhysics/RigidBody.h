@@ -28,9 +28,12 @@ namespace Physics
 			return Rot3 * rhs * Rot3.Transpose();
 		}
 
+		//!< ローカル (モデル) 空間での重心
 		[[nodiscard]] Math::Vec3 GetCenterOfMass() const;
+		//!< ワールド空間での重心
 		[[nodiscard]] Math::Vec3 GetWorldSpaceCenterOfMass() const { return Position + Rotation.Rotate(GetCenterOfMass()); }
 
+		[[nodiscard]] Math::Mat3 GetWorldSpaceInertiaTensor() const { return ToWorld(InertiaTensor); }
 		[[nodiscard]] Math::Mat3 GetWorldSpaceInverseInertiaTensor() const { return ToWorld(InvInertiaTensor); }
 
 		void ApplyGravity(const float DeltaSec) {
@@ -53,12 +56,11 @@ namespace Physics
 				//!< w = Inv(I) * AngularJ 
 				AngularVelocity += GetWorldSpaceInverseInertiaTensor() * Impulse;
 
-				//!< 角速度に限界値を設ける場合
-				//constexpr auto AngVelLim = 30.0f;
-				//if (AngularVelocity.LengthSq() > AngVelLim * AngVelLim) {
-				//	AngularVelocity.ToNormalized();
-				//	AngularVelocity *= AngVelLim;
-				//}
+				//!< 角速度に限界値を設ける (通常パフォーマンス的理由による)
+				constexpr auto Limit = 30.0f;
+				if (AngularVelocity.LengthSq() > Limit * Limit) {
+					AngularVelocity.Adjust(Limit);
+				}
 			}
 		}
 
@@ -73,6 +75,7 @@ namespace Physics
 
 		void Update(const float DeltaSec);
 
+		//!< モデル中心
 		Math::Vec3 Position = Math::Vec3::Zero();
 		Math::Quat Rotation = Math::Quat::Identity();
 
@@ -80,6 +83,7 @@ namespace Physics
 		Math::Vec3 AngularVelocity = Math::Vec3::Zero();
 
 		float InvMass = 1.0f;
+		Math::Mat3 InertiaTensor = Math::Mat3::Zero();
 		Math::Mat3 InvInertiaTensor = Math::Mat3::Identity();
 
 		float Elasticity = 0.5f;

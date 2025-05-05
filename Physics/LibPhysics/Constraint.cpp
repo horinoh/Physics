@@ -707,7 +707,11 @@ void Physics::Manifold::RemoveExpired()
 		const auto& Ct = i.first;
 		//!< 衝突時のローカル位置を、現在のトランスフォームで変換 (衝突時のローカル位置が必要、LPointA, LPointB が必要になる場面)
 		const auto AB = Ct.RigidBodyB->ToWorldPos(Ct.LPointB) - Ct.RigidBodyA->ToWorldPos(Ct.LPointA);
+#ifdef NRMB
 		const auto& WNrm = Ct.WNormal;
+#else
+		const auto WNrm = -Ct.WNormal;
+#endif
 		const auto PenetrateDepth = WNrm.Dot(AB);
 		//!< AB と A の法線が同じ向き (めり込んでいない)
 		if (PenetrateDepth > 0.0f) {

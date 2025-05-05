@@ -3,6 +3,12 @@
 #include "Shape.h"
 #include "GJK.h"
 
+void Collision::Contact::CalcLocal() 
+{
+	LPointA = RigidBodyA->ToLocalPos(WPointA);
+	LPointB = RigidBodyB->ToLocalPos(WPointB);
+}
+
 float Collision::Distance::CapsulePointSq(const Math::Vec3& CapA, const Math::Vec3& CapB, const float CapR,
 	const Math::Vec3& Pt) 
 {
@@ -122,7 +128,7 @@ bool Collision::Intersection::RaySphere(const Math::Vec3& RayPos, const Math::Ve
 
 	const auto D4 = B2 * B2 - A * C;
 	if (D4 >= 0) {
-		const auto D4Sqrt = sqrt(D4);
+		const auto D4Sqrt = std::sqrt(D4);
 		T0 = (B2 - D4Sqrt) / A;
 		T1 = (B2 + D4Sqrt) / A;
 		return true;
@@ -276,7 +282,7 @@ void Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math::Vec3
 
 [[nodiscard]] bool Collision::Intersection::SphereSphere(const Physics::RigidBody* RbA,
 	const Physics::RigidBody* RbB,
-	const float DeltaSec, Contact& Ct) 
+	const float DeltaSec, ContactBase& Ct) 
 {
 	const auto SpA = static_cast<const Physics::ShapeSphere*>(RbA->Shape);
 	const auto SpB = static_cast<const Physics::ShapeSphere*>(RbB->Shape);
@@ -284,6 +290,10 @@ void Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math::Vec3
 	//!< TOI が直接求められる
 	//!< 速度はデルタ時間のものを渡すこと
 	if (Intersection::SphereShpere(SpA->Radius, SpB->Radius, RbA->Position, RbB->Position, RbA->LinearVelocity * DeltaSec, RbB->LinearVelocity * DeltaSec, T)) {
+		//!< 衝突剛体を覚えておく
+		Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
+		Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB); 
+
 		Ct.TimeOfImpact = T * DeltaSec;
 
 		//!< 衝突時刻の(中心)位置
@@ -294,12 +304,9 @@ void Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math::Vec3
 		Ct.WNormal = (CPosB - CPosA).Normalize();
 
 		//!< 衝突点 (半径の分オフセット)
-		Ct.LPointA = RbA->ToLocalPos((Ct.WPointA = CPosA + Ct.WNormal * SpA->Radius));
-		Ct.LPointB = RbB->ToLocalPos((Ct.WPointB = CPosB - Ct.WNormal * SpB->Radius));
-
-		//!< 衝突剛体を覚えておく
-		Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
-		Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
+		Ct.WPointA = CPosA + Ct.WNormal * SpA->Radius;
+		Ct.WPointB = CPosB - Ct.WNormal * SpB->Radius;
+		//Ct.CalcLocal();		
 
 		return true;
 	}
@@ -328,6 +335,10 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 				Bias,
 				WithClosestPoint,
 				OnA, OnB)) {
+			//!< 衝突剛体を覚えておく
+			Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
+			Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
+
 			Ct.TimeOfImpact = TOI;
 #ifdef NRMB
 			//!< 法線 A -> B
@@ -343,12 +354,9 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 			OnB += Ct.WNormal * Bias;
 #endif
 			//!< 衝突点
-			Ct.LPointA = RbA->ToLocalPos((Ct.WPointA = OnA));
-			Ct.LPointB = RbB->ToLocalPos((Ct.WPointB = OnB));
-
-			//!< 衝突剛体を覚えておく
-			Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
-			Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
+			Ct.WPointA = OnA;
+			Ct.WPointB = OnB;
+			Ct.CalcLocal();
 
 			return true;
 		}
@@ -397,6 +405,7 @@ void Collision::ResolveContact(const Contact& Ct)
 {
 	const auto& WPointA = Ct.WPointA;
 	const auto& WPointB = Ct.WPointB; 
+
 	const auto TotalInvMass = Ct.RigidBodyA->InvMass + Ct.RigidBodyB->InvMass;
 	{
 		//!< 半径 (重心 -> 衝突点)
@@ -404,46 +413,49 @@ void Collision::ResolveContact(const Contact& Ct)
 		const auto RB = WPointB - Ct.RigidBodyB->GetWorldSpaceCenterOfMass();
 		{
 			//!< 逆慣性テンソル (ワールドスペース)
-			const auto WorldInvInertiaA = Ct.RigidBodyA->GetWorldSpaceInverseInertiaTensor();
-			const auto WorldInvInertiaB = Ct.RigidBodyB->GetWorldSpaceInverseInertiaTensor();
+			const auto InvWITA = Ct.RigidBodyA->GetWorldSpaceInverseInertiaTensor();
+			const auto InvWITB = Ct.RigidBodyB->GetWorldSpaceInverseInertiaTensor();
 
-			//!< (A 視点の) 相対速度 A -> B
+			//!< (A 視点の) 相対速度
 			const auto VelA = Ct.RigidBodyA->LinearVelocity + Ct.RigidBodyA->AngularVelocity.Cross(RA);
 			const auto VelB = Ct.RigidBodyB->LinearVelocity + Ct.RigidBodyB->AngularVelocity.Cross(RB);
 			const auto RelVelA = VelA - VelB;
 	
+			//!< 法線、接線方向の力積 J を適用するの共通処理
 			auto Apply = [&](const auto& Axis, const auto& Vel, const float Coef) {
-				const auto AngJA = (WorldInvInertiaA * RA.Cross(Axis)).Cross(RA);
-				const auto AngJB = (WorldInvInertiaB * RB.Cross(Axis)).Cross(RB);
+				const auto AngJA = (InvWITA * RA.Cross(Axis)).Cross(RA);
+				const auto AngJB = (InvWITB * RB.Cross(Axis)).Cross(RB);
 				const auto AngFactor = (AngJA + AngJB).Dot(Axis);
-
 				const auto J = Vel * Coef / (TotalInvMass + AngFactor);
-
 				Ct.RigidBodyA->ApplyImpulse(WPointA, -J);
 				Ct.RigidBodyB->ApplyImpulse(WPointB, J);
 			};
 
 			//!< 法線方向 力積J (運動量変化)
-			//!< 速度の法線成分
-			const auto NRelVelA = Ct.WNormal * RelVelA.Dot(Ct.WNormal);
-			//!< 両者の弾性係数を掛けただけの簡易な実装とする
-			const auto TotalElasticity = 1.0f + Ct.RigidBodyA->Elasticity * Ct.RigidBodyB->Elasticity;
-			Apply(Ct.WNormal, NRelVelA, TotalElasticity);
+			const auto& Nrm = Ct.WNormal;
+			const auto VelN = Nrm * RelVelA.Dot(Nrm);
+			//!< ここでは両者の弾性係数を掛けただけの簡易な実装とする
+			const auto Elas = 1.0f + Ct.RigidBodyA->Elasticity * Ct.RigidBodyB->Elasticity;
+			Apply(Nrm, VelN, Elas);
 
 			//!< 接線方向 力積J (摩擦力)
-			//!< 速度の接線成分
-			const auto TRelVelA = RelVelA - NRelVelA;
-			const auto Tan = TRelVelA.Normalize();
-			const auto TotalFriction = Ct.RigidBodyA->Friction * Ct.RigidBodyB->Friction;
-			Apply(Tan, TRelVelA, TotalFriction);
+			const auto VelT = RelVelA - VelN;
+			const auto Tan = VelT.Normalize();
+			//!< ここでは両者の摩擦係数を掛けただけの簡易な実装とする
+			const auto Fric = Ct.RigidBodyA->Friction * Ct.RigidBodyB->Friction;
+			Apply(Tan, VelT, Fric);
 		}
 	}
 
-	//!< めり込みの追い出し (TOI == 0.0f の時点で衝突している場合)
+	//!< めり込みの追い出し (TOI == 0.0f の時点で衝突している場合、非 GJK 時)
 	if (0.0f == Ct.TimeOfImpact) {
 		//!< 質量により追い出し割合を考慮
 		const auto DistAB = WPointB - WPointA;
-		Ct.RigidBodyA->Position += DistAB * (Ct.RigidBodyA->InvMass / TotalInvMass);
-		Ct.RigidBodyB->Position -= DistAB * (Ct.RigidBodyB->InvMass / TotalInvMass);
+		if (0.0f != Ct.RigidBodyA->InvMass) {
+			Ct.RigidBodyA->Position += DistAB * (Ct.RigidBodyA->InvMass / TotalInvMass);
+		}
+		if (0.0f != Ct.RigidBodyB->InvMass) {
+			Ct.RigidBodyB->Position -= DistAB * (Ct.RigidBodyB->InvMass / TotalInvMass);
+		}
 	}
 }
