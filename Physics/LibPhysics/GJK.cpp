@@ -275,7 +275,7 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 
 		{
 			//!< (削除した三角形と残った三角形の) 境界となるような (ユニークな) 辺を収集する、
-			std::vector<Collision::EdgeIndsCount> DanglingEdges;
+			std::vector<Collision::EdgeIndsWithCount> DanglingEdges;
 			Convex::CollectUniqueEdges(Tris, DanglingEdges);
 			//!< そのような辺が無ければ終了
 			if (std::empty(DanglingEdges)) { break; }

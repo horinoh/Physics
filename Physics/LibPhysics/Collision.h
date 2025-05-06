@@ -13,7 +13,7 @@ namespace Collision
 {
 	using TriInds = std::array<uint32_t, 3>;
 	using EdgeInds = std::array<uint32_t, 2>;
-	using EdgeIndsCount = std::pair<EdgeInds, uint32_t>;
+	using EdgeIndsWithCount = std::pair<EdgeInds, uint32_t>;
 
 	class AABB
 	{

@@ -4,118 +4,124 @@
 #include "Log.h"
 
 //!< 頂点を「なるべく」包含するような四面体を作成
-void Convex::BuildTetrahedron(const std::vector<Math::Vec3>& Pts, std::vector<Math::Vec3>& Vertices, std::vector<Collision::TriInds >& Indices)
+void Convex::BuildTetrahedron(const std::vector<Math::Vec3>& Mesh, std::vector<Math::Vec3>& Vertices, std::vector<Collision::TriInds>& Indices)
 {
 	//!< 特定の軸 (ここではX) に一番遠い点
-	std::array<Math::Vec3, 4> P = { *Collision::Distance::Farthest(Pts, Math::Vec3::AxisX()) };
-	//< 前出の逆向きの軸軸に一番遠い点
-	P[1] = *Collision::Distance::Farthest(Pts, -P[0]);
+	std::array<Math::Vec3, 4> Pts = { *Collision::Distance::Farthest(Mesh, Math::Vec3::AxisX()) };
+	//< 前出の逆向きに一番遠い点
+	Pts[1] = *Collision::Distance::Farthest(Mesh, -Pts[0]);
 	//!< 前出の 2 点からなる線分に一番遠い点
-	//P[2] = *Collision::Distance::Farthest(Pts, P[0], P[1]);
-	P[2] = *Collision::Distance::Farthest(Pts, P[0], P[1] - P[0]);
+	Pts[2] = *Collision::Distance::Farthest(Mesh, Pts[0], Pts[1] - Pts[0]);
 	//!< 前出の 3 点からなる三角形に一番遠い点
-	P[3] = *Collision::Distance::Farthest(Pts, P[0], P[1], P[2]);
+	Pts[3] = *Collision::Distance::Farthest(Mesh, Pts[0], Pts[1], Pts[2]);
 
 	//!< CCW になるように調整
-	if (Collision::Distance::IsFront(P[0], P[1], P[2], P[3])) {
-		std::swap(P[0], P[1]);
+	if (Collision::Distance::IsFront(Pts[0], Pts[1], Pts[2], Pts[3])) {
+		std::swap(Pts[0], Pts[1]);
 	}
 
 	//!< 四面体の頂点
-	Vertices.emplace_back(P[0]);
-	Vertices.emplace_back(P[1]);
-	Vertices.emplace_back(P[2]);
-	Vertices.emplace_back(P[3]);
+	Vertices.insert(std::end(Vertices), std::begin(Pts), std::end(Pts));
 
 	//!< 四面体のインデックス
-	Indices.emplace_back(Collision::TriInds({ 0, 1, 2 }));
-	Indices.emplace_back(Collision::TriInds({ 0, 2, 3 }));
-	Indices.emplace_back(Collision::TriInds({ 2, 1, 3 }));
-	Indices.emplace_back(Collision::TriInds({ 1, 0, 3 }));
+	Indices.insert(std::end(Indices), {{0, 1, 2}, {0, 2, 3}, {2, 1, 3}, {1, 0, 3}});
 }
 
 //!< 凸包の内部点を削除
-void Convex::RemoveInternal(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, std::vector<Math::Vec3>& Pts)
+void Convex::RemoveInternal(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, std::vector<Math::Vec3>& Mesh)
 {
 	//!< 内部点を除外
 	{
-		const auto Range = std::ranges::remove_if(Pts, [&](const auto& Pt) {
-			return IsInternal(Pt, Vertices, Indices);
+		const auto Range = std::ranges::remove_if(Mesh,
+			[&](const auto& Pt) {
+				return IsInternal(Pt, Vertices, Indices);
 			});
-		Pts.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
+		Mesh.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
 	}
 
 	//!< 既存と同一とみなせる点は除外
 	{
-		const auto Range = std::ranges::remove_if(Pts, [&](const auto& Pt) {
-			//!< 同一とみなせる点
-			return std::ranges::any_of(Vertices, [&](const auto rhs) {
-				return rhs.NearlyEqual(Pt);
-				});
+		const auto Range = std::ranges::remove_if(Mesh,
+			[&](const auto& Pt) {
+				//!< 同一とみなせる点が存在
+				return std::ranges::any_of(Vertices, 
+					[&](const auto rhs) {
+						return rhs.NearlyEqual(Pt);
+					});
 			});
-		Pts.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
+		Mesh.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
 	}
 }
 
-void Convex::CollectUniqueEdges(std::vector<Collision::TriInds>::const_iterator Begin, std::vector<Collision::TriInds>::const_iterator End, std::vector<Collision::EdgeIndsCount>& EdgeCounts)
+//!< 辺を共有しないユニークな辺を収集
+void Convex::CollectUniqueEdges(std::vector<Collision::TriInds>::const_iterator Begin, std::vector<Collision::TriInds>::const_iterator End, std::vector<Collision::EdgeIndsWithCount>& EdgeCounts)
 {
-	std::for_each(Begin, End, [&](const auto& i) {
-		const std::array Edges = {
-			Collision::EdgeInds({ i[0], i[1] }),
-			Collision::EdgeInds({ i[1], i[2] }),
-			Collision::EdgeInds({ i[2], i[0] }),
-		};
-		std::ranges::for_each(Edges, [&](const auto& j) {
-			//!< 既出の辺かどうかを調べる (真逆も既出として扱う)
-			const auto It = std::ranges::find_if(EdgeCounts, [&](const auto& k) {
-				return (k.first[0] == j[0] && k.first[1] == j[1]) || (k.first[0] == j[1] && k.first[1] == j[0]);
+	std::for_each(Begin, End, 
+		[&](const auto& i) {
+			//!< 三角形の三辺
+			const std::array Edges = {
+				Collision::EdgeInds({ i[0], i[1] }),
+				Collision::EdgeInds({ i[1], i[2] }),
+				Collision::EdgeInds({ i[2], i[0] }),
+			};
+			std::ranges::for_each(Edges,
+				[&](const auto& j) {
+					//!< (真逆も既出として扱い) 既出の辺かどうかを調べる 
+					const auto It = std::ranges::find_if(EdgeCounts, 
+						[&](const auto& k) {
+							return (k.first[0] == j[0] && k.first[1] == j[1]) || (k.first[0] == j[1] && k.first[1] == j[0]);
+						});
+					if (std::cend(EdgeCounts) == It) {
+						//!< 見つからなかったので、新規の辺として追加
+						EdgeCounts.emplace_back(Collision::EdgeIndsWithCount({ j, 0 }));
+					}
+					else {
+						//!< 既出の辺なのでカウンタをインクリメント (更新)
+						++It->second;
+					}
 			});
-			if (std::cend(EdgeCounts) == It) {
-				//!< 新規の辺として追加
-				EdgeCounts.emplace_back(Collision::EdgeIndsCount({ j, 0 }));
-			}
-			else {
-				//!< 既出の辺となったらカウンタをインクリメントして情報を更新
-				++It->second;
-			}
 		});
-	});
 
-	//!< ユニークでない辺 (カウンタが 0 より大きい) を削除
-	const auto Range = std::ranges::remove_if(EdgeCounts, [](const auto& i) { return i.second > 0; });
+	//!< ユニークでない辺を削除 (カウンタが 0 のものだけ残す) 
+	const auto Range = std::ranges::remove_if(EdgeCounts,
+		[](const auto& i) {
+			return i.second > 0;
+		});
 	EdgeCounts.erase(std::ranges::cbegin(Range), std::ranges::cend(EdgeCounts));
 }
 
 //!< ハイポリを食わせるとかなり時間がかかる上に結局ハイポリの凸包ができるだけなのでコリジョンとして現実的ではない、ローポリを食わせること
-void Convex::BuildConvexHull(const std::vector<Math::Vec3>& Pts, std::vector<Math::Vec3>& Vertices, std::vector<Collision::TriInds>& Indices)
+void Convex::BuildConvexHull(const std::vector<Math::Vec3>& Mesh, std::vector<Math::Vec3>& Vertices, std::vector<Collision::TriInds>& Indices)
 {
 	LOG(std::data(std::format("Building convex hull...\n")));
 
-	//!< まずは「なるべく」包含するような四面体を作成
-	BuildTetrahedron(Pts, Vertices, Indices);
+	//!< まずは概ね包含するような四面体を作成する
+	BuildTetrahedron(Mesh, Vertices, Indices);
 
 	//!< 内部点の除外 -> 外部点が残る
-	auto External = Pts;
+	auto External = Mesh;
 	RemoveInternal(Vertices, Indices, External);
 
 	//!< 外部点が無くなるまで繰り返す
 	while (!std::empty(External)) {
-		LOG(std::data(std::format("Rest vertices = {}\n", size(External))));
+		LOG(std::data(std::format("Rest vertices = {}\n", std::size(External))));
 
-		//!< 最遠点を見つける
-		const auto ExFarIt = Collision::Distance::Farthest(External, External[0]);
+		//!< (ここでは External[0]の方向に) 最遠点を見つける
+		const auto FarIt = Collision::Distance::Farthest(External, External[0]);
 
-		std::vector<Collision::EdgeIndsCount> DanglingEdges;
+		//!< ぶら下がった辺を見つける
+		std::vector<Collision::EdgeIndsWithCount> DanglingEdges;
 		{
 			//!< 最遠点を向いていない三角形 (A) と、向いている三角形 (B) に分割
 			//!< partition は以下のように返す
-			//!<	A ラムダ式が true	: [begin(Indices), begin(Range)]
+			//!<	A ラムダ式が true		: [begin(Indices), begin(Range)]
 			//!<	B ラムダ式が false	: [begin(Range), end(Range)]
-			const auto Range = std::ranges::partition(Indices, [&](const auto& i) {
-				return !Collision::Distance::IsFront(*ExFarIt, Vertices[i[0]], Vertices[i[1]], Vertices[i[2]]);
-			});
+			const auto Range = std::ranges::partition(Indices, 
+				[&](const auto& i) {
+					return !Collision::Distance::IsFront(*FarIt, Vertices[i[0]], Vertices[i[1]], Vertices[i[2]]);
+				});
 
-			//!< A, B の境界となるような辺を収集する (B の中から他の三角形と辺を共有しないユニークな辺のみを収集すれば良い)
+			//!< A, B の境界となるような辺を収集する (B の中から他の三角形と辺を共有しないユニークな辺を収集)
 			CollectUniqueEdges(std::ranges::cbegin(Range), std::ranges::cend(Range), DanglingEdges);
 
 			//!< (辺は収集済) ここまで来たら B は削除してよい  
@@ -125,22 +131,23 @@ void Convex::BuildConvexHull(const std::vector<Math::Vec3>& Pts, std::vector<Mat
 		//!< 凸包の更新
 		{
 			//!< 最遠点を頂点として追加する
-			Vertices.emplace_back(*ExFarIt);
+			Vertices.emplace_back(*FarIt);
 
-			//!< 最遠点のインデックス
+			//!< 最遠点 (最後の要素) のインデックス 
 			const auto FarIndex = static_cast<uint32_t>(std::size(Vertices) - 1);
 			//!< 最遠点とユニーク辺からなる三角形群を追加
-			std::ranges::transform(DanglingEdges, std::back_inserter(Indices), [&](const auto& i) {
-				return Collision::TriInds({ i.first[0], i.first[1], FarIndex });
-			});
+			std::ranges::transform(DanglingEdges, std::back_inserter(Indices), 
+				[&](const auto& i) {
+					return Collision::TriInds({ i.first[0], i.first[1], FarIndex });
+				});
 		}
 
 		//!< 外部点の更新
 		{
 			//!< ここまで済んだら最遠点は削除してよい
-			External.erase(ExFarIt);
+			External.erase(FarIt);
 
-			//!< 更新した凸包に対して内部点を削除する
+			//!< 更新した凸包に対して内部点になったものを削除する
 			RemoveInternal(Vertices, Indices, External);
 		}
 	}
