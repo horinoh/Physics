@@ -430,7 +430,7 @@ public:
 				const auto Rb = Scene->RigidBodies[i].get();
 				const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 				const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
-				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE) {
+				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE) {
 					const auto Scl = static_cast<const Physics::ShapeSphere*>(Rb->Shape)->Radius;
 					if (i < _countof(WorldBuffer.Instances)) {
 						WorldBuffer.Instances[i].World = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));

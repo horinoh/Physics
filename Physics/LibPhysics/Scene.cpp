@@ -102,7 +102,7 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 		}
 
 		Collision::Contact Ct;
-		if (RbA->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE && RbB->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE) {
+		if (RbA->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE && RbB->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE) {
 			if (Collision::Intersection::SphereSphere(RbA, RbB, DeltaSec, Ct)) {
 				Contacts.emplace_back(Ct);
 			}

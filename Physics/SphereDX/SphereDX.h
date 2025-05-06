@@ -422,7 +422,7 @@ public:
 				const auto Rb = Scene->RigidBodies[i].get();
 				const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 				const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
-				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE) {
+				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE) {
 					const auto Scl = static_cast<const Physics::ShapeSphere*>(Rb->Shape)->Radius;
 					if (i < _countof(WorldBuffer.Instances)) {
 						DirectX::XMStoreFloat4x4(&WorldBuffer.Instances[i].World, DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));

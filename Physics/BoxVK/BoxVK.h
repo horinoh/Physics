@@ -117,7 +117,7 @@ public:
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius));
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f));
 
 #ifdef _DEBUG
 			constexpr auto Stack = 1;
@@ -140,7 +140,7 @@ public:
 			constexpr auto Radius = 20.0f;
 			constexpr auto Y = -Radius;
 
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius));
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f));
 
 			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
 			Rb->Position = Math::Vec3::AxisY() * Y;
@@ -419,12 +419,12 @@ public:
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances)) {
 					const auto Rb = Scene->RigidBodies[i].get();
-					if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE::BOX) {
+					if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::BOX) {
 						const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 						const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
-						const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->Vertices[0].X();
+						const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->CalcExtent() * 0.5f;
 
-						WorldBuffer.Instances[i].World = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
+						WorldBuffer.Instances[i].World = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl.X(), Scl.Y(), Scl.Z()));
 					}
 				}
 			}

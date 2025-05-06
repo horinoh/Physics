@@ -220,7 +220,6 @@ public:
 		//!< ダイアモンド形状
 		std::vector<Math::Vec3> ShapeVert;
 		Physics::CreateVertices_Diamond(ShapeVert);
-		//Physics::CreateVertices_Box(ShapeVert);
 		std::ranges::copy(ShapeVert, std::back_inserter(Vec3s));
 #endif
 

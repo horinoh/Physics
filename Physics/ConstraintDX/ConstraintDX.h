@@ -118,7 +118,7 @@ public:
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius));
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f));
 			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius));
 
 			//!< 距離コンストレイント
@@ -532,13 +532,13 @@ public:
 				const auto Rb = Scene->RigidBodies[i].get();
 				const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 				const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
-				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE::BOX) {
-					const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->Vertices[0].X();
+				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::BOX) {
+					const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->CalcExtent() * 0.5f;
 					if (i0 < _countof(WorldBuffer.Instances0)) {
-						DirectX::XMStoreFloat4x4(&WorldBuffer.Instances0[i0++].World, DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
+						DirectX::XMStoreFloat4x4(&WorldBuffer.Instances0[i0++].World, DirectX::XMMatrixScaling(Scl.X(), Scl.Y(), Scl.Z()) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 					}
 				}
-				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE::SPHERE) {
+				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE) {
 					const auto Scl = static_cast<const Physics::ShapeSphere*>(Rb->Shape)->Radius;
 					if (i1 < _countof(WorldBuffer.Instances1)) {
 						DirectX::XMStoreFloat4x4(&WorldBuffer.Instances1[i1++].World, DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));

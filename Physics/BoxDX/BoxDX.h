@@ -110,14 +110,14 @@ public:
 			}
 		}
 	}
-
+	
 	void PlaceRigidBodies() {
 		//!< 動的オブジェクト配置
 		{
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius));
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f));
 
 #ifdef _DEBUG
 			constexpr auto Stack = 1;
@@ -141,7 +141,7 @@ public:
 			constexpr auto Radius = 20.0f;
 			constexpr auto Y = -Radius;
 
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius));
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f));
 
 			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
 			Rb->Position = Math::Vec3::AxisY() * Y;
@@ -414,12 +414,12 @@ public:
 			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances)) {
 					const auto Rb = Scene->RigidBodies[i].get();
-					if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE::BOX) {
+					if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::BOX) {
 						const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 						const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
-						const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->Vertices[0].X();
+						const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->CalcExtent() * 0.5f;
 
-						DirectX::XMStoreFloat4x4(&WorldBuffer.Instances[i].World, DirectX::XMMatrixScaling(Scl, Scl, Scl) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
+						DirectX::XMStoreFloat4x4(&WorldBuffer.Instances[i].World, DirectX::XMMatrixScaling(Scl.X(), Scl.Y(), Scl.Z()) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 					}
 				}
 			}

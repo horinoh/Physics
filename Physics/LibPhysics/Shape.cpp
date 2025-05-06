@@ -3,18 +3,23 @@
 
 #include "Log.h"
 
-Physics::ShapeConvex& Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& MeshVert)
+Physics::ShapeConvex& Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& Mesh)
 {
-	Convex::BuildConvexHull(MeshVert, Vertices, Indices);
+	//!< メッシュ頂点から凸砲頂点を作る
+	Convex::BuildConvexHull(Mesh, Vertices, Indices);
 
 #if false
+	//!< 一様ランダムから、重心、慣性テンソルを作成
 	const auto Aabb = Collision::AABB(Vertices);
 	CenterOfMass = Convex::Uniform::CalcCenterOfMass(Aabb, Vertices, Indices);
 	InertiaTensor = Convex::Uniform::CalcInertiaTensor(Aabb, Vertices, Indices, CenterOfMass);
 #elif false
+	//!< モンテカルロから、重心、慣性テンソルを作成
+	const auto Aabb = Collision::AABB(Vertices);
 	CenterOfMass = Convex::MonteCarlo::CalcCenterOfMass(Aabb, Vertices, Indices);
 	InertiaTensor = Convex::MonteCarlo::CalcInertiaTensor(Aabb, Vertices, Indices, CenterOfMass);
 #else
+	//!< 四面体から、重心、慣性テンソルを作成
 	CenterOfMass = Convex::Tetrahedron::CalcCenterOfMass(Vertices, Indices);
 	InertiaTensor = Convex::Tetrahedron::CalcInertiaTensor(Vertices, Indices, CenterOfMass);
 #endif
@@ -28,22 +33,6 @@ Physics::ShapeConvex& Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& 
 	InvInertiaTensor = InertiaTensor.Inverse();
 
 	return *this;
-}
-void Physics::CreateVertices_Box(std::vector<Math::Vec3>& Dst, const float W, const float H, const float D)
-{
-	static const std::array Box = {
-		Math::Vec3(-W, -H, -D),
-		Math::Vec3(W, -H, -D),
-		Math::Vec3(-W, H, -D),
-		Math::Vec3(W, H, -D),
-
-		Math::Vec3(-W, -H, D),
-		Math::Vec3(W, -H, D),
-		Math::Vec3(-W, H, D),
-		Math::Vec3(W, H, D),
-	};
-	Dst.reserve(std::size(Box));
-	std::ranges::copy(Box, std::back_inserter(Dst));
 }
 void Physics::CreateVertices_Diamond(std::vector<Math::Vec3>& Dst)
 {
