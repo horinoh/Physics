@@ -7,173 +7,212 @@
 
 #include "Log.h"
 
-//!< 1-シンプレックス (線分) ... 原点のシンプレックス上での重心座標 (シンプレックス上にあるか) を返す
+//!< 1-シンプレクス (線分) ... 原点のシンプレックス上での重心座標 (シンプレックス上にあるか) を返す
 Math::Vec2 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B)
 {
 	const auto AB = B - A;
 	//!< 原点を AB 軸に射影し P とする
 	const auto P = A + AB * AB.Dot(-A) / AB.LengthSq(); //!< 平方根を省けるので正規化しない方が良い
 
-	//!< X, Y, Z 軸の内、絶対値が最大のものを見つける
-	auto Index = 0;
-	auto MaxVal = 0.0f;
-	for (auto i = 0; i < 3; ++i) {
-		if (std::abs(MaxVal) < std::abs(AB[i])) {
-			MaxVal = AB[i];
-			Index = i;
-		}
-	}
+	//!< 線分 AB を X, Y, Z 軸 へ射影したそれぞれの線分
+	std::vector<float> Segs;
+	std::ranges::transform(static_cast<const Math::Component3&>(AB), std::back_inserter(Segs),
+		[](const auto& rhs) { 
+			return std::abs(rhs); 
+		});
+	//!< 線分が最長となる軸のインデックス
+	const auto Index = static_cast<int>(std::ranges::max_element(Segs) - std::cbegin(Segs));
+	
+	//!< P、線分 AB を選択した軸へ射影
+	const auto PrjA = A[Index], PrjB = B[Index], PrjP = P[Index];
 
-	//!< 「P と線分」を選択した軸へ射影
-	const auto PrjA = A[Index];
-	const auto PrjB = B[Index];
-	const auto PrjP = P[Index];
-
-	//!< P が [A, B] の内部にある場合
+	//!< P が 線分 AB の内部にあれば重心座標を返す
 	if ((PrjP > PrjA && PrjP < PrjB) || (PrjP > PrjB && PrjP < PrjA)) {
-		return Math::Vec2(PrjB - PrjP, PrjP - PrjA) / MaxVal;
+		return Math::Vec2(PrjB - PrjP, PrjP - PrjA) / AB[Index];
 	}
-	//!< P が A 側の外側
-	if ((PrjA <= PrjB && PrjP <= PrjA) || (PrjA >= PrjB && PrjP >= PrjA)) {
-		return Math::Vec2::AxisX();
-	}
-	//!< P が B 側の外側
-	else {
-		return Math::Vec2::AxisY();
-	}
+
+	//!< 外側確定、P が A 側か B 側か
+	return (PrjP <= PrjA) ? Math::Vec2::AxisX() : Math::Vec2::AxisY();
 }
 
-//!< 2-シンプレックス (三角形)
+//!< 2-シンプレクス (三角形)
 Math::Vec3 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C)
 {
-	Math::Vec3 BC;
-	if (Barycentric(A, B, C, BC)) {
-		return BC;
+	//!< ABC 上での 原点 の重心座標
+	const auto BC = Barycentric(A, B, C);
+	if (BC != std::nullopt) {
+		return BC.value();
 	}
+	
+	//!< YZ, ZX, XY 平面
+	constexpr std::array XYZ = { 0, 1, 2 };
+	constexpr auto XYZSize = static_cast<int>(std::size(XYZ));
 
-	//!< 3 辺に射影して一番近いものを見つける (1-SignedVolume に帰着)
-	const std::array EdgePts = { A, B, C };
+	//!< P を 3 辺に射影して一番近いものを見つける (1-シンプレクス に帰着)
+	const std::array Edges = { A, B, C };
+	//!< 3 辺に対して、重心座標と距離(二乗)のペアを収集
+	std::vector<std::pair<Math::Vec2, float>> LmdLen;
+	std::ranges::transform(XYZ, std::back_inserter(LmdLen),
+		[&](const auto& rhs) {
+			const auto j = (rhs + 1) % XYZSize;
+			const auto k = (rhs + 2) % XYZSize;
+			
+			const auto Lmd = SignedVolume(Edges[j], Edges[k]);
+			return std::pair<Math::Vec2, float>({ Lmd, (Edges[j] * Lmd[0] + Edges[k] * Lmd[1]).LengthSq() });
+		});
+	//!< 距離が最小となる辺とそのインデックス
+	const auto MinIt = std::ranges::min_element(LmdLen,
+		[](const auto& lhs, const auto& rhs) {
+			return lhs.second < rhs.second;
+		});
+	const auto Index = static_cast<int>(MinIt - std::cbegin(LmdLen));
+
+	//!< 重心座標を Vec3 として返す
 	Math::Vec3 Lambda;
-	auto MinVal = (std::numeric_limits<float>::max)();
-	for (auto i = 0; i < 3; ++i) {
-		const auto j = (i + 1) % 3;
-		const auto k = (i + 2) % 3;
-
-		const auto LambdaEdge = SignedVolume(EdgePts[j], EdgePts[k]);
-		const auto LenSq = (EdgePts[j] * LambdaEdge[0] + EdgePts[k] * LambdaEdge[1]).LengthSq();
-		if (LenSq < MinVal) {
-			Lambda[i] = 0.0f;
-			Lambda[j] = LambdaEdge[0];
-			Lambda[k] = LambdaEdge[1];
-			MinVal = LenSq;
-		}
-	}
+	Lambda[(Index + 0) % XYZSize] = 0.0f;
+	Lambda[(Index + 1) % XYZSize] = MinIt->first[0];
+	Lambda[(Index + 2) % XYZSize] = MinIt->first[1];
 	return Lambda;
 }
 
-//!< 3-シンプレックス (四面体)
+//!< 3-シンプレクス (四面体)
 Math::Vec4 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D)
 {
-	//const auto Cofactor = Vec4(-Mat3(B, C, D).Determinant(), Mat3(A, C, D).Determinant(), -Mat3(A, B, D).Determinant(), Mat3(A, B, C).Determinant());
-	const auto M = Math::Mat4(Math::Vec4(A.X(), B.X(), C.X(), D.X()), 
+#if true
+	const auto M = Math::Mat4(
+		Math::Vec4(A.X(), B.X(), C.X(), D.X()), 
 		Math::Vec4(A.Y(), B.Y(), C.Y(), D.Y()), 
 		Math::Vec4(A.Z(), B.Z(), C.Z(), D.Z()), 
-		Math::Vec4::One());
+		Math::Vec4::One()
+	);
+	//const auto M = Math::Mat4(Math::Vec4(A, 1.0f), Math::Vec4(B, 1.0f), Math::Vec4(C, 1.0f), Math::Vec4(D, 1.0f)).Transpose();
 	const auto Cofactor = Math::Vec4(M.Cofactor(3, 0), M.Cofactor(3, 1), M.Cofactor(3, 2), M.Cofactor(3, 3));
+#else
+	const auto Cofactor = Math::Vec4(-Math::Mat3(B, C, D).Determinant(), Math::Mat3(A, C, D).Determinant(), -Math::Mat3(A, B, D).Determinant(), Math::Mat3(A, B, C).Determinant());
+#endif
 	const auto Det = Cofactor.X() + Cofactor.Y() + Cofactor.Z() + Cofactor.W();
-
 	//!< 四面体内部にあれば、重心座標を返す
-	if (Sign(Det) == Sign(Cofactor.X()) && Sign(Det) == Sign(Cofactor.Y()) && Sign(Det) == Sign(Cofactor.Z()) && Sign(Det) == Sign(Cofactor.W())) {
+	if (std::ranges::all_of(static_cast<const Math::Component4&>(Cofactor),
+		[&](const auto rhs) {
+			return std::signbit(Det) == std::signbit(rhs);
+		})) {
 		return Cofactor / Det;
 	}
 
-	//!< 3 面に射影して一番近いものを見つける (2-SignedVolume に帰着)
-	const std::array FacePts = { A, B, C, D };
-	Math::Vec4 Lambda;
-	auto MinVal = (std::numeric_limits<float>::max)();
-	for (auto i = 0; i < 4; ++i) {
-		const auto j = (i + 1) % 4;
-		const auto k = (i + 2) % 4;
+	constexpr std::array XYZW = { 0, 1, 2, 3 };
+	constexpr auto XYZWSize = static_cast<int>(std::size(XYZW));
 
-		const auto LambdaFace = SignedVolume(FacePts[i], FacePts[j], FacePts[k]);
-		const auto LenSq = (FacePts[i] * LambdaFace[0] + FacePts[j] * LambdaFace[1] + FacePts[k] * LambdaFace[2]).LengthSq();
-		if (LenSq < MinVal) {
-			Lambda.ToZero();
-			Lambda[i] = LambdaFace[0];
-			Lambda[j] = LambdaFace[1];
-			Lambda[k] = LambdaFace[2];
-			MinVal = LenSq;
-		}
-	}
+	//!< 4 面に射影して一番近いものを見つける (2-シンプレクス に帰着)
+	const std::array Faces = { A, B, C, D };
+	//!< 4 面に対して、重心座標と距離(二乗)のペアを収集
+	std::vector<std::pair<Math::Vec3, float>> LmdLen;
+	std::ranges::transform(XYZW, std::back_inserter(LmdLen),
+		[&](const auto& rhs) {
+			const auto i = rhs;
+			const auto j = (rhs + 1) % XYZWSize;
+			const auto k = (rhs + 2) % XYZWSize;
+
+			const auto Lmd = SignedVolume(Faces[i], Faces[j], Faces[k]);
+			return std::pair<Math::Vec3, float>({ Lmd, (Faces[i] * Lmd[0] + Faces[j] * Lmd[1] + Faces[k] * Lmd[2]).LengthSq() });
+		});
+	//!< 距離が最小となる面とそのインデックス
+	const auto MinIt = std::ranges::min_element(LmdLen,
+		[](const auto& lhs, const auto& rhs) {
+			return lhs.second < rhs.second;
+		});
+	const auto Index = static_cast<int>(MinIt - std::cbegin(LmdLen));
+	
+	Math::Vec4 Lambda;
+	Lambda[(Index + 0) % XYZWSize] = MinIt->first[0];
+	Lambda[(Index + 1) % XYZWSize] = MinIt->first[1];
+	Lambda[(Index + 2) % XYZWSize] = MinIt->first[2];
+	Lambda[(Index + 3) % XYZWSize] = 0.0f;
 	return Lambda;
 }
 
-bool Collision::Barycentric(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, Math::Vec3& BC)
+std::optional<Math::Vec3> Collision::Barycentric(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C)
 {
 	const auto N = Math::Vec3::Normal(A, B, C);
-	if (N.NearlyEqual(Math::Vec3::Zero())) { 
-		return false; 
+	if (N.NearlyEqual(Math::Vec3::Zero())) {
+		return std::nullopt;
 	}
+
+	//!< YZ, ZX, XY 平面
+	constexpr std::array XYZ = { 0, 1, 2 }; 
+	constexpr auto XYZSize = static_cast<int>(std::size(XYZ));
+
+	//!< 原点を 三角形 ABC に射影し P とする
 	const auto P = N * A.Dot(N) / N.LengthSq();
 
-	//!< XY, YZ, ZX 平面の内、射影面積が最大のものを見つける
-	auto Index = 0;
-	auto MaxVal = 0.0f;
-	for (auto i = 0; i < 3; ++i) {
-		const auto j = (i + 1) % 3;
-		const auto k = (i + 2) % 3;
+	//!< 三角形 ABC を YZ, ZX, XY 平面へ射影したそれぞれの面積
+	std::vector<float> Areas;
+	std::ranges::transform(XYZ, std::back_inserter(Areas),
+		[&](const auto& rhs) {
+			const auto j = (rhs + 1) % XYZSize;
+			const auto k = (rhs + 2) % XYZSize;
 
-		const auto a = Math::Vec2(A[j], A[k]);
-		const auto b = Math::Vec2(B[j], B[k]);
-		const auto c = Math::Vec2(C[j], C[k]);
-		const auto AB = b - a;
-		const auto AC = c - a;
-		const auto Area = Math::Mat2(AB, AC).Determinant();
+			const auto a = Math::Vec2(A[j], A[k]);
+			const auto b = Math::Vec2(B[j], B[k]);
+			const auto c = Math::Vec2(C[j], C[k]);
+			const auto AB = b - a;
+			const auto AC = c - a;
+			return Math::Mat2(AB, AC).Determinant();
+		});
+	//!< 面積の絶対値が最大となる平面とそのインデックス
+	const auto AbsMaxIt = std::ranges::max_element(Areas,
+		[](const auto& lhs, const auto& rhs) {
+			return std::abs(lhs) < std::abs(rhs);
+		});
+	const auto Index = static_cast<int>(AbsMaxIt - std::cbegin(Areas));
 
-		if (std::abs(Area) > std::abs(MaxVal)) {
-			MaxVal = Area;
-			Index = i;
-		}
-	}
-
-	//!< 「P と三角形」を選択した平面に射影 (X が選択された場合 Index1, Index2 はそれぞれ Y, Z といった具合になる)
-	const auto X = (Index + 1) % 3;
-	const auto Y = (Index + 2) % 3;
+	//!< P、三角形 ABC を選択した平面に射影 (Z が選択された場合は XY 平面といった具合になる)
+	const auto X = (Index + 1) % XYZSize;
+	const auto Y = (Index + 2) % XYZSize;
 	const std::array PrjABC = { Math::Vec2(A[X], A[Y]), Math::Vec2(B[X], B[Y]), Math::Vec2(C[X], C[Y]) };
 	const auto PrjP = Math::Vec2(P[X], P[Y]);
 
-	//!< 射影点と辺からなるサブ三角形の面積
-	Math::Vec3 Areas;
-	for (auto i = 0; i < 3; i++) {
-		const auto j = (i + 1) % 3;
-		const auto k = (i + 2) % 3;
+	//!< 射影点と辺からなるサブ三角形それぞれの面積
+	std::vector<float> SubAreas;
+	std::ranges::transform(XYZ, std::back_inserter(SubAreas),
+		[&](const auto& rhs) {
+			const auto j = (rhs + 1) % XYZSize;
+			const auto k = (rhs + 2) % XYZSize;
+			return Math::Mat2(PrjABC[j] - PrjP, PrjABC[k] - PrjP).Determinant();
+		});
 
-		Areas[i] = Math::Mat2(PrjABC[j] - PrjP, PrjABC[k] - PrjP).Determinant();
+	//!< P が 三角形 ABC の内部にあれば (サブ三角形の面積の符号から判断)、重心座標を返す
+	if (std::ranges::all_of(SubAreas,
+		[&](const auto rhs) {
+			return std::signbit(Areas[Index]) == std::signbit(rhs);
+		})) {
+		return Math::Vec3(SubAreas[0], SubAreas[1], SubAreas[2]) / Areas[Index];
 	}
 
-	//!< P が [A, B, C] の内部にある場合 (サブ三角形の面積の符号から分かる)
-	if (Sign(MaxVal) == Sign(Areas.X()) && Sign(MaxVal) == Sign(Areas.Y()) && Sign(MaxVal) == Sign(Areas.Z())) {
-		BC = Areas / MaxVal;
-		return true;
-	}
-
-	return false;
+	return std::nullopt;
 }
-bool Collision::Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, Math::Vec3& BC) 
+std::optional<Math::Vec3> Collision::Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C)
 {
-	return Barycentric(A - Pt, B - Pt, C - Pt, BC);
+	//!< ABC から Pt を引くことで、原点の重心座標へ帰着
+	return Barycentric(A - Pt, B - Pt, C - Pt);
 }
 
 //!< A, B のサポートポイント、及びその差 C を求める
-Collision::SupportPoint::Points Collision::SupportPoint::Get(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const Math::Vec3& UDir, const float Bias)
+Collision::SupportPoint::Points Collision::SupportPoint::Get(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA,
+	const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 
+	const Math::Vec3& UDir, const float Bias)
 {
 	return { ShA->GetSupportPoint(PosA, RotA, UDir, Bias), ShB->GetSupportPoint(PosB, RotB, -UDir, Bias) };
 }
-//Collision::SupportPoint::Points Collision::SupportPoint::Get(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& UDir, const float Bias)
-//{
-//	return Get(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation, UDir, Bias);
-//}
-void Collision::SupportPoint::ToTetrahedron(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, std::vector<SupportPoint::Points>& Sps)
+Collision::SupportPoint::Points Collision::SupportPoint::Get(const Physics::RigidBody* RbA, 
+	const Physics::RigidBody* RbB, 
+	const Math::Vec3& UDir, const float Bias)
+{
+	return Get(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation, UDir, Bias);
+}
+
+void Collision::SupportPoint::ToTetrahedron(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, 
+	const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 
+	std::vector<SupportPoint::Points>& Sps)
 {
 	if (1 == std::size(Sps)) {
 		Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, -Sps[0].GetC().Normalize(), 0.0f));
@@ -190,20 +229,129 @@ void Collision::SupportPoint::ToTetrahedron(const Physics::Shape* ShA, const Mat
 		Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, AB.Cross(AC).Normalize(), 0.0f));
 	}
 }
-void Collision::SupportPoint::ToTetrahedron(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, std::vector<Collision::SupportPoint::Points>& Sps)
+void Collision::SupportPoint::ToTetrahedron(const Physics::RigidBody* RbA,
+	const Physics::RigidBody* RbB, 
+	std::vector<Collision::SupportPoint::Points>& Sps)
 {
 	ToTetrahedron(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation, Sps);
 }
+
 void Collision::SupportPoint::Expand(const float Bias, std::vector<Collision::SupportPoint::Points>& Sps)
 {
-	const auto Center = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(), [](const auto& Acc, const auto& i) { return Acc + i.GetC(); }) / static_cast<float>(std::size(Sps));
-	std::ranges::transform(Sps, std::begin(Sps), [&](const auto& i) {
-		const auto Dir = (i.GetC() - Center).Normalize() * Bias;
-		return Collision::SupportPoint::Points(i.GetA() + Dir, i.GetB() - Dir);
+	const auto Center = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(), 
+		[](const auto& Acc, const auto& i) { 
+			return Acc + i.GetC(); 
+		}) / static_cast<float>(std::size(Sps));
+	std::ranges::transform(Sps, std::begin(Sps),
+		[&](const auto& i) {
+			const auto Dir = (i.GetC() - Center).Normalize() * Bias;
+			return Collision::SupportPoint::Points(i.GetA() + Dir, i.GetB() - Dir);
 		});
 }
 
-void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
+bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA,
+	const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB,
+	OnIntersectGJK OnIntersect, const float Bias,
+	const bool WithClosestPoint,
+	Math::Vec3& OnA, Math::Vec3& OnB)
+{
+	std::vector<Collision::SupportPoint::Points> Sps;
+	Sps.reserve(4); //!< 4 枠
+
+	//!< (1, 1, 1) 方向のサポートポイントを求める
+	Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, Math::Vec3::One().Normalize(), 0.0f));
+
+	//!< 原点を元に反対側
+	auto Dir = -Sps.back().GetC();
+	auto ClosestDistSq = (std::numeric_limits<float>::max)();
+	auto HasIntersection = false;
+	Math::Vec4 Lambda;
+	do {
+		//!< Dir 方向のサポートポイントを求める
+		const auto Pt = Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, Dir.ToNormalized(), 0.0f);
+
+		//!< Pt は既存の点、もうこれ以上拡張できない -> 衝突無し
+		if (std::ranges::any_of(Sps,
+			[&](const auto& i) {
+				return Pt.GetC().NearlyEqual(i.GetC());
+			})) {
+			break;
+		}
+
+		//!< 最近接点を求めない場合は早期終了できる可能性がある
+		if (!WithClosestPoint) {
+			//!< 新しいサポートポイント Pt が原点を超えていない場合は原点を含まない、早期終了
+			if (Dir.Dot(Pt.GetC()) < 0.0f) {
+				break;
+			}
+		}
+
+		//!< 新しいサポートポイントを追加
+		Sps.emplace_back(Pt);
+
+		//!< シンプレックスが原点を含むなら衝突
+		if ((HasIntersection = Collision::SupportPoint::SimplexSignedVolumes(Sps, Dir, Lambda))) {
+			break;
+		}
+
+		//!< 最短距離を更新、更新できなれば終了
+		const auto DistSq = Dir.LengthSq();
+		if (DistSq >= ClosestDistSq) {
+			break;
+		}
+		ClosestDistSq = DistSq;
+
+		//!< 有効な Sps (対応する Lamnda が非 0.0 のコンポーネント) だけを残す
+		const auto SpsRange = std::ranges::remove_if(Sps,
+			[&](const auto& i) {
+				return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, i))];
+			});
+		Sps.erase(std::ranges::cbegin(SpsRange), std::ranges::cend(SpsRange));
+
+		//!< Lambda の 非 0.0 コンポーネントを前へ
+		[[maybe_unused]] const auto Dmy = std::ranges::remove(static_cast<Math::Component4&>(Lambda), 0.0f);
+
+		//!< 3-シンプレックス (四面体) でここまで来たら原点を含む
+		HasIntersection = (4 == std::size(Sps));
+	} while (!HasIntersection); //!< 原点を含まずここまで来たらループ
+
+	//!< (EPA 等で) 衝突点を求める
+	if (HasIntersection && nullptr != OnIntersect) {
+		OnIntersect(ShA, PosA, RotA,
+			ShB, PosB, RotB,
+			Sps,
+			Bias, OnA, OnB);
+		return true;
+	}
+
+	//!< 最近接点を求める (Lamnda のケツにはゴミが存在するが、Sps 個数分しかアクセスしない)
+	if (WithClosestPoint) {
+		OnA = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(),
+			[&](const auto& Acc, const auto& i) {
+				return Acc + i.GetA() * Lambda[static_cast<int>(IndexOf(Sps, i))];
+			});
+		OnB = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(),
+			[&](const auto& Acc, const auto& i) {
+				return Acc + i.GetB() * Lambda[static_cast<int>(IndexOf(Sps, i))];
+			});
+	}
+
+	return false;
+}
+bool Collision::Intersection::GJK(const Physics::RigidBody* RbA,
+	const Physics::RigidBody* RbB,
+	OnIntersectGJK OnIntersect, const float Bias,
+	Math::Vec3& OnA, Math::Vec3& OnB) {
+	return GJK(RbA->Shape, RbA->Position, RbA->Rotation,
+		RbB->Shape, RbB->Position, RbB->Rotation,
+		OnIntersect, Bias,
+		true,
+		OnA, OnB);
+}
+
+void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA,
+	const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 
+	const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
 {
 	//!< 作業用サポートポイント
 	std::vector<SupportPoint::Points> Sps;
@@ -250,8 +398,9 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 		const auto Pt = Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, N, Bias);
 
 		//!< サポートポイントが既出の場合は、これ以上拡張できない
-		if (std::ranges::any_of(Tris, [&](const auto& i) {
-			return std::ranges::any_of(i, [&](const auto& j) { constexpr auto Eps = 0.01f; return Sps[j].GetC().NearlyEqual(Pt.GetC(), Eps); });
+		if (std::ranges::any_of(Tris, 
+			[&](const auto& i) {
+				return std::ranges::any_of(i, [&](const auto& j) { constexpr auto Eps = 0.01f; return Sps[j].GetC().NearlyEqual(Pt.GetC(), Eps); });
 			})) {
 			break;
 		}
@@ -265,8 +414,9 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 
 		//!< サポートポイント側を向いている三角形を削除
 		{
-			const auto Range = std::ranges::remove_if(Tris, [&](const auto& i) {
-				return Distance::IsFront(Pt.GetC(), Sps[i[0]].GetC(), Sps[i[1]].GetC(), Sps[i[2]].GetC());
+			const auto Range = std::ranges::remove_if(Tris,
+				[&](const auto& i) {
+					return Distance::IsFront(Pt.GetC(), Sps[i[0]].GetC(), Sps[i[1]].GetC(), Sps[i[2]].GetC());
 				});
 			Tris.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
 			//!< 削除できない場合は終了
@@ -282,15 +432,16 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 
 			//!< サポートポイントと境界辺からなる三角形群を追加
 			const auto A = static_cast<uint32_t>(std::size(Sps)) - 1;
-			std::ranges::transform(DanglingEdges, std::back_inserter(Tris), [&](const auto& i) {
-				const auto B = i.first[0], C = i.first[1];
-				//!< 法線が外側を向くように
-				if (!Distance::IsFront(Center, Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC())) {
-					return Collision::TriInds({ A, B, C });
-				}
-				else {
-					return Collision::TriInds({ A, C, B });
-				}
+			std::ranges::transform(DanglingEdges, std::back_inserter(Tris),
+				[&](const auto& i) {
+					const auto B = i.first[0], C = i.first[1];
+					//!< 法線が外側を向くように
+					if (!Distance::IsFront(Center, Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC())) {
+						return Collision::TriInds({ A, B, C });
+					}
+					else {
+						return Collision::TriInds({ A, C, B });
+					}
 				});
 		}
 	}
@@ -301,105 +452,22 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 		const auto A = CTri[0], B = CTri[1], C = CTri[2];
 
 		//!< それ上での、原点の重心座標を取得
-		Math::Vec3 Lambda;
-		Barycentric(Math::Vec3::Zero(), Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC(), Lambda);
-		OnA = Sps[A].GetA() * Lambda[0] + Sps[B].GetA() * Lambda[1] + Sps[C].GetA() * Lambda[2];
-		OnB = Sps[A].GetB() * Lambda[0] + Sps[B].GetB() * Lambda[1] + Sps[C].GetB() * Lambda[2];
+		//Math::Vec3 Lambda;
+		const auto Lambda = Barycentric(Math::Vec3::Zero(), Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC());
+		if (Lambda != std::nullopt) {
+			OnA = Sps[A].GetA() * Lambda.value()[0] + Sps[B].GetA() * Lambda.value()[1] + Sps[C].GetA() * Lambda.value()[2];
+			OnB = Sps[A].GetB() * Lambda.value()[0] + Sps[B].GetB() * Lambda.value()[1] + Sps[C].GetB() * Lambda.value()[2];
 #ifdef _DEBUG
-		//LOG(std::data(std::format("PenetrationDistSq = {}\n", (OnB - OnA).LengthSq())));
+			//LOG(std::data(std::format("PenetrationDistSq = {}\n", (OnB - OnA).LengthSq())));
 #endif
+		}
+		else {
+			//!< 何かおかしい、原点が三角形の外側にある
+			LOG(std::data(std::format("EPA: Barycentric failed\n")));
+		}
 	}
 }
 
-bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA,
-	const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB,
-	OnIntersectGJK OnIntersect, const float Bias,
-	const bool WidthClosestPoint,
-	Math::Vec3& OnA, Math::Vec3& OnB) 
-{
-	std::vector<Collision::SupportPoint::Points> Sps;
-	Sps.reserve(4); //!< 4 枠
-
-	//!< (1, 1, 1) 方向のサポートポイントを求める
-	Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, Math::Vec3::One().Normalize(), 0.0f));
-
-	//!< 原点を元に反対側
-	auto Dir = -Sps.back().GetC();
-	auto ClosestDistSq = (std::numeric_limits<float>::max)();
-	auto HasIntersection = false;
-	Math::Vec4 Lambda;
-	do {
-		//!< Dir 方向のサポートポイントを求める
-		const auto Pt = Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, Dir.ToNormalized(), 0.0f);
-
-		//!< Pt は既存の点、もうこれ以上拡張できない -> 衝突無し
-		if (std::ranges::any_of(Sps, 
-			[&](const auto& i) {
-				return Pt.GetC().NearlyEqual(i.GetC());
-			})) { 
-			break; 
-		}
-
-		//!< 最近接点を求めない場合は早期終了できる可能性がある
-		if (!WidthClosestPoint) {
-			//!< 新しいサポートポイント Pt が原点を超えていない場合は原点を含まない、早期終了
-			if (Dir.Dot(Pt.GetC()) < 0.0f) {
-				break;
-			}
-		}
-
-		//!< 新しいサポートポイントを追加
-		Sps.emplace_back(Pt);
-
-		//!< シンプレックスが原点を含むなら衝突
-		if ((HasIntersection = Collision::SupportPoint::SimplexSignedVolumes(Sps, Dir, Lambda))) {
-			break;
-		}
-
-		//!< 最短距離を更新、更新できなれば終了
-		const auto DistSq = Dir.LengthSq();
-		if (DistSq >= ClosestDistSq) {
-			break;
-		}
-		ClosestDistSq = DistSq;
-
-		//!< 有効な Sps (対応する Lamnda が非 0.0 のコンポーネント) だけを残す
-		const auto SpsRange = std::ranges::remove_if(Sps, 
-			[&](const auto& i) {
-				return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, i))];
-			});
-		Sps.erase(std::ranges::cbegin(SpsRange), std::ranges::cend(SpsRange));
-
-		//!< Lambda の 非 0.0 コンポーネントを前へ
-		[[maybe_unused]] const auto Dmy = std::ranges::remove(static_cast<Math::Component4&>(Lambda), 0.0f);
-
-		//!< 3-シンプレックス (四面体) でここまで来たら原点を含む
-		HasIntersection = (4 == std::size(Sps));
-	} while (!HasIntersection); //!< 原点を含まずここまで来たらループ
-
-	//!< (EPA 等で) 衝突点を求める
-	if (HasIntersection && nullptr != OnIntersect) {
-		OnIntersect(ShA, PosA, RotA, 
-			ShB, PosB, RotB, 
-			Sps, 
-			Bias, OnA, OnB);
-		return true;
-	}
-
-	//!< 最近接点を求める (Lamnda のケツにはゴミが存在するが、Sps 個数分しかアクセスしない)
-	if (WidthClosestPoint) {
-		OnA = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(), 
-			[&](const auto& Acc, const auto& i) {
-				return Acc + i.GetA() * Lambda[static_cast<int>(IndexOf(Sps, i))];
-			});
-		OnB = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(),
-			[&](const auto& Acc, const auto& i) {
-				return Acc + i.GetB() * Lambda[static_cast<int>(IndexOf(Sps, i))];
-			});
-	}
-
-	return false;
-}
 //!< #TODO 要検証			
 //!< ミンコフスキー差の凸包を生成する代わりに原点を含むようなシンプレックス (単体) を生成する事で代用する
 //!< A, B のミンコフスキー差 C が原点を含めば衝突となる
@@ -412,17 +480,16 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& P
 //!<	1, 2, 3, 4 がなす四面体が原点を含めば衝突、終了
 //!<	一番近い三角形 (例えば 1, 2, 4) から、原点を向く法線方向の次のサポートポイント 5 を見つける
 //!<	四面体 (1, 2, 4, 5) が原点を含むか、サポートポイントが無くなるまで続ける
-
 bool Collision::Intersection::GJK_EPA(const Physics::RigidBody* RbA, 
 	const Physics::RigidBody* RbB, 
 	const float Bias, 
-	bool WidthClosestPoint,
+	bool WithClosestPoint,
 	Math::Vec3& OnA, Math::Vec3& OnB)
 {
 	return GJK_EPA(RbA->Shape, RbA->Position, RbA->Rotation,
 		RbB->Shape, RbB->Position, RbB->Rotation,
 		Bias,
-		WidthClosestPoint,
+		WithClosestPoint,
 		OnA, OnB);
 }
 bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB) 
@@ -430,6 +497,7 @@ bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::
 	return GJK(RbA->Shape, RbA->Position, RbA->Rotation,
 		RbB->Shape, RbB->Position, RbB->Rotation);
 }
+
 void Collision::Closest::GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, 
 	const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 
 	Math::Vec3& OnA, Math::Vec3& OnB)

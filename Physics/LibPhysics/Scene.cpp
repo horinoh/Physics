@@ -16,7 +16,7 @@ void Physics::Scene::BruteForce(const float DeltaSec, std::vector<Collision::Con
 	const auto RbCount = std::size(RigidBodies);
 	Contacts.reserve(RbCount * RbCount);
 	Contacts.clear();
-	for (auto i = 0; i < RbCount; ++i) {
+	for (auto i = 0; i < RbCount - 1; ++i) {
 		for (auto j = i + 1; j < RbCount; ++j) {
 			const auto RbA = RigidBodies[i];
 			const auto RbB = RigidBodies[j];
@@ -69,7 +69,7 @@ void Physics::Scene::BroadPhase(const float DeltaSec, std::vector<CollidablePair
 
 	//!< 射影 AABB から、潜在的衝突ペアリストを構築
 	const auto BoundsCount = std::size(BoundEdges);
-	for (auto i = 0; i < BoundsCount; ++i) {
+	for (auto i = 0; i < BoundsCount - 1; ++i) {
 		const auto& A = BoundEdges[i];
 		//!< 下限なら対となる上限が見つかるまで探す
 		if (A.IsMin) {

@@ -153,7 +153,7 @@ void Convex::BuildConvexHull(const std::vector<Math::Vec3>& Mesh, std::vector<Ma
 	}
 }
 
-Math::Vec3 Convex::Uniform::CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
+Math::Vec3 Convex::Uniform::CalcCenterOfMass(const Collision::AABB& Ab, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
 {
 	LOG(std::data(std::format("Calculating center of mass (Uniform)...\n")));
 
@@ -162,12 +162,12 @@ Math::Vec3 Convex::Uniform::CalcCenterOfMass(const Collision::AABB& Aabb, const 
 
 	auto CenterOfMass = Math::Vec3::Zero();
 	auto Sampled = 0;
-	const auto Delta = Aabb.GetExtent() / static_cast<float>(SampleCount);
+	const auto Delta = Ab.GetExtent() / static_cast<float>(SampleCount);
 	for (auto x = 0; x < SampleCount; ++x) {
 		for (auto y = 0; y < SampleCount; ++y) {
 			for (auto z = 0; z < SampleCount; ++z) {
 				//!< AABB 内のサンプル点
-				const auto Pt = Aabb.Min + Math::Vec3(Delta.X() * x, Delta.Y() * y, Delta.Z() * z);
+				const auto Pt = Ab.Min + Math::Vec3(Delta.X() * x, Delta.Y() * y, Delta.Z() * z);
 				if (IsInternal(Pt, Vertices, Indices)) {
 					//!< 内部点なら収集
 					CenterOfMass += Pt;
@@ -175,11 +175,12 @@ Math::Vec3 Convex::Uniform::CalcCenterOfMass(const Collision::AABB& Aabb, const 
 				}
 			}
 		}
+		LOG(std::data(std::format("\t{} / {}\n", x, SampleCount)));
 	}
 	return CenterOfMass / static_cast<float>(Sampled);
 }
 
-Math::Mat3 Convex::Uniform::CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
+Math::Mat3 Convex::Uniform::CalcInertiaTensor(const Collision::AABB& Ab, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
 {
 	LOG(std::data(std::format("Calculating inertia tensor (Uniform)...\n")));
 
@@ -188,28 +189,35 @@ Math::Mat3 Convex::Uniform::CalcInertiaTensor(const Collision::AABB& Aabb, const
 
 	auto InertiaTensor = Math::Mat3::Zero();
 	auto Sampled = 0;
-	const auto Delta = Aabb.GetExtent() / static_cast<float>(SampleCount);
+	const auto Delta = Ab.GetExtent() / static_cast<float>(SampleCount);
 	for (auto x = 0; x < SampleCount; ++x) {
 		for (auto y = 0; y < SampleCount; ++y) {
 			for (auto z = 0; z < SampleCount; ++z) {
 				//!< AABB 内のサンプル点 (重心からの相対)
-				const auto Pt = Aabb.Min + Math::Vec3(Delta.X() * x, Delta.Y() * y, Delta.Z() * z) - CenterOfMass;
+				const auto Pt = Ab.Min + Math::Vec3(Delta.X() * x, Delta.Y() * y, Delta.Z() * z) - CenterOfMass;
 				if (IsInternal(Pt, Vertices, Indices)) {
+					const auto XX = Pt.X() * Pt.X();
+					const auto YY = Pt.Y() * Pt.Y();
+					const auto ZZ = Pt.Z() * Pt.Z();
+					const auto XY = Pt.X() * Pt.Y();
+					const auto XZ = Pt.X() * Pt.Z();
+					const auto YZ = Pt.Y() * Pt.Z();
 					//!< 内部点なら収集する
 					InertiaTensor += {
-						{ Pt.Y() * Pt.Y() + Pt.Z() * Pt.Z(), -Pt.X() * Pt.Y(), -Pt.X() * Pt.Z() },
-						{ -Pt.X() * Pt.Y(), Pt.Z() * Pt.Z() + Pt.X() * Pt.X(), -Pt.Y() * Pt.Z() },
-						{ -Pt.X() * Pt.Z(), -Pt.Y() * Pt.Z(), Pt.X() * Pt.X() + Pt.Y() * Pt.Y() },
+						{ YY + ZZ,     -XY,     -XZ },
+						{     -XY, ZZ + XX,     -YZ },
+						{     -XZ,     -YZ, XX + YY },
 					};
 					++Sampled;
 				}
 			}
 		}
+		LOG(std::data(std::format("\t{} / {}\n", x, SampleCount)));
 	}
 	return InertiaTensor / static_cast<float>(Sampled);
 }
 
-Math::Vec3 Convex::MonteCarlo::CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
+Math::Vec3 Convex::MonteCarlo::CalcCenterOfMass(const Collision::AABB& Ab, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
 {
 	LOG(std::data(std::format("Calculating center of mass (Monte carlo)...\n")));
 
@@ -230,20 +238,21 @@ Math::Vec3 Convex::MonteCarlo::CalcCenterOfMass(const Collision::AABB& Aabb, con
 
 	auto CenterOfMass = Math::Vec3::Zero();
 	auto Sampled = 0;
-	const auto Ext = Aabb.GetExtent();
+	const auto Ext = Ab.GetExtent();
 	for (auto i = 0; i < SampleCount; ++i) {
 		//!< AABB 内のサンプル点
-		const auto Pt = Aabb.Min + Math::Vec3(Ext.X() * Distribution(MersenneTwister), Ext.Y() * Distribution(MersenneTwister), Ext.Z() * Distribution(MersenneTwister));
+		const auto Pt = Ab.Min + Math::Vec3(Ext.X() * Distribution(MersenneTwister), Ext.Y() * Distribution(MersenneTwister), Ext.Z() * Distribution(MersenneTwister));
 		if (IsInternal(Pt, Vertices, Indices)) {
 			//!< 内部点なら収集
 			CenterOfMass += Pt;
 			++Sampled;
 		}
+		LOG(std::data(std::format("\t{} / {}\n", i, SampleCount)));
 	}
 	return CenterOfMass / static_cast<float>(Sampled);
 }
 
-Math::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
+Math::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Ab, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
 {
 	LOG(std::data(std::format("Calculating inertia tensor (Monte carlo)...\n")));
 
@@ -260,10 +269,10 @@ Math::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Aabb, co
 
 	auto InertiaTensor = Math::Mat3::Zero();
 	auto Sampled = 0;
-	const auto Ext = Aabb.GetExtent();
+	const auto Ext = Ab.GetExtent();
 	for (auto i = 0; i < SampleCount; ++i) {
 		//!< AABB 内のサンプル点 (重心からの相対)
-		const auto Pt = Aabb.Min + Math::Vec3(Ext.X() * Distribution(MersenneTwister), Ext.Y() * Distribution(MersenneTwister), Ext.Z() * Distribution(MersenneTwister)) - CenterOfMass;
+		const auto Pt = Ab.Min + Math::Vec3(Ext.X() * Distribution(MersenneTwister), Ext.Y() * Distribution(MersenneTwister), Ext.Z() * Distribution(MersenneTwister)) - CenterOfMass;
 		if (IsInternal(Pt, Vertices, Indices)) {
 			//!< 内部点なら収集する
 			InertiaTensor += {
@@ -273,6 +282,7 @@ Math::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Aabb, co
 			};
 			++Sampled;
 		}
+		LOG(std::data(std::format("\t{} / {}\n", i, SampleCount)));
 	}
 	return InertiaTensor / static_cast<float>(Sampled);
 }

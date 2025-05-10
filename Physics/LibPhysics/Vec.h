@@ -111,7 +111,7 @@ namespace Math
 		Vec3() {}
 		Vec3(const float x, const float y, const float z) : Comps({x, y, z}) {}
 		Vec3(const float rhs) : Comps({rhs, rhs, rhs}) {}
-		Vec3(const Vec2& rhs) : Comps({ rhs.X(), rhs.Y(), 0.0f }) {}
+		Vec3(const Vec2& rhs, const float z = 0.0f) : Comps({ rhs.X(), rhs.Y(), z }) {}
 
 		inline static Vec3 Zero() { return Vec3(0.0f); }
 		inline static Vec3 One() { return Vec3(1.0f); }
@@ -226,7 +226,8 @@ namespace Math
 		Vec4() {}
 		Vec4(const float x, const float y, const float z, const float w) : Comps({x, y, z, w}) {}
 		Vec4(const float rhs) : Comps({ rhs, rhs, rhs, rhs }) {}
-		Vec4(const Vec3& rhs) : Comps({ rhs.X(), rhs.Y(), rhs.Z(), 0.0f }) {}
+		//Vec4(const Vec3& rhs) : Comps({ rhs.X(), rhs.Y(), rhs.Z(), 0.0f }) {}
+		Vec4(const Vec3& rhs, const float w = 0.0f) : Comps({ rhs.X(), rhs.Y(), rhs.Z(), w }) {}
 
 		inline static Vec4 Zero() { return Vec4(0.0f); }
 		inline static Vec4 One() { return Vec4(1.0f); }

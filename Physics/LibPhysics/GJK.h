@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <optional>
 
 #include "PhysicsMath.h"
 #include "Collision.h"
@@ -18,10 +19,10 @@ namespace Collision
 	[[nodiscard]] Math::Vec2 SignedVolume(const Math::Vec3& A, const Math::Vec3& B);
 	[[nodiscard]] Math::Vec3 SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C);
 	[[nodiscard]] Math::Vec4 SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D);
-	//!< ABC 上での 原点 の重心座標
-	bool Barycentric(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, Math::Vec3& BC);
-	//!< ABC 上での Pt の重心座標
-	bool Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, Math::Vec3& BC);
+	//!< ABC 上での 原点 の重心座標 (ABC 内部にあれば true)
+	[[nodiscard]] std::optional<Math::Vec3> Barycentric(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C);
+	//!< ABC 上での Pt の重心座標 (ABC 内部にあれば true)
+	[[nodiscard]] std::optional<Math::Vec3> Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C);
 
 	namespace SupportPoint {
 		//!< サポートポイント : 特定の方向に最も遠い点
@@ -39,8 +40,12 @@ namespace Collision
 		private:
 			std::array<Math::Vec3, 3> SPs;
 		};
-		[[nodiscard]] static Points Get(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, const Math::Vec3& UDir, const float Bias);
-		//[[nodiscard]] static Points Get(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& UDir, const float Bias);
+		[[nodiscard]] static Points Get(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA,
+			const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 
+			const Math::Vec3& UDir, const float Bias);
+		[[nodiscard]] static Points Get(const Physics::RigidBody* RbA, 
+			const Physics::RigidBody* RbB, 
+			const Math::Vec3& UDir, const float Bias);
 		//!< n-シンプレックスが原点を含むかどうかを返す
 		//!< 過程で原点のシンプレックス上での重心座標、原点へのベクトルを求めている
 		static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<Points>& Sps, Math::Vec3& Dir, Math::Vec4& OutLambda)
@@ -71,26 +76,34 @@ namespace Collision
 		}
 
 		//!< サポートポイントが四面体をなしていない場合、四面体を形成する
-		void ToTetrahedron(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, std::vector<SupportPoint::Points>& Sps);
-		void ToTetrahedron(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, std::vector<SupportPoint::Points>& Sps);
+		void ToTetrahedron(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, 
+			const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB,
+			std::vector<SupportPoint::Points>& Sps);
+		void ToTetrahedron(const Physics::RigidBody* RbA, 
+			const Physics::RigidBody* RbB, 
+			std::vector<SupportPoint::Points>& Sps);
 		//!< バイアスの分だけ拡張する
 		void Expand(const float Bias, std::vector<SupportPoint::Points>& Sps);
 
 		namespace Distance
 		{
-			//!< 三角形から一番遠い点のイテレータを返す
-			[[nodiscard]] static auto Farthest(const Math::Vec3& Pt, const std::vector<SupportPoint::Points>& Sps, const std::vector<Collision::TriInds>& Indices) {
-				return std::ranges::max_element(Indices, [&](const auto& lhs, const auto& rhs) {
-					using namespace Collision::Distance;
-					return std::abs(PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC())) < std::abs(PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC()));
-				});
+			//!< 点から一番遠い三角形インデックスのイテレータを返す
+			[[nodiscard]] static auto Farthest(const Math::Vec3& Pt,
+				const std::vector<SupportPoint::Points>& Sps, const std::vector<Collision::TriInds>& Indices) {
+				return std::ranges::max_element(Indices, 
+					[&](const auto& lhs, const auto& rhs) {
+						using namespace Collision::Distance;
+						return std::abs(PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC())) < std::abs(PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC()));
+					});
 			}
-			//!< 三角形から一番近い点のイテレータを返す
-			[[nodiscard]] static auto Closest(const Math::Vec3& Pt, const std::vector<SupportPoint::Points>& Sps, const std::vector<Collision::TriInds>& Indices) {
-				return std::ranges::min_element(Indices, [&](const auto& lhs, const auto& rhs) {
-					using namespace Collision::Distance;
-					return std::abs(PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC())) < std::abs(PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC()));
-				});
+			//!< 点から一番近い三角形インデックスのイテレータを返す
+			[[nodiscard]] static auto Closest(const Math::Vec3& Pt, 
+				const std::vector<SupportPoint::Points>& Sps, const std::vector<Collision::TriInds>& Indices) {
+				return std::ranges::min_element(Indices, 
+					[&](const auto& lhs, const auto& rhs) {
+						using namespace Collision::Distance;
+						return std::abs(PointTriangle(Pt, Sps[lhs[0]].GetC(), Sps[lhs[1]].GetC(), Sps[lhs[2]].GetC())) < std::abs(PointTriangle(Pt, Sps[rhs[0]].GetC(), Sps[rhs[1]].GetC(), Sps[rhs[2]].GetC()));
+					});
 			}
 		}
 	}
@@ -102,11 +115,6 @@ namespace Collision
 			const Physics::Shape*, const Math::Vec3&, const Math::Quat&, 
 			const std::vector<SupportPoint::Points>&, 
 			const float, Math::Vec3&, Math::Vec3&)>;
-		//!< EPA (Expanding Polytope Algorithm)
-		void EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, 
-			const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 
-			const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, 
-			Math::Vec3& OnA, Math::Vec3& OnB);
 		static void OnIntersectDummy([[maybe_unused]] const Physics::Shape* ShA, [[maybe_unused]] const Math::Vec3& PosA, [[maybe_unused]] const Math::Quat& RotA,
 			[[maybe_unused]] const Physics::Shape* ShB, [[maybe_unused]] const Math::Vec3& PosB, [[maybe_unused]] const Math::Quat& RotB,
 			[[maybe_unused]] const std::vector<SupportPoint::Points>& SupportPoints, [[maybe_unused]] const float Bias,
@@ -116,10 +124,19 @@ namespace Collision
 		//!< GJK 本体
 		bool GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA,
 			const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB,
-			OnIntersectGJK OnIntersect, const float Bias, 
-			const bool WidthClosestPoint,
+			OnIntersectGJK OnIntersect, const float Bias,
+			const bool WithClosestPoint,
 			Math::Vec3& OnA, Math::Vec3& OnB);
-		
+		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA,
+			const Physics::RigidBody* RbB,
+			OnIntersectGJK OnIntersect, const float Bias,
+			Math::Vec3& OnA, Math::Vec3& OnB);
+
+		//!< EPA (Expanding Polytope Algorithm)
+		void EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, 
+			const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 
+			const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, 
+			Math::Vec3& OnA, Math::Vec3& OnB);
 		//!< 衝突点を EPA を用いて求める
 		//!< 衝突が無い場合は最近接点を求める
 		[[nodiscard]] static bool GJK_EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, 
@@ -141,8 +158,7 @@ namespace Collision
 
 		//!< 判定のみ (衝突点、最近接点が不要な場合)
 		[[nodiscard]] static bool GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA,
-			const Physics::Shape* ShB,
-			const Math::Vec3& PosB, const Math::Quat& RotB)
+			const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB)
 		{
 			Math::Vec3 OnA, OnB;
 			return GJK(ShA, PosA, RotA, 
@@ -151,13 +167,19 @@ namespace Collision
 				false,
 				OnA, OnB);
 		}
-		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
+		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA, 
+			const Physics::RigidBody* RbB);
 	}
+
+	//!< 最近接点 (衝突していないことが前提)
 	namespace Closest
-	{		
-		//!< 最近接点 (非衝突が確定であること)
-		void GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, Math::Vec3& OnA, Math::Vec3& OnB);
-		void GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, Math::Vec3& OnA, Math::Vec3& OnB);
+	{
+		void GJK(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA, 
+			const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 
+			Math::Vec3& OnA, Math::Vec3& OnB);
+		void GJK(const Physics::RigidBody* RbA, 
+			const Physics::RigidBody* RbB, 
+			Math::Vec3& OnA, Math::Vec3& OnB);
 	}
 	
 #ifdef _DEBUG

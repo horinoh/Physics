@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <optional>
 
 #include "PhysicsMath.h"
 
@@ -273,17 +274,16 @@ namespace Collision
 			const Math::Vec3& Pt);
 
 		//!< レイ vs 球
-		[[nodiscard]] bool RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad, float& T0, float& T1);
-	
+		[[nodiscard]] std::optional<std::pair<float, float>> RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad);
+
 		//!< 球 vs 球
 		[[nodiscard]] static bool SphereShpere(const float RadA, const float RadB, const Math::Vec3& PosA, const Math::Vec3& PosB) {
 			return (PosB - PosA).LengthSq() <= std::powf(RadA + RadB, 2.0f); 
 		}
 		//!< デルタ時間でコールする場合は、速度もデルタ時間のものを渡すこと
-		[[nodiscard]] bool SphereShpere(const float RadA, const float RadB,
+		[[nodiscard]] std::optional<float> SphereShpere(const float RadA, const float RadB,
 			const Math::Vec3& PosA, const Math::Vec3& PosB,
-			const Math::Vec3& VelA, const Math::Vec3& VelB,
-			float& T);
+			const Math::Vec3& VelA, const Math::Vec3& VelB);
 
 		[[nodiscard]] bool SphereSphere(const Physics::RigidBody* RbA,
 			const Physics::RigidBody* RbB,

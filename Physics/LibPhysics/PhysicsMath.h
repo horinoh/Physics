@@ -17,8 +17,8 @@ namespace Math
 #include "Mat.h"
 #include "Quat.h"
 
-template<typename T>
-static [[nodiscard]] T Sign(const T rhs) { return static_cast<T>((rhs > 0) - (rhs < 0)); }
+//template<typename T>
+//static [[nodiscard]] T Sign(const T rhs) { return static_cast<T>((rhs > 0) - (rhs < 0)); }
 
 static [[nodiscard]] Math::Vec2 operator*(const float lhs, const Math::Vec2& rhs) { return rhs * lhs; }
 static [[nodiscard]] Math::Vec3 operator*(const float lhs, const Math::Vec3& rhs) { return rhs * lhs; }

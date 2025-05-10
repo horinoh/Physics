@@ -111,7 +111,7 @@ bool Collision::Intersection::CylinderPoint(const Math::Vec3& CyA, const Math::V
 	return true;
 }
 
-bool Collision::Intersection::RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad, float& T0, float& T1)
+std::optional<std::pair<float, float>> Collision::Intersection::RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad)
 {
 	//!< 1)球	(x - SpPos)^2 = SpRad^2
 	//!<		x^2 - 2 * x * SpPos + SpPos^2 - SpRad^2 = 0
@@ -129,40 +129,37 @@ bool Collision::Intersection::RaySphere(const Math::Vec3& RayPos, const Math::Ve
 	const auto D4 = B2 * B2 - A * C;
 	if (D4 >= 0) {
 		const auto D4Sqrt = std::sqrt(D4);
-		T0 = (B2 - D4Sqrt) / A;
-		T1 = (B2 + D4Sqrt) / A;
-		return true;
+		return std::make_pair((B2 - D4Sqrt) / A, (B2 + D4Sqrt) / A);
 	}
-	return false;
+	return std::nullopt;
 }
 
-bool Collision::Intersection::SphereShpere(const float RadA, const float RadB,
+std::optional<float> Collision::Intersection::SphereShpere(const float RadA, const float RadB,
 	const Math::Vec3& PosA, const Math::Vec3& PosB,
-	const Math::Vec3& VelA, const Math::Vec3& VelB,
-	float& T)
+	const Math::Vec3& VelA, const Math::Vec3& VelB)
 {
 	// A の相対速度
 	const auto Ray = VelA - VelB;
 	const auto TotalRadius = RadA + RadB;
 
-	auto T0 = 0.0f, T1 = 0.0f;
 	constexpr auto Eps2 = 0.001f * 0.001f;
 	if (Ray.LengthSq() < Eps2) {
 		//!< レイが十分短い場合は既に衝突しているかどうかのチェック
 		const auto PosAB = PosB - PosA;
 		const auto R = TotalRadius + 0.001f;
 		if (PosAB.LengthSq() > R * R) {
-			return false;
+			return std::nullopt;
 		}
+		return 0.0f;
 	}
 	//!< レイ vs 球 に帰着
-	else if (false == Intersection::RaySphere(PosA, Ray, PosB, TotalRadius, T0, T1) || (T0 > 1.0f || T1 < 0.0f)) {
-		return false;
+	else {
+		const auto Ret = Intersection::RaySphere(PosA, Ray, PosB, TotalRadius);
+		if (Ret == std::nullopt || Ret.value().first > 1.0f || Ret.value().second < 0.0f) {
+			return std::nullopt;
+		}
+		return (std::max)(Ret.value().first, 0.0f);
 	}
-
-	T = (std::max)(T0, 0.0f);
-
-	return true;
 }
 
 Math::Vec3 Collision::Closest::CapsulePoint(const Math::Vec3& CapA, const Math::Vec3& CapB, const float CapR,
@@ -286,15 +283,14 @@ void Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math::Vec3
 {
 	const auto SpA = static_cast<const Physics::ShapeSphere*>(RbA->Shape);
 	const auto SpB = static_cast<const Physics::ShapeSphere*>(RbB->Shape);
-	float T;
-	//!< TOI が直接求められる
 	//!< 速度はデルタ時間のものを渡すこと
-	if (Intersection::SphereShpere(SpA->Radius, SpB->Radius, RbA->Position, RbB->Position, RbA->LinearVelocity * DeltaSec, RbB->LinearVelocity * DeltaSec, T)) {
+	const auto T = Intersection::SphereShpere(SpA->Radius, SpB->Radius, RbA->Position, RbB->Position, RbA->LinearVelocity * DeltaSec, RbB->LinearVelocity * DeltaSec);
+	if (T != std::nullopt) {
 		//!< 衝突剛体を覚えておく
 		Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
 		Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB); 
 
-		Ct.TimeOfImpact = T * DeltaSec;
+		Ct.TimeOfImpact = T.value() * DeltaSec;
 
 		//!< 衝突時刻の(中心)位置
 		const auto CPosA = RbA->Position + RbA->LinearVelocity * Ct.TimeOfImpact;
