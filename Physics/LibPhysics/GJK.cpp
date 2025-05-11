@@ -78,25 +78,17 @@ Math::Vec3 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B, con
 //!< 3-シンプレクス (四面体)
 Math::Vec4 Collision::SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D)
 {
-#if true
-	const auto M = Math::Mat4(
-		Math::Vec4(A.X(), B.X(), C.X(), D.X()), 
-		Math::Vec4(A.Y(), B.Y(), C.Y(), D.Y()), 
-		Math::Vec4(A.Z(), B.Z(), C.Z(), D.Z()), 
-		Math::Vec4::One()
-	);
-	//const auto M = Math::Mat4(Math::Vec4(A, 1.0f), Math::Vec4(B, 1.0f), Math::Vec4(C, 1.0f), Math::Vec4(D, 1.0f)).Transpose();
-	const auto Cofactor = Math::Vec4(M.Cofactor(3, 0), M.Cofactor(3, 1), M.Cofactor(3, 2), M.Cofactor(3, 3));
-#else
-	const auto Cofactor = Math::Vec4(-Math::Mat3(B, C, D).Determinant(), Math::Mat3(A, C, D).Determinant(), -Math::Mat3(A, B, D).Determinant(), Math::Mat3(A, B, C).Determinant());
-#endif
-	const auto Det = Cofactor.X() + Cofactor.Y() + Cofactor.Z() + Cofactor.W();
-	//!< 四面体内部にあれば、重心座標を返す
-	if (std::ranges::all_of(static_cast<const Math::Component4&>(Cofactor),
+	//!< 四面体を座標系と考える、その逆(転置)行列の四因子
+	const auto M = Math::Mat4(Math::Vec4(A, 1.0f), Math::Vec4(B, 1.0f), Math::Vec4(C, 1.0f), Math::Vec4(D, 1.0f)).Transpose();
+	const auto Cofactors = Math::Vec4(M.Cofactor(3, 0), M.Cofactor(3, 1), M.Cofactor(3, 2), M.Cofactor(3, 3));
+	const auto& CofCmps = static_cast<const Math::Component4&>(Cofactors);
+	const auto Det = std::accumulate(std::cbegin(CofCmps), std::cend(CofCmps), 0.0f);
+	//!< 原点が四面体内部にあれば、重心座標を返す
+	if (std::ranges::all_of(CofCmps,
 		[&](const auto rhs) {
 			return std::signbit(Det) == std::signbit(rhs);
 		})) {
-		return Cofactor / Det;
+		return Cofactors / Det;
 	}
 
 	constexpr std::array XYZW = { 0, 1, 2, 3 };
@@ -295,20 +287,22 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& P
 		}
 
 		//!< 最短距離を更新、更新できなれば終了
+		//!< (2 つの三角形からなる四角形の対角線上に原点が位置するような場合、2 つの三角形間で切り替えループになるのを回避)
 		const auto DistSq = Dir.LengthSq();
 		if (DistSq >= ClosestDistSq) {
 			break;
 		}
 		ClosestDistSq = DistSq;
 
-		//!< 有効な Sps (対応する Lamnda が非 0.0 のコンポーネント) だけを残す
+		//!< 有効なサポートポイント (対応する Lamnda が非 0.0 のコンポーネント) だけを残す
+		auto Index = 0;
 		const auto SpsRange = std::ranges::remove_if(Sps,
 			[&](const auto& i) {
-				return 0.0f == Lambda[static_cast<int>(IndexOf(Sps, i))];
+				return 0.0f == Lambda[Index++];
 			});
 		Sps.erase(std::ranges::cbegin(SpsRange), std::ranges::cend(SpsRange));
 
-		//!< Lambda の 非 0.0 コンポーネントを前へ
+		//!< Lambda の有効な (非 0.0) 要素を前へ集める (ケツにはゴミが残るが、Sps 個数分しかアクセスしない)
 		[[maybe_unused]] const auto Dmy = std::ranges::remove(static_cast<Math::Component4&>(Lambda), 0.0f);
 
 		//!< 3-シンプレックス (四面体) でここまで来たら原点を含む
@@ -324,15 +318,17 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& P
 		return true;
 	}
 
-	//!< 最近接点を求める (Lamnda のケツにはゴミが存在するが、Sps 個数分しかアクセスしない)
+	//!< 最近接点を求める
 	if (WithClosestPoint) {
+		auto Index = 0;
 		OnA = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(),
 			[&](const auto& Acc, const auto& i) {
-				return Acc + i.GetA() * Lambda[static_cast<int>(IndexOf(Sps, i))];
+				return Acc + i.GetA() * Lambda[Index++];
 			});
+		Index = 0;
 		OnB = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(),
 			[&](const auto& Acc, const auto& i) {
-				return Acc + i.GetB() * Lambda[static_cast<int>(IndexOf(Sps, i))];
+				return Acc + i.GetB() * Lambda[Index++];
 			});
 	}
 
@@ -382,7 +378,10 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 	}
 
 	//!< 四面体の中心
-	const auto Center = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(), [](const auto& Acc, const auto& i) { return Acc + i.GetC(); }) / static_cast<float>(std::size(Sps));
+	const auto Center = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(),
+		[](const auto& Acc, const auto& i) {
+			return Acc + i.GetC(); 
+		}) / static_cast<float>(std::size(Sps));
 
 	//!< 原点に最も近い面を見つける為にシンプレックスを拡張する
 	//!< 原点の向きに限定して凸包を形成していく感じ
@@ -400,7 +399,11 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 		//!< サポートポイントが既出の場合は、これ以上拡張できない
 		if (std::ranges::any_of(Tris, 
 			[&](const auto& i) {
-				return std::ranges::any_of(i, [&](const auto& j) { constexpr auto Eps = 0.01f; return Sps[j].GetC().NearlyEqual(Pt.GetC(), Eps); });
+				return std::ranges::any_of(i,
+					[&](const auto& j) { 
+						constexpr auto Eps = 0.01f; 
+						return Sps[j].GetC().NearlyEqual(Pt.GetC(), Eps);
+					});
 			})) {
 			break;
 		}
@@ -452,7 +455,6 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 		const auto A = CTri[0], B = CTri[1], C = CTri[2];
 
 		//!< それ上での、原点の重心座標を取得
-		//Math::Vec3 Lambda;
 		const auto Lambda = Barycentric(Math::Vec3::Zero(), Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC());
 		if (Lambda != std::nullopt) {
 			OnA = Sps[A].GetA() * Lambda.value()[0] + Sps[B].GetA() * Lambda.value()[1] + Sps[C].GetA() * Lambda.value()[2];
@@ -462,7 +464,7 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 #endif
 		}
 		else {
-			//!< 何かおかしい、原点が三角形の外側にある
+			//!< #TODO 原点が三角形の外側にある
 			LOG(std::data(std::format("EPA: Barycentric failed\n")));
 		}
 	}

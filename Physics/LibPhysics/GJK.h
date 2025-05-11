@@ -19,9 +19,10 @@ namespace Collision
 	[[nodiscard]] Math::Vec2 SignedVolume(const Math::Vec3& A, const Math::Vec3& B);
 	[[nodiscard]] Math::Vec3 SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C);
 	[[nodiscard]] Math::Vec4 SignedVolume(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D);
-	//!< ABC 上での 原点 の重心座標 (ABC 内部にあれば true)
+	
+	//!< ABC 上での 原点 の重心座標
 	[[nodiscard]] std::optional<Math::Vec3> Barycentric(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C);
-	//!< ABC 上での Pt の重心座標 (ABC 内部にあれば true)
+	//!< ABC 上での Pt の重心座標
 	[[nodiscard]] std::optional<Math::Vec3> Barycentric(const Math::Vec3& Pt, const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C);
 
 	namespace SupportPoint {
@@ -48,22 +49,23 @@ namespace Collision
 			const Math::Vec3& UDir, const float Bias);
 		//!< n-シンプレックスが原点を含むかどうかを返す
 		//!< 過程で原点のシンプレックス上での重心座標、原点へのベクトルを求めている
-		static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<Points>& Sps, Math::Vec3& Dir, Math::Vec4& OutLambda)
+		static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<Points>& Sps,
+			Math::Vec3& Dir, Math::Vec4& Lambda)
 		{
-			switch (size(Sps)) {
+			switch (std::size(Sps)) {
 			case 2:
 				//!< 原点のシンプレックス上での重心座標 (シンプレックス上にあるか) を返す
-				OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC());
+				Lambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC());
 				//!< 原点へのベクトル
-				Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1]);
+				Dir = -(Sps[0].GetC() * Lambda[0] + Sps[1].GetC() * Lambda[1]);
 				break;
 			case 3:
-				OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC(), Sps[2].GetC());
-				Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1] + Sps[2].GetC() * OutLambda[2]);
+				Lambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC(), Sps[2].GetC());
+				Dir = -(Sps[0].GetC() * Lambda[0] + Sps[1].GetC() * Lambda[1] + Sps[2].GetC() * Lambda[2]);
 				break;
 			case 4:
-				OutLambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC(), Sps[2].GetC(), Sps[3].GetC());
-				Dir = -(Sps[0].GetC() * OutLambda[0] + Sps[1].GetC() * OutLambda[1] + Sps[2].GetC() * OutLambda[2] + Sps[3].GetC() * OutLambda[3]);
+				Lambda = SignedVolume(Sps[0].GetC(), Sps[1].GetC(), Sps[2].GetC(), Sps[3].GetC());
+				Dir = -(Sps[0].GetC() * Lambda[0] + Sps[1].GetC() * Lambda[1] + Sps[2].GetC() * Lambda[2] + Sps[3].GetC() * Lambda[3]);
 				break;
 			default:
 				__debugbreak();

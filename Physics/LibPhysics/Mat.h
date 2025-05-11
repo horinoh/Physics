@@ -161,7 +161,7 @@ namespace Math
 			// glm::determinant(glm::make_mat3(static_cast<const float*>(*this)));
 			auto Det = 0.0f;
 			for (int j = 0; j < 3; ++j) {
-				Det += Rows[0][j] * Minor(0, j).Determinant() * static_cast<float>(pow(-1, j));
+				Det += Rows[0][j] * Cofactor(0, j);
 			}
 			return Det;
 		}
@@ -195,7 +195,7 @@ namespace Math
 		}
 		//!< 余因子 小行列式に -1^(i + j) を掛けて得られる
 		inline float Cofactor(const int Column, const int Row) const {
-			return static_cast<float>(pow(-1, Column + 1 + Row + 1)) * Minor(Column, Row).Determinant(); 
+			return std::powf(-1.0f, static_cast<float>(Column + 1 + Row + 1)) * Minor(Column, Row).Determinant();
 		}
 
 		inline Mat3& operator=(const Mat2& rhs) {
@@ -298,7 +298,7 @@ namespace Math
 			// DirectX::XMMatrixDeterminant(DirectX::XMLoadFloat4x4(*this)).m128_f32[0];
 			auto Det = 0.0f;
 			for (int j = 0; j < 4; ++j) {
-				Det += Rows[0][j] * Minor(0, j).Determinant() * static_cast<float>(pow(-1, j));
+				Det += Rows[0][j] * Cofactor(0, j);
 			}
 			return Det;
 		}
@@ -335,7 +335,7 @@ namespace Math
 		}
 		//!< 余因子 小行列式に -1^(i + j) を掛けて得られる
 		inline float Cofactor(const int Column, const int Row) const {
-			return static_cast<float>(pow(-1, Column + 1 + Row + 1)) * Minor(Column, Row).Determinant(); 
+			return std::powf(-1.0f, static_cast<float>(Column + 1 + Row + 1)) * Minor(Column, Row).Determinant();
 		}
 
 		inline Mat4& operator=(const Mat2& rhs) {

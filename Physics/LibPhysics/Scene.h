@@ -23,9 +23,10 @@ namespace Physics
 	
 		//!< BruteForce の場合チェックする回数 (Check count on brute force)
 		int BruteForceCount() const {
+			auto Index = 0;
 			return std::accumulate(std::cbegin(RigidBodies), std::cend(RigidBodies), 0,
 				[&](const auto& Acc, const auto& rhs) {
-					return Acc + static_cast<int>(IndexOf(RigidBodies, rhs));
+					return Acc + Index++;
 				});
 		}
 #ifdef USE_BRUTE_FORCE
