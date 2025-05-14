@@ -347,7 +347,8 @@ bool Collision::Intersection::GJK(const Physics::RigidBody* RbA,
 
 void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& PosA, const Math::Quat& RotA,
 	const Physics::Shape* ShB, const Math::Vec3& PosB, const Math::Quat& RotB, 
-	const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, Math::Vec3& OnA, Math::Vec3& OnB)
+	const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, 
+	Math::Vec3& OnA, Math::Vec3& OnB)
 {
 	//!< 作業用サポートポイント
 	std::vector<SupportPoint::Points> Sps;
@@ -355,61 +356,63 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 
 	//!< EPA の前準備
 	{
-		//!< EPA は四面体を必要とするので、四面体へ拡張する
+		//!< EPA では四面体を必要とするので、(四面体でない場合は) 四面体へ拡張する
 		SupportPoint::ToTetrahedron(ShA, PosA, RotA, ShB, PosB, RotB, Sps);
-		//!< シンプレックスをバイアスの分だけ拡張する
+
+		//!< シンプレックスを拡張する (A, B の衝突点がほぼ同一の場合に法線が上手く求められない場合があるため、バイアス分拡張する)
 		SupportPoint::Expand(Bias, Sps);
 	}
 
-	//!< 外側に法線が向くように4面分の三角形を形成
+	//!< 外側に法線が向くようにインデックスを生成する
+	constexpr std::array XYZW = { 0, 1, 2, 3 };
+	constexpr auto XYZWSize = static_cast<uint32_t>(std::size(XYZW));
 	std::vector<Collision::TriInds> Tris;
-	for (uint32_t i = 0; i < 4; ++i) {
-		const auto j = (i + 1) % 4;
-		const auto k = (i + 2) % 4;
+	std::ranges::transform(XYZW, std::back_inserter(Tris),
+		[&](const auto& rhs) {
+			const auto i = (rhs + 0) % XYZWSize;
+			const auto j = (rhs + 1) % XYZWSize;
+			const auto k = (rhs + 2) % XYZWSize;
+			const auto l = (rhs + 3) % XYZWSize; //!< 三角形 i, j, k を底辺とする四面体の頂点
+			return Collision::Distance::IsFront(Sps[l].GetC(), Sps[i].GetC(), Sps[j].GetC(), Sps[k].GetC()) ? 
+				Collision::TriInds({ j, i, k }) : Collision::TriInds({ i, j, k });
+		});
 
-		const auto l = (i + 3) % 4;
-
-		if (Collision::Distance::IsFront(Sps[l].GetC(), Sps[i].GetC(), Sps[j].GetC(), Sps[k].GetC())) {
-			Tris.emplace_back(Collision::TriInds({ j, i, k }));
-		}
-		else {
-			Tris.emplace_back(Collision::TriInds({ i, j, k }));
-		}
-	}
-
-	//!< 四面体の中心
+	//!< 四面体の中心を求める
 	const auto Center = std::accumulate(std::cbegin(Sps), std::cend(Sps), Math::Vec3::Zero(),
 		[](const auto& Acc, const auto& i) {
 			return Acc + i.GetC(); 
 		}) / static_cast<float>(std::size(Sps));
 
-	//!< 原点に最も近い面を見つける為にシンプレックスを拡張する
-	//!< 原点の向きに限定して凸包を形成していく感じ
+	//!< 原点に最も近い面を見つける為にシンプレックスを拡張する (原点の向きに限定して凸包を形成していく感じ)
 	while (true) {
-		//!< 原点に最も近い三角形を取得
+		//!< 原点に最も近い三角形 ABC を取得
 		const auto& CTri = *SupportPoint::Distance::Closest(Math::Vec3::Zero(), Sps, Tris);
 		const auto& A = Sps[CTri[0]].GetC(), B = Sps[CTri[1]].GetC(), C = Sps[CTri[2]].GetC();
-
 		//!< 三角形の法線
 		const auto N = Math::Vec3::UnitNormal(A, B, C);
 
-		//!< ミンコフスキー差の法線方向のサポートポイントを取得
+		//!< 法線方向のサポートポイントを取得
 		const auto Pt = Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, N, Bias);
 
-		//!< サポートポイントが既出の場合は、これ以上拡張できない
+		//!< これ以上拡張できない (Pt が ABC 法線の反対側) なら終了 
+		//if (Distance::PointTriangle(Pt.GetC(), A, B, C) <= 0.0f) {
+		//	break;
+		//}
+		if ((Pt.GetC() - A).Dot(N) <= 0.0f) {
+			break;
+		}
+
+		//!< サポートポイントが既出の場合は、これ以上拡張できないことを意味するので終了
 		if (std::ranges::any_of(Tris, 
 			[&](const auto& i) {
+				//!< 三角形群
 				return std::ranges::any_of(i,
 					[&](const auto& j) { 
+						//!< 3 頂点のいずれかに等しい場合、既出
 						constexpr auto Eps = 0.01f; 
 						return Sps[j].GetC().NearlyEqual(Pt.GetC(), Eps);
 					});
 			})) {
-			break;
-		}
-
-		//!< これ以上拡張できない
-		if (Distance::PointTriangle(Pt.GetC(), A, B, C) <= 0.0f) {
 			break;
 		}
 
@@ -423,42 +426,47 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const Math::Vec3& P
 				});
 			Tris.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
 			//!< 削除できない場合は終了
-			if (std::ranges::empty(Range)) { break; }
+			if (std::ranges::empty(Range)) {
+				break; 
+			}
 		}
 
+		//!< ぶら下がった辺 (削除した三角形と、残った三角形の境界となるような辺) を収集する
 		{
-			//!< (削除した三角形と残った三角形の) 境界となるような (ユニークな) 辺を収集する、
+			//!< 複数の三角形から共有されていないようなユニークな辺を収集すればよい
 			std::vector<Collision::EdgeIndsWithCount> DanglingEdges;
 			Convex::CollectUniqueEdges(Tris, DanglingEdges);
 			//!< そのような辺が無ければ終了
-			if (std::empty(DanglingEdges)) { break; }
+			if (std::empty(DanglingEdges)) {
+				break;
+			}
 
-			//!< サポートポイントと境界辺からなる三角形群を追加
+			//!< サポートポイント A と境界辺 BC からなる三角形群を追加
 			const auto A = static_cast<uint32_t>(std::size(Sps)) - 1;
 			std::ranges::transform(DanglingEdges, std::back_inserter(Tris),
 				[&](const auto& i) {
 					const auto B = i.first[0], C = i.first[1];
-					//!< 法線が外側を向くように
-					if (!Distance::IsFront(Center, Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC())) {
-						return Collision::TriInds({ A, B, C });
+					//!< 法線が外側を向くようにインデックスを生成する
+					if (Distance::IsFront(Center, Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC())) {
+						return Collision::TriInds({ A, C, B });
 					}
 					else {
-						return Collision::TriInds({ A, C, B });
+						return Collision::TriInds({ A, B, C });
 					}
 				});
 		}
 	}
 
 	{
-		//!< 原点に最も近い三角形を取得
+		//!< 原点に最も近い三角形 ABC を取得
 		const auto& CTri = *SupportPoint::Distance::Closest(Math::Vec3::Zero(), Sps, Tris);
-		const auto A = CTri[0], B = CTri[1], C = CTri[2];
+		const auto& A = Sps[CTri[0]], B = Sps[CTri[1]], C = Sps[CTri[2]];
 
-		//!< それ上での、原点の重心座標を取得
-		const auto Lambda = Barycentric(Math::Vec3::Zero(), Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC());
+		//!< ABC 上での原点の重心座標を取得
+		const auto Lambda = Barycentric(A.GetC(), B.GetC(), C.GetC());
 		if (Lambda != std::nullopt) {
-			OnA = Sps[A].GetA() * Lambda.value()[0] + Sps[B].GetA() * Lambda.value()[1] + Sps[C].GetA() * Lambda.value()[2];
-			OnB = Sps[A].GetB() * Lambda.value()[0] + Sps[B].GetB() * Lambda.value()[1] + Sps[C].GetB() * Lambda.value()[2];
+			OnA = A.GetA() * Lambda.value()[0] + B.GetA() * Lambda.value()[1] + C.GetA() * Lambda.value()[2];
+			OnB = A.GetB() * Lambda.value()[0] + B.GetB() * Lambda.value()[1] + C.GetB() * Lambda.value()[2];
 #ifdef _DEBUG
 			//LOG(std::data(std::format("PenetrationDistSq = {}\n", (OnB - OnA).LengthSq())));
 #endif
