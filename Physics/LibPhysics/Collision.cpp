@@ -302,6 +302,8 @@ void Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math::Vec3
 		//!< 衝突点 (半径の分オフセット)
 		Ct.WPointA = CPosA + Ct.WNormal * SpA->Radius;
 		Ct.WPointB = CPosB - Ct.WNormal * SpB->Radius;
+
+		//!< 衝突点のローカル座標 (球では不要なので ContactBase で十分)
 		//Ct.CalcLocal();		
 
 		return true;
@@ -321,11 +323,12 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 	auto TOI = 0.0f;
 	//!< 上限
 	auto ItCount = 0;
+	constexpr auto Bias = 0.001f;
+	//!< 最近接点の求め方 (一緒に求めるか、衝突の無い場合に別途求めるか)
+	constexpr auto WithClosestPoint = true;
 	while (DT > 0.0f) {
 		//!< 衝突点、最近接点
 		Math::Vec3 OnA, OnB;
-		constexpr auto Bias = 0.001f;
-		constexpr auto WithClosestPoint = true;
 		if (Intersection::GJK_EPA(&WRbA,
 				&WRbB,
 				Bias,

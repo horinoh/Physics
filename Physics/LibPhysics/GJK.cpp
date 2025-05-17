@@ -294,7 +294,7 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const Math::Vec3& P
 		}
 		ClosestDistSq = DistSq;
 
-		//!< 有効なサポートポイント (対応する Lamnda が非 0.0 のコンポーネント) だけを残す
+		//!< 有効なサポートポイント (対応する Lambda が非 0.0 のコンポーネント) だけを残す
 		auto Index = 0;
 		const auto SpsRange = std::ranges::remove_if(Sps,
 			[&](const auto& i) {

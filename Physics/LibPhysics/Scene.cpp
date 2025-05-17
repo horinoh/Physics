@@ -102,11 +102,14 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 		}
 
 		Collision::Contact Ct;
+#if true
+		//!< 球同士は GJK ではなく、カスタム衝突判定
 		if (RbA->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE && RbB->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE) {
 			if (Collision::Intersection::SphereSphere(RbA, RbB, DeltaSec, Ct)) {
 				Contacts.emplace_back(Ct);
 			}
 		}
+		//!< 球以外は GJK で衝突判定
 		else {
 			if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
 				if (0.0f == Ct.TimeOfImpact) {
@@ -119,6 +122,17 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 				}
 			}
 		}
+#else
+		//!< 全て GJK で衝突判定
+		if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
+			if (0.0f == Ct.TimeOfImpact) {
+				Manifolds.Add(Ct);
+			}
+			else {
+				Contacts.emplace_back(Ct);
+			}
+		}
+#endif
 	}
 	//!< TOI でソート
 	std::ranges::sort(Contacts, std::ranges::less{}, &Collision::Contact::TimeOfImpact);
@@ -149,6 +163,8 @@ void Physics::Scene::SolveConstraint(const float DeltaSec, const uint32_t ItCoun
 
 void Physics::Scene::Update(const float DeltaSec)
 {
+	PERFORMANCE_COUNTER_FUNC();
+
 	Manifolds.RemoveExpired();
 
 	//!< 重力
@@ -215,4 +231,11 @@ void Physics::Scene::Update(const float DeltaSec)
 		}
 	}
 #endif
+}
+
+Physics::PerformanceCounter::~PerformanceCounter() 
+{
+	const auto End = std::chrono::system_clock::now();
+	const auto MilliSec = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(End - Start).count() / 1000.0);
+	LOG(std::data(std::format("{} msec\n", MilliSec)));
 }

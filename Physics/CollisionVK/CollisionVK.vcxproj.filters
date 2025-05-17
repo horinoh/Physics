@@ -65,9 +65,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="CollisionVK_CP_P.vert" />
-    <CustomBuild Include="CollisionVK_P.frag" />
-    <CustomBuild Include="CollisionVK_P.vert" />
     <CustomBuild Include="CollisionVK.frag">
       <Filter>Shader Files</Filter>
     </CustomBuild>

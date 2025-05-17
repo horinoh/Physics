@@ -65,7 +65,7 @@ namespace Collision
 		bool IsMin;
 	};
 
-#define NRMB
+//#define NRMB
 	struct ContactBase
 	{
 		float TimeOfImpact = 0.0f;
@@ -73,15 +73,11 @@ namespace Collision
 		Physics::RigidBody* RigidBodyA = nullptr;
 		Physics::RigidBody* RigidBodyB = nullptr;
 
-		//!< ワールドスペース
+		//!< ワールドスペース衝突点
 		Math::Vec3 WPointA;
 		Math::Vec3 WPointB;
 
-#ifdef NRMB
-		//!< ワールドスペース B -> A
-#else
-		//!< ワールドスペース A -> B
-#endif
+		//!< ワールドスペース法線
 		Math::Vec3 WNormal;
 
 		ContactBase& Swap() {
@@ -92,7 +88,8 @@ namespace Collision
 	};
 	struct Contact : ContactBase
 	{
-		//!< ローカルスペース (ConstraintPenetration で使用、衝突時のローカル位置を覚えおいて新しいトランスフォームで変換する)
+		//!< ローカルスペース衝突点
+		//!< (ConstraintPenetration で使用、ローカルスペース衝突点を覚えおいて新しいトランスフォームで変換して使う)
 		Math::Vec3 LPointA;
 		Math::Vec3 LPointB;
 

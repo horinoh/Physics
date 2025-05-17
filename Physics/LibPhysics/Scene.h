@@ -1,12 +1,20 @@
 #pragma once
 
 #include <vector>
+#include <chrono>
+#include <source_location>
 
 #include "Collision.h"
 #include "Constraint.h"
 #include "Util.h"
 
 //#define USE_BRUTE_FORCE
+
+#ifdef _DEBUG
+#define PERFORMANCE_COUNTER_FUNC() PerformanceCounter __PC(std::source_location::current().function_name())
+#else
+#define PERFORMANCE_COUNTER_FUNC() 
+#endif
 
 namespace Physics
 {
@@ -50,5 +58,17 @@ namespace Physics
 		std::vector<std::unique_ptr<Physics::Constraint>> Constraints;
 		// 動的なコンストレイント (貫通)
 		Physics::ManifoldCollector Manifolds;
+	};
+
+	class PerformanceCounter
+	{
+	public:
+		PerformanceCounter(std::string_view Label = "") {
+			Start = std::chrono::system_clock::now();
+		}
+		~PerformanceCounter();
+	private:
+		std::chrono::system_clock::time_point Start;
+		std::string Label;
 	};
 }

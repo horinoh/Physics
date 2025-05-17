@@ -2,6 +2,11 @@
 
 #include <format>
 
+//!< C++23
+#include <mdspan>
+//!< C++26 #TODO
+//#include <linalg>
+
 namespace Math 
 {
 	class Mat2 
@@ -150,11 +155,27 @@ namespace Math
 		inline operator const float* () const { return static_cast<const float*>(Rows[0]); }
 
 		inline Mat3 Transpose() const {
+#if false
+			std::array Tmp = {
+				Rows[0].X(), Rows[0].Y(), Rows[0].Z(),
+				Rows[1].X(), Rows[1].Y(), Rows[1].Z(),
+				Rows[2].X(), Rows[2].Y(), Rows[2].Z(),
+			};
+			using TMat3 = std::mdspan<float, std::extents<size_t, 3, 3>, std::layout_left>;
+			//!< mdspan ‚ð—p‚¢‚Ä array ‚ð 3x3(“]’u) ‚Æ‚µ‚Äˆµ‚¤
+			TMat3 T(std::data(Tmp));
+			return {
+				{ T[0, 0], T[0, 1], T[0, 2] },
+				{ T[1, 0], T[1, 1], T[1, 2] },
+				{ T[2, 0], T[2, 1], T[2, 2] },
+			};
+#else
 			return {
 				{ Rows[0].X(), Rows[1].X(), Rows[2].X() },
 				{ Rows[0].Y(), Rows[1].Y(), Rows[2].Y() },
 				{ Rows[0].Z(), Rows[1].Z(), Rows[2].Z() }
 			};
+#endif
 		}
 		inline float Determinant() const {
 			//!< ŒŸŽZ—p
