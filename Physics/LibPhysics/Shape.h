@@ -192,6 +192,10 @@ namespace Physics
 		std::array<Math::Vec3, 8> Vertices;
 	};
 
+	//!< シリンダーの慣性テンソル (1/12 (3R^2 + H^2),                 0,       0)
+	//!<                       (                0, 1/12 (3R^2 + H^2),       0)
+	//!<					   (                0,                 0, 1/2 R^2)
+		
 	class ShapeConvex : public Shape
 	{
 	private:

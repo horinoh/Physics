@@ -107,7 +107,7 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 		if (RbA->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE && RbB->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE) {
 			if (Collision::Intersection::SphereSphere(RbA, RbB, DeltaSec, Ct)) {
 				Contacts.emplace_back(Ct);
-			}
+			}	
 		}
 		//!< ‹…ˆÈŠO‚Í GJK ‚ÅÕ“Ë”»’è
 		else {
@@ -233,9 +233,9 @@ void Physics::Scene::Update(const float DeltaSec)
 #endif
 }
 
-Physics::PerformanceCounter::~PerformanceCounter() 
-{
-	const auto End = std::chrono::system_clock::now();
-	const auto MilliSec = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(End - Start).count() / 1000.0);
-	LOG(std::data(std::format("{} msec\n", MilliSec)));
-}
+//PerformanceCounter::~PerformanceCounter() 
+//{
+//	const auto End = std::chrono::system_clock::now();
+//	const auto MilliSec = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(End - Start).count() / 1000.0);
+//	LOG(std::data(std::format("{} msec\n", MilliSec)));
+//}

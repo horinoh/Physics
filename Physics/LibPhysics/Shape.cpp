@@ -10,18 +10,27 @@ Physics::ShapeConvex& Physics::ShapeConvex::Init(const std::vector<Math::Vec3>& 
 
 #if false
 	//!< 一様ランダムから、重心、慣性テンソルを作成
-	const auto Ab = Collision::AABB(Vertices);
-	CenterOfMass = Convex::Uniform::CalcCenterOfMass(Ab, Vertices, Indices);
-	InertiaTensor = Convex::Uniform::CalcInertiaTensor(Ab, Vertices, Indices, CenterOfMass);
+	{
+		PERFORMANCE_COUNTER("InertiaTensor : Uniform");
+		const auto Ab = Collision::AABB(Vertices);
+		CenterOfMass = Convex::Uniform::CalcCenterOfMass(Ab, Vertices, Indices);
+		InertiaTensor = Convex::Uniform::CalcInertiaTensor(Ab, Vertices, Indices, CenterOfMass);
+	}
 #elif false
 	//!< モンテカルロから、重心、慣性テンソルを作成
-	const auto Ab = Collision::AABB(Vertices);
-	CenterOfMass = Convex::MonteCarlo::CalcCenterOfMass(Ab, Vertices, Indices);
-	InertiaTensor = Convex::MonteCarlo::CalcInertiaTensor(Ab, Vertices, Indices, CenterOfMass);
+	{
+		PERFORMANCE_COUNTER("InertiaTensor : MonteCarlo");
+		const auto Ab = Collision::AABB(Vertices);
+		CenterOfMass = Convex::MonteCarlo::CalcCenterOfMass(Ab, Vertices, Indices);
+		InertiaTensor = Convex::MonteCarlo::CalcInertiaTensor(Ab, Vertices, Indices, CenterOfMass);
+	}
 #else
 	//!< 四面体から、重心、慣性テンソルを作成
-	CenterOfMass = Convex::Tetrahedron::CalcCenterOfMass(Vertices, Indices);
-	InertiaTensor = Convex::Tetrahedron::CalcInertiaTensor(Vertices, Indices, CenterOfMass);
+	{
+		PERFORMANCE_COUNTER("InertiaTensor : Tetrahedron");
+		CenterOfMass = Convex::Tetrahedron::CalcCenterOfMass(Vertices, Indices);
+		InertiaTensor = Convex::Tetrahedron::CalcInertiaTensor(Vertices, Indices, CenterOfMass);
+	}
 #endif
 
 	LOG(std::data(std::string("CenterOfMass = \n")));

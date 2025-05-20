@@ -93,6 +93,9 @@ void Convex::CollectUniqueEdges(std::vector<Collision::TriInds>::const_iterator 
 //!< ハイポリを食わせるとかなり時間がかかる上に結局ハイポリの凸包ができるだけなのでコリジョンとして現実的ではない、ローポリを食わせること
 void Convex::BuildConvexHull(const std::vector<Math::Vec3>& Mesh, std::vector<Math::Vec3>& Vertices, std::vector<Collision::TriInds>& Indices)
 {
+	//PERFORMANCE_COUNTER_FUNC();
+	PERFORMANCE_COUNTER("BuildConvexHull()");
+
 	LOG(std::data(std::format("Building convex hull...\n")));
 
 	//!< まずは概ね包含するような四面体を作成する
@@ -234,14 +237,16 @@ Math::Vec3 Convex::MonteCarlo::CalcCenterOfMass(const Collision::AABB& Ab, const
 	std::uniform_real_distribution<float> Distribution(0.0f, 1.0f);
 
 	//!< サンプリングする個数
-	constexpr auto SampleCount = 10000;
+	constexpr auto SampleCount = 100 * 100;
 
 	auto CenterOfMass = Math::Vec3::Zero();
 	auto Sampled = 0;
 	const auto Ext = Ab.GetExtent();
 	for (auto i = 0; i < SampleCount; ++i) {
 		//!< AABB 内のサンプル点
-		const auto Pt = Ab.Min + Math::Vec3(Ext.X() * Distribution(MersenneTwister), Ext.Y() * Distribution(MersenneTwister), Ext.Z() * Distribution(MersenneTwister));
+		const auto Pt = Ab.Min + Math::Vec3(Ext.X() * Distribution(MersenneTwister), 
+			Ext.Y() * Distribution(MersenneTwister), 
+			Ext.Z() * Distribution(MersenneTwister));
 		if (IsInternal(Pt, Vertices, Indices)) {
 			//!< 内部点なら収集
 			CenterOfMass += Pt;
@@ -265,20 +270,28 @@ Math::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Ab, cons
 	std::uniform_real_distribution<float> Distribution(0.0f, 1.0f);
 
 	//!< サンプリングする個数
-	constexpr auto SampleCount = 10000;
+	constexpr auto SampleCount = 100 * 100;
 
 	auto InertiaTensor = Math::Mat3::Zero();
 	auto Sampled = 0;
 	const auto Ext = Ab.GetExtent();
 	for (auto i = 0; i < SampleCount; ++i) {
 		//!< AABB 内のサンプル点 (重心からの相対)
-		const auto Pt = Ab.Min + Math::Vec3(Ext.X() * Distribution(MersenneTwister), Ext.Y() * Distribution(MersenneTwister), Ext.Z() * Distribution(MersenneTwister)) - CenterOfMass;
+		const auto Pt = Ab.Min + Math::Vec3(Ext.X() * Distribution(MersenneTwister), 
+			Ext.Y() * Distribution(MersenneTwister),
+			Ext.Z() * Distribution(MersenneTwister)) - CenterOfMass;
 		if (IsInternal(Pt, Vertices, Indices)) {
+			const auto XX = Pt.X() * Pt.X();
+			const auto YY = Pt.Y() * Pt.Y();
+			const auto ZZ = Pt.Z() * Pt.Z();
+			const auto XY = Pt.X() * Pt.Y();
+			const auto XZ = Pt.X() * Pt.Z();
+			const auto YZ = Pt.Y() * Pt.Z();
 			//!< 内部点なら収集する
 			InertiaTensor += {
-				{ Pt.Y() * Pt.Y() + Pt.Z() * Pt.Z(), -Pt.X() * Pt.Y(), -Pt.X() * Pt.Z() },
-				{ -Pt.X() * Pt.Y(), Pt.Z() * Pt.Z() + Pt.X() * Pt.X(), -Pt.Y() * Pt.Z() },
-				{ -Pt.X() * Pt.Z(), -Pt.Y() * Pt.Z(), Pt.X() * Pt.X() + Pt.Y() * Pt.Y() },
+				{ YY + ZZ,     -XY,     -XZ },
+				{     -XY, ZZ + XX,     -YZ },
+				{     -XZ,     -YZ, XX + YY },
 			};
 			++Sampled;
 		}
@@ -291,23 +304,22 @@ Math::Vec3 Convex::Tetrahedron::CalcCenterOfMass(const std::vector<Math::Vec3>& 
 {
 	LOG(std::data(std::format("Calculating center of mass (Tetrahedron)...\n")));
 
-	const auto MeshCenter = std::accumulate(std::begin(Vertices), std::end(Vertices), Math::Vec3::Zero()) / static_cast<float>(std::size(Vertices));
-	auto CenterOfMass = Math::Vec3::Zero();
-	auto TotalVolume = 0.0f;
-	std::ranges::for_each(Indices, 
-		[&](const auto& i) {
-			const auto& A = MeshCenter;
-			const auto& B = Vertices[i[0]];
-			const auto& C = Vertices[i[1]];
-			const auto& D = Vertices[i[2]];
+	//!< 頂点の平均 (中心) を求め A と表す
+	const auto A = std::accumulate(std::cbegin(Vertices), std::cend(Vertices), Math::Vec3::Zero()) / static_cast<float>(std::size(Vertices));
+	const auto CenterVolumeSum = std::accumulate(std::cbegin(Indices), std::cend(Indices), std::pair<Math::Vec3, float>(Math::Vec3::Zero(), 0.0f),
+		[&](const auto& Acc, const auto& rhs) {
+			//!< A を頂点とした四面体
+			const auto& B = Vertices[rhs[0]];
+			const auto& C = Vertices[rhs[1]];
+			const auto& D = Vertices[rhs[2]];
 
-			const auto TetraCenter = (A + B + C + D) * 0.25f;
+			//!< 四面体の中心に体積の重み付け (中心に体積が凝縮した体で考える)
 			const auto Volume = Collision::Volume::Tetrahedron(A, B, C, D);
+			const auto Center = (A + B + C + D) * 0.25f;
 
-			CenterOfMass += TetraCenter * Volume;
-			TotalVolume += Volume;
+			return std::pair<Math::Vec3, float>(Acc.first + Center * Volume, Acc.second + Volume);
 		});
-	return CenterOfMass / TotalVolume;
+	return CenterVolumeSum.first / CenterVolumeSum.second;
 }
 Math::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D)
 {
@@ -315,10 +327,7 @@ Math::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const Math::Vec3& A, const Mat
 	const auto AB = B - A;
 	const auto AC = C - A;
 	const auto AD = D - A;
-	const auto Det = Math::Mat3(
-		Math::Vec3(AB.X(), AC.X(), AD.X()),
-		Math::Vec3(AB.Y(), AC.Y(), AD.Y()),
-		Math::Vec3(AB.Z(), AC.Z(), AD.Z())).Determinant();
+	const auto Det = Math::Mat3(AB, AC, AD).Transpose().Determinant();
 
 	auto XX = 0.0f, YY = 0.0f, ZZ = 0.0f, XY = 0.0f, XZ = 0.0f, YZ = 0.0f;
 	const std::array Pts = { A, B, C, D };
@@ -344,15 +353,15 @@ Math::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const std::vector<Math::Vec3>&
 {
 	LOG(std::data(std::format("Calculating inertia tensor (Tetrahedron)...\n")));
 
-	auto TotalInertiaTensor = Math::Mat3::Zero();
-	auto TotalVolume = 0.0f;
 	const auto A = Math::Vec3::Zero(); //!< CenterOfMass - CenterOfMass なので
-	std::ranges::for_each(Indices, [&](const auto& i) {
-		const auto B = Vertices[i[0]] - CenterOfMass;
-		const auto C = Vertices[i[1]] - CenterOfMass;
-		const auto D = Vertices[i[2]] - CenterOfMass;
-		TotalInertiaTensor += CalcInertiaTensor(A, B, C, D);
-		TotalVolume += Collision::Volume::Tetrahedron(A, B, C, D);
-	});
-	return TotalInertiaTensor / TotalVolume;
+	const auto TensorVolumeSum = std::accumulate(std::cbegin(Indices), std::cend(Indices), std::pair<Math::Mat3, float>(Math::Mat3::Zero(), 0.0f),
+		[&](const auto& Acc, const auto& rhs) {
+			const auto B = Vertices[rhs[0]] - CenterOfMass;
+			const auto C = Vertices[rhs[1]] - CenterOfMass;
+			const auto D = Vertices[rhs[2]] - CenterOfMass;
+
+			return std::pair<Math::Mat3, float>(Acc.first + CalcInertiaTensor(A, B, C, D), Acc.second + Collision::Volume::Tetrahedron(A, B, C, D));
+		});
+
+	return TensorVolumeSum.first / TensorVolumeSum.second;
 }
