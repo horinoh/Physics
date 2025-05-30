@@ -12,7 +12,21 @@ namespace Physics
 	class RigidBody;
 
 	//!< コンストレイント基底
-	class Constraint
+	class ConstraintBase
+	{
+	public:
+		//!< ヤコビ行列のセットアップ
+		virtual void PreSolve(const float DeltaSec) {};
+		//!< 繰り返しコールすることで収束させる為、関数化している
+		virtual void Solve() {};
+		virtual void PostSolve() {}
+
+	protected:
+		//!< RigidBodyB を必要としないもの (ConstraintMover 系など) があるので、基底では RigidBodyA のみ持たせる
+		Physics::RigidBody* RigidBodyA = nullptr;
+	};
+	//!< 2剛体 A, B と逆質量行列を持つ
+	class Constraint : public ConstraintBase
 	{
 	public:
 		//!< 質量行列
@@ -20,6 +34,7 @@ namespace Physics
 		//!<     (     I_A    0    0) ... A の慣性テンソルの逆行列 (3x3)
 		//!<     (   0   0  M_B    0) ... B の質量の逆数が対角成分
 		//!<     (   0   0    0  I_B) ... B の慣性テンソルの逆行列
+		//!< #TODO 疎行列専用処理最適化の余地あり
 		using MassMatrix = Math::Mat<12, 12>;
 
 		//!< V = (V_A) ... A の速度
@@ -27,16 +42,13 @@ namespace Physics
 		//!<     (V_B) ... B の速度
 		//!<     (W_B) ... B の角速度
 		using Velocities = Math::Vec<12>;
-		
-		virtual void PreSolve(const float DeltaSec) = 0;
-		virtual void Solve() {};
-		virtual void PostSolve() {}
-
+	
 	protected:
-		Physics::RigidBody* RigidBodyA = nullptr;
+		Physics::RigidBody* RigidBodyB = nullptr;
+		MassMatrix InvMass;
 	};
 
-	//!< 剛体 A, B とそれぞれのアンカー位置、質量逆行列を持つ基底
+	//!< それぞれのアンカー位置を持つ
 	class ConstraintAnchor : public Constraint
 	{
 	public:
@@ -60,11 +72,7 @@ namespace Physics
 
 	protected:
 		Math::Vec3 LAnchorA;
-
-		Physics::RigidBody* RigidBodyB = nullptr;
 		Math::Vec3 LAnchorB;
-
-		MassMatrix InvMass;
 	};
 
 	//!< 軸を持つ基底
@@ -263,7 +271,7 @@ namespace Physics
 		float Speed;
 	};
 
-	class ConstraintMover : public Constraint
+	class ConstraintMover : public ConstraintBase
 	{
 	public:
 		ConstraintMover() {}
