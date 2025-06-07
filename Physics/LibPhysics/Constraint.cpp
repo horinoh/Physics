@@ -716,12 +716,9 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	//!< 法線をワールドスペースへ
-#ifdef NRMB
 	const auto WNormal = RigidBodyA->ToWorldDir(LNormal);
-#else
-	const auto WNormal = -RigidBodyA->ToWorldDir(LNormal);
-#endif
 
+	//!< J = (-N, RA x N, N, RB x N)
 	const auto J1 = -WNormal;
 	const auto J2 = RA.Cross(J1);
 	const auto J3 = -J1;
@@ -797,14 +794,21 @@ void Physics::ConstraintPenetration::Solve()
 	ApplyImpulse(JT * Lambda);
 }
 
-Physics::Manifold::Manifold(const Collision::Contact& Ct) : RigidBodyA(Ct.RigidBodyA), RigidBodyB(Ct.RigidBodyB) { Add(Ct); }
+Physics::Manifold::Manifold(const Collision::Contact& Ct) 
+	: RigidBodyA(Ct.RigidBodyA), RigidBodyB(Ct.RigidBodyB) 
+{
+	Add(Ct); 
+}
 void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 {
 	//!< 剛体 A, B の順序が食い違っている場合は辻褄を合わせる
 	auto Ct = CtOrig;
 	if (RigidBodyA != CtOrig.RigidBodyA) { Ct.Swap(); }
 
-	//!< 既存とほぼ同じ接触位置の場合は何もしない (既存を残し新規を破棄、古い要素の方が収束している傾向)
+	//!< 法線を反転する必要がある #TODO 何故？ P43
+	Ct.WNormal *= -1.0f; 
+
+	//!< 既存とほぼ同じ接触位置の場合は何もしない (既存を残し新規を破棄する、古い方が収束している傾向がある為)
 	constexpr auto Eps2 = 0.02f * 0.02f;
 	if (std::ranges::any_of(Constraints,
 		[&](const auto& i) {
@@ -813,6 +817,7 @@ void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 		return;
 	}
 
+	//!< 新規要素 (接触点と制約のペア)
 	const auto NewItem = ContactAndConstraint({ Ct, ConstraintPenetration(Ct) });
 	if (std::size(Constraints) < MaxContacts) {
 		//!< 空きがある場合は追加
@@ -822,13 +827,13 @@ void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 		//!< (新規を) 一旦追加してしまう
 		Constraints.emplace_back(NewItem);
 		
-		//!< (新規を含めた) 平均値
+		//!< (新規を含めた) 平均値を求める
 		const auto Avg = (std::accumulate(std::cbegin(Constraints), std::cend(Constraints), Math::Vec3::Zero(),
 			[](const auto& Acc, const auto& i) {
 				return Acc + i.first.WPointA;
 			})) / static_cast<float>(std::size(Constraints));
 
-		//!< 平均値に一番近い要素を削除 (大きく貫通しているであろう要素を残す)
+		//!< 平均値に一番近い要素を取り除く (大きく貫通しているであろう要素ほど残ることになる)
 		Constraints.erase(std::ranges::min_element(Constraints,
 			[&](const auto& lhs, const auto& rhs) {
 				return (Avg - lhs.first.WPointA).LengthSq() < (Avg - rhs.first.WPointA).LengthSq();
@@ -839,41 +844,38 @@ void Physics::Manifold::RemoveExpired()
 {
 	constexpr auto Eps2 = 0.02f * 0.02f;
 	const auto Range = std::ranges::remove_if(Constraints, 
-		[&](const auto& i) {
-		const auto& Ct = i.first;
-		//!< 衝突時のローカル位置を、現在のトランスフォームで変換 (衝突時のローカル位置が必要、LPointA, LPointB が必要になる場面)
-		const auto AB = Ct.RigidBodyB->ToWorldPos(Ct.LPointB) - Ct.RigidBodyA->ToWorldPos(Ct.LPointA);
-#ifdef NRMB
-		const auto& WNrm = Ct.WNormal;
-#else
-		const auto WNrm = -Ct.WNormal;
-#endif
-		const auto PenetrateDepth = WNrm.Dot(AB);
-		//!< AB と A の法線が同じ向き (めり込んでいない)
-		if (PenetrateDepth > 0.0f) {
-			return true;
-		}
-		//!< 接線方向の距離が一定以上ズレた
-		const auto ABNrm = WNrm * PenetrateDepth;
-		const auto ABTan = (AB - ABNrm);
-		return ABTan.LengthSq() >= Eps2;
-	});
+		[&](const auto& rhs) {
+			const auto& Ct = rhs.first;
+			//!< 衝突時のローカル位置を、現在のトランスフォームで変換 (衝突時のローカル位置 LPointA, LPointB を覚えておく必要がある)
+			const auto AB = Ct.RigidBodyB->ToWorldPos(Ct.LPointB) - Ct.RigidBodyA->ToWorldPos(Ct.LPointA);
+			const auto& WNrm = Ct.WNormal;
+			const auto PenetrateDepth = WNrm.Dot(AB);
+			//!< AB と A の法線が同じ向き (めり込んでいない) なら除外
+			if (PenetrateDepth > 0.0f) {
+				return true;
+			}
+			//!< 接線方向の距離が一定以上ズレたなら除外
+			const auto ABNrm = WNrm * PenetrateDepth;
+			const auto ABTan = (AB - ABNrm);
+			return ABTan.LengthSq() >= Eps2;
+		});
 	Constraints.erase(std::cbegin(Range), std::cend(Range));
 }
 
-//!< 衝突を追加 (既存か新規かで適切に処理する)
+//!< 衝突情報を追加
 void Physics::ManifoldCollector::Add(const Collision::Contact& Ct)
 {
-	//!< 同じ剛体 A, B 間のマニフォールドか存在するか
-	auto It = std::ranges::find_if(Manifolds, [&](const auto& i) {
-		return (i.RigidBodyA == Ct.RigidBodyA && i.RigidBodyB == Ct.RigidBodyB) || (i.RigidBodyA == Ct.RigidBodyB && i.RigidBodyB == Ct.RigidBodyA);
-	});
+	//!< 剛体 A, B 間のマニフォールドが既に存在するか
+	auto It = std::ranges::find_if(Manifolds,
+		[&](const auto& i) {
+			return (i.RigidBodyA == Ct.RigidBodyA && i.RigidBodyB == Ct.RigidBodyB) || (i.RigidBodyA == Ct.RigidBodyB && i.RigidBodyB == Ct.RigidBodyA);
+		});
 	if (std::cend(Manifolds) != It) {
-		//!< 既存なら衝突を追加
+		//!< (既存の) マニフォールドへ衝突情報を追加
 		It->Add(Ct);
 	}
 	else {
-		//!< 既存でなければ、マニフォールドを追加
+		//!< マニフォールドと衝突情報を追加
 		Manifolds.emplace_back(Manifold(Ct));
 	}
 }

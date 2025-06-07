@@ -65,7 +65,6 @@ namespace Collision
 		bool IsMin;
 	};
 
-//#define NRMB
 	struct ContactBase
 	{
 		float TimeOfImpact = 0.0f;

@@ -327,7 +327,7 @@ namespace Physics
 	};
 
 	//!< 2 オブジェクト間の衝突情報
-	//!< 新しい衝突を追加、無効になった衝突は削除
+	//!< 新しい衝突点を追加していく、無効になった衝突は削除される
 	class Manifold
 	{
 	public:
@@ -347,15 +347,20 @@ namespace Physics
 		using ContactAndConstraint = std::pair<Collision::Contact, ConstraintPenetration>;
 		std::vector<ContactAndConstraint> Constraints;
 	};
+	//!< 2 オブジェクト間の衝突情報 (マニフォールド) を収集
 	class ManifoldCollector
 	{
 	public:
 		void Add(const Collision::Contact& Ct);
 		void RemoveExpired() {
+			//!< 無効になった衝突点をマニフォールドから削除
 			for (auto& i : Manifolds) { i.RemoveExpired(); }
 
-			//!< 有効な衝突が無くなったマニフォールドは削除
-			const auto Range = std::ranges::remove_if(Manifolds, [](const auto& i) { return std::empty(i.Constraints); });
+			//!< 衝突点を１つも持たなくなったマニフォールドを削除
+			const auto Range = std::ranges::remove_if(Manifolds, 
+				[](const auto& i) {
+					return std::empty(i.Constraints);
+				});
 			Manifolds.erase(std::cbegin(Range), std::cend(Range));
 		}
 

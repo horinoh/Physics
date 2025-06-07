@@ -339,19 +339,12 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 			Ct.RigidBodyB = const_cast<Physics::RigidBody*>(RbB);
 
 			Ct.TimeOfImpact = TOI;
-#ifdef NRMB
-			//!< 法線 A -> B
-			Ct.WNormal = (OnA - OnB).Normalize();
-			//!< シンプレックスを拡張しているので、その分をキャンセルする
-			OnA += Ct.WNormal * Bias;
-			OnB -= Ct.WNormal * Bias;
-#else
 			//!< 法線 A -> B
 			Ct.WNormal = (OnB - OnA).Normalize();
 			//!< シンプレックスを拡張しているので、その分をキャンセルする
 			OnA -= Ct.WNormal * Bias;
 			OnB += Ct.WNormal * Bias;
-#endif
+
 			//!< 衝突点
 			Ct.WPointA = OnA;
 			Ct.WPointB = OnB;
