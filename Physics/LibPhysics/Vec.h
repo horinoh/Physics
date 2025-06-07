@@ -333,7 +333,7 @@ namespace Math
 	class Vec
 	{
 	public:
-		//!< Vec<N> ではデフォルトコンストラクタでゼロクリアとしておく
+		//!< ここでは「疎」を扱う事が多いので、Vec<N> ではデフォルトコンストラクタでゼロクリアとしておく
 		Vec() { std::ranges::fill(Comps, 0.0f); }
 		Vec(const float rhs) { std::ranges::fill(Comps, rhs); }
 		template<typename...A> Vec(A...Args) {

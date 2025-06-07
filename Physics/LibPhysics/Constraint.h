@@ -35,13 +35,13 @@ namespace Physics
 		//!<     (   0   0  M_B    0) ... B の質量の逆数が対角成分
 		//!<     (   0   0    0  I_B) ... B の慣性テンソルの逆行列
 		//!< #TODO 疎行列専用処理最適化の余地あり
-		using MassMatrix = Math::Mat<12, 12>;
+		using MassMatrix = Math::Mat<3 * 4, 3 * 4>;
 
 		//!< V = (V_A) ... A の速度
 		//!<     (W_A) ... A の角速度
 		//!<     (V_B) ... B の速度
 		//!<     (W_B) ... B の角速度
-		using Velocities = Math::Vec<12>;
+		using Velocities = Math::Vec<3 * 4>;
 	
 	protected:
 		Physics::RigidBody* RigidBodyB = nullptr;
@@ -116,7 +116,7 @@ namespace Physics
 	protected:
 		//!< ヤコビ行列 (n * 12) n == コンストレイント数, 12 == 6 (移動3、回転3) 軸の自由度 * 2 オブジェクト
 		//!< 距離 (n == 1)
-		Math::Mat<1, 12> Jacobian;
+		Math::Mat<1, 3 * 4> Jacobian;
 		Math::Vec<1> CachedLambda;
 
 		//!< 適正な位置へ戻すような力を適用する事で位置ドリフトを修正 (Baumgarte stabilization)
@@ -145,7 +145,7 @@ namespace Physics
 
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V (n == 3)
-		Math::Mat<3, 12> Jacobian;
+		Math::Mat<3, 3 * 4> Jacobian;
 		Math::Vec<3> CachedLambda;
 
 		float Baumgarte = 0.0f;
@@ -173,7 +173,7 @@ namespace Physics
 
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V、角度制限 (n == 4)
-		Math::Mat<4, 12> Jacobian;
+		Math::Mat<4, 3 * 4> Jacobian;
 		Math::Vec<4> CachedLambda;
 
 		float Baumgarte = 0.0f;
@@ -204,7 +204,7 @@ namespace Physics
 	
 	protected:
 		//!< 距離、軸 (n == 2)
-		Math::Mat<2, 12> Jacobian;
+		Math::Mat<2, 3 * 4> Jacobian;
 		Math::Vec<2> CachedLambda;
 
 		float Baumgarte = 0.0f;
@@ -233,7 +233,7 @@ namespace Physics
 		virtual void PostSolve() override;
 
 	protected:
-		Math::Mat<4, 12> Jacobian;
+		Math::Mat<4, 3 * 4> Jacobian;
 		Math::Vec<4> CachedLambda;
 
 		float Baumgarte = 0.0f;
@@ -264,7 +264,7 @@ namespace Physics
 
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V、ヒンジ軸 (n == 4)
-		Math::Mat<4, 12> Jacobian;
+		Math::Mat<4, 3 * 4> Jacobian;
 
 		Math::Vec3 Baumgarte;
 
@@ -317,7 +317,7 @@ namespace Physics
 
 	protected:
 		//!< 法線 N、接面の U, V (n == 3)
-		Math::Mat<3, 12> Jacobian;
+		Math::Mat<3, 3 * 4> Jacobian;
 		Math::Vec<3> CachedLambda;
 
 		float Baumgarte = 0.0f;

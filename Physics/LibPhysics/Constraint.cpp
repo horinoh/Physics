@@ -38,10 +38,12 @@ Physics::Constraint::MassMatrix Physics::ConstraintAnchor::CreateInverseMassMatr
 }
 Physics::Constraint::Velocities Physics::ConstraintAnchor::CreateVelocties(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
 {
-	return { RbA->LinearVelocity.X(), RbA->LinearVelocity.Y(), RbA->LinearVelocity.Z(),
-	RbA->AngularVelocity.X(), RbA->AngularVelocity.Y(), RbA->AngularVelocity.Z(),
-	RbB->LinearVelocity.X(), RbB->LinearVelocity.Y(), RbB->LinearVelocity.Z(),
-	RbB->AngularVelocity.X(), RbB->AngularVelocity.Y(), RbB->AngularVelocity.Z() };
+	return {
+		RbA->LinearVelocity.X(), RbA->LinearVelocity.Y(), RbA->LinearVelocity.Z(),
+		RbA->AngularVelocity.X(), RbA->AngularVelocity.Y(), RbA->AngularVelocity.Z(),
+		RbB->LinearVelocity.X(), RbB->LinearVelocity.Y(), RbB->LinearVelocity.Z(),
+		RbB->AngularVelocity.X(), RbB->AngularVelocity.Y(), RbB->AngularVelocity.Z() 
+	};
 }
 
 void Physics::ConstraintAnchor::ApplyImpulse(const Physics::Constraint::Velocities& Impulse)
@@ -79,7 +81,8 @@ Physics::ConstraintAnchorAxis& Physics::ConstraintAnchorAxis::Init(const Physics
 	LAxisA = RigidBodyA->ToLocalDir(WAxis);
 
 	//!< A, B の初期位置における (QA.Inverse() * QB).Inverse()
-	//!< ある瞬間の回転を CurRot = QA.Inverse() * QB * InitRot.Inverse() とすると、初期位置からの回転角は Theta = 2.0f * asin(CurRot.Dot(Hinge)) で求まる
+	//!< ある瞬間の回転を CurRot = QA.Inverse() * QB * InitRot.Inverse() とすると、
+	//!< 初期位置からの回転角は Theta = 2.0f * std::asinf(CurRot.Dot(Hinge)) で求まる
 	InvInitRot = (RigidBodyA->Rotation.Inverse() * RigidBodyB->Rotation).Inverse();
 
 	return *this;
@@ -92,43 +95,71 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 
 	const auto AB = WAnchorB - WAnchorA;
+	//!< それぞれの剛体における、重心からアンカー位置 (ワールド) へのベクトル
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
 	//!< ヤコビ行列を作成
+	//!< J = (2 * (WAnchorA - WAnchorB), 2 * RA.Cross(WAnchorA - WAnchorB), 2 * (WAnchorB - WAnchorA), 2 * RB.Cross(WAnchorB - WAnchorA))
+	//!< J = (2 * -AB, 2 * RA.Cross(-AB), 2 * AB, 2 * RB.Cross(AB))
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
 		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
-		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[0] = { 
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(),
+			J3.X(), J3.Y(), J3.Z(), 
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 
-	//!< 前のフレームの力 (CachedLambda) を今フレームの計算前に適用することで、少ないフレームで安定状態へ持っていく (Warm starting)
+#pragma region WARM_STARTING
+	//!< 前のフレームの力積を、今フレームの計算前に適用することで、少ないイテレーションで安定状態へ導く
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
+#pragma endregion
 
-	//!< 適正な位置へ戻すような力を適用する事で位置ドリフトを修正 (Baumgarte stabilization)
+#pragma region BAUMGARTE_STABILIZATION
+	//!< 適正な位置へ戻すような力を適用する事で修正を試みる
+	//!< C は侵された制約距離 (デルタ時間では C / DeltaSec)、許容誤差 (0.01f) を超えていれば有効 (振動防止)
 	const auto C = (std::max)(AB.Dot(AB) - 0.01f, 0.0f);
-	Baumgarte = 0.05f * C / DeltaSec;
+	//!< 完全に修正するとエネルギー与え過ぎで不安定になるので Beta (== 0.05f) で調整
+	constexpr auto Beta = 0.05f;
+	Baumgarte = Beta * C / DeltaSec;
+#pragma endregion
 }
 void Physics::ConstraintDistance::Solve()  
 {
+	//!< J * InvMass * Transpose(J) * Impulse = -J * v
+	//!< ここで A = J * InvMass * Transpose(J), B = -J * v と置くと A * Impulse = B
+	//!< これをガウスザイデル法で解き、Impulse を求める
 	const auto JT = Jacobian.Transpose();
 	const auto A = Jacobian * GetInverseMassMatrix() * JT;
-	const auto B = -Jacobian * GetVelocties() - Math::Vec<1>(Baumgarte);
+	const auto B = -Jacobian * GetVelocties()
+#pragma region BAUMGARTE_STABILIZATION
+		//!< 侵された制約距離を修正するような速度を与える
+		- Math::Vec<1>(Baumgarte);
+#pragma endregion
 
+	//!< A * Lambda = B となる Lambda を求める
 	const auto Lambda = GaussSiedel(A, B);
 
 	ApplyImpulse(JT * Lambda);
 
+#pragma region WARM_STARTING
+	//!< ウォームスタート用に力積を蓄積しておく
 	CachedLambda += Lambda;
+#pragma endregion
 }
 void Physics::ConstraintDistance::PostSolve() 
 {
-	//!< 発散を防ぐ対処 (Warm starting)
-	if (CachedLambda[0] * 0.0f != CachedLambda[0] * 0.0f) { CachedLambda[0] = 0.0f; }
+#pragma region WARM_STARTING
+	//!< 短時間に大きな力積が加わった場合に不安定になるのを防ぐために、リーズナブルな範囲に制限する
+	//if (CachedLambda[0] * 0.0f != CachedLambda[0] * 0.0f) { CachedLambda[0] = 0.0f; }
 	constexpr auto Eps = std::numeric_limits<float>::epsilon();
 	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Eps, Eps);
+#pragma endregion
 }
 
 void Physics::ConstraintHinge::PreSolve(const float DeltaSec) 
@@ -146,7 +177,12 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 		const auto J2 = RA.Cross(J1);
 		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
-		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[0] = { 
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(), 
+			J3.X(), J3.Y(), J3.Z(), 
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 
 	const auto& QA = RigidBodyA->Rotation;
@@ -169,7 +205,12 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 		const auto J2 = MatA * Math::Vec4(U);
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(U);
-		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[1] = { 
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(), 
+			J3.X(), J3.Y(), J3.Z(), 
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 	//!< V コンストレイント
 	{
@@ -177,13 +218,19 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 		const auto J2 = MatA * Math::Vec4(V);
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(V);
-		Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[2] = {
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(), 
+			J3.X(), J3.Y(), J3.Z(), 
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 	
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
 
 	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
-	Baumgarte = 0.05f * C / DeltaSec;
+	constexpr auto Beta = 0.05f;
+	Baumgarte = Beta * C / DeltaSec;
 }
 void Physics::ConstraintHinge::Solve()
 {
@@ -201,7 +248,7 @@ void Physics::ConstraintHinge::PostSolve()
 {
 	constexpr auto Limit = 20.0f;
 	for (auto i = 0; i < CachedLambda.Size();++i) {
-		if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
+		//if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
 		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
 	}
 }
@@ -220,7 +267,12 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 		const auto J2 = RA.Cross(J1);
 		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
-		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[0] = {
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(),
+			J3.X(), J3.Y(), J3.Z(),
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 
 	const auto& QA = RigidBodyA->Rotation;
@@ -240,14 +292,24 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 		const auto J2 = MatA * Math::Vec4(U);
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(U);
-		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[1] = {
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(),
+			J3.X(), J3.Y(), J3.Z(), 
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 	{
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(V);
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(V);
-		Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[2] = { 
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(), 
+			J3.X(), J3.Y(), J3.Z(), 
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 
 	//!< 現在の回転
@@ -262,7 +324,12 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 		const auto J2 = MatA * Math::Vec4(LAxisA);
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(LAxisA);
-		Jacobian[3] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[3] = { 
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(), 
+			J3.X(), J3.Y(), J3.Z(), 
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 	else {
 		Jacobian[3].ToZero();
@@ -271,7 +338,8 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
 
 	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
-	Baumgarte = 0.05f * C / DeltaSec;
+	constexpr auto Beta = 0.05f;
+	Baumgarte = Beta * C / DeltaSec;
 }
 void Physics::ConstraintHingeLimited::Solve()
 {
@@ -297,7 +365,7 @@ void Physics::ConstraintHingeLimited::Solve()
 }
 void Physics::ConstraintHingeLimited::PostSolve()
 {
-	if (CachedLambda[0] * 0.0f != CachedLambda[0] * 0.0f) { CachedLambda[0] = 0.0f; }
+	//if (CachedLambda[0] * 0.0f != CachedLambda[0] * 0.0f) { CachedLambda[0] = 0.0f; }
 	constexpr auto Limit = 20.0f;
 	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Limit, Limit);
 	CachedLambda[1] = CachedLambda[2] = CachedLambda[3] = 0.0f;
@@ -317,7 +385,12 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 		const auto J2 = RA.Cross(J1);
 		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
-		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[0] = { 
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(), 
+			J3.X(), J3.Y(), J3.Z(),
+			J4.X(), J4.Y(), J4.Z()
+		};
 	}
 
 	const auto& QA = RigidBodyA->Rotation;
@@ -335,13 +408,19 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 		const auto J2 = -0.5f * MatA * Math::Vec4(LAxisA);
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = 0.5f * MatB * Math::Vec4(LAxisA);
-		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[1] = {
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(),
+			J3.X(), J3.Y(), J3.Z(), 
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
 
 	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
-	Baumgarte = 0.05f * C / DeltaSec;
+	constexpr auto Beta = 0.05f;
+	Baumgarte = Beta * C / DeltaSec;
 }
 void Physics::ConstraintBallSocket::Solve() 
 {
@@ -359,7 +438,7 @@ void Physics::ConstraintBallSocket::PostSolve()
 {
 	constexpr auto Limit = 20.0f;
 	for (auto i = 0; i < CachedLambda.Size(); ++i) {
-		if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
+		//if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
 		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
 	}
 }
@@ -378,7 +457,12 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 		const auto J2 = RA.Cross(J1);
 		const auto J3 = -J1;
 		const auto J4 = RB.Cross(J3);
-		Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[0] = { 
+			J1.X(), J1.Y(), J1.Z(),
+			J2.X(), J2.Y(), J2.Z(), 
+			J3.X(), J3.Y(), J3.Z(),
+			J4.X(), J4.Y(), J4.Z()
+		};
 	}
 
 	const auto& QA = RigidBodyA->Rotation;
@@ -396,7 +480,12 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 		const auto J2 = -0.5f * MatA * Math::Vec4(LAxisA);
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = 0.5f * MatB * Math::Vec4(LAxisA);
-		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[1] = { 
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(), 
+			J3.X(), J3.Y(), J3.Z(),
+			J4.X(), J4.Y(), J4.Z()
+		};
 	}
 
 	Math::Vec3 U, V;
@@ -417,7 +506,12 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 		const auto J2 = MatA * Math::Vec4(U);
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(U);
-		Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[2] = { 
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(),
+			J3.X(), J3.Y(), J3.Z(), 
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 	else {
 		Jacobian[2].ToZero();
@@ -427,7 +521,12 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 		const auto J2 = MatA * Math::Vec4(V);
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(V);
-		Jacobian[3] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[3] = { 
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(), 
+			J3.X(), J3.Y(), J3.Z(), 
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 	else {
 		Jacobian[3].ToZero();
@@ -436,7 +535,8 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
 
 	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
-	Baumgarte = 0.05f * C / DeltaSec;
+	constexpr auto Beta = 0.05f;
+	Baumgarte = Beta * C / DeltaSec;
 }
 void Physics::ConstraintBallSocketLimited::Solve()
 {
@@ -467,7 +567,7 @@ void Physics::ConstraintBallSocketLimited::PostSolve()
 	constexpr auto Limit = 20.0f;
 	for (auto i = 0; i < CachedLambda.Size(); ++i) {
 		if (i > 0) CachedLambda[i] = 0.0f;
-		if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
+		//if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
 		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
 	}
 }
@@ -485,7 +585,12 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 	const auto J2 = RA.Cross(J1);
 	const auto J3 = -J1;
 	const auto J4 = RB.Cross(J3);
-	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	Jacobian[0] = { 
+		J1.X(), J1.Y(), J1.Z(), 
+		J2.X(), J2.Y(), J2.Z(), 
+		J3.X(), J3.Y(), J3.Z(), 
+		J4.X(), J4.Y(), J4.Z()
+	};
 
 	const auto& QA = RigidBodyA->Rotation;
 	const auto& QB = RigidBodyB->Rotation;
@@ -505,21 +610,36 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 		const auto J2 = MatA * Math::Vec4(U);
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(U);
-		Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[1] = {
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(), 
+			J3.X(), J3.Y(), J3.Z(), 
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 	{
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(V);
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(V);
-		Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[2] = { 
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(), 
+			J3.X(), J3.Y(), J3.Z(),
+			J4.X(), J4.Y(), J4.Z()
+		};
 	}
 	{
 		const auto J1 = Math::Vec3::Zero();
 		const auto J2 = MatA * Math::Vec4(W);
 		const auto J3 = Math::Vec3::Zero();
 		const auto J4 = MatB * Math::Vec4(W);
-		Jacobian[3] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+		Jacobian[3] = { 
+			J1.X(), J1.Y(), J1.Z(), 
+			J2.X(), J2.Y(), J2.Z(), 
+			J3.X(), J3.Y(), J3.Z(), 
+			J4.X(), J4.Y(), J4.Z() 
+		};
 	}
 
 	//!< A ローカルでの相対回転
@@ -606,7 +726,12 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 	const auto J2 = RA.Cross(J1);
 	const auto J3 = -J1;
 	const auto J4 = RB.Cross(J3);
-	Jacobian[0] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+	Jacobian[0] = { 
+		J1.X(), J1.Y(), J1.Z(), 
+		J2.X(), J2.Y(), J2.Z(), 
+		J3.X(), J3.Y(), J3.Z(), 
+		J4.X(), J4.Y(), J4.Z() 
+	};
 
 	//!< 摩擦がある場合、接線方向のコンストレイントを考慮
 	if (Friction > 0.0f) {
@@ -620,7 +745,12 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 			const auto J2 = RA.Cross(J1);
 			const auto J3 = -J1;
 			const auto J4 = RB.Cross(J3);
-			Jacobian[1] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+			Jacobian[1] = {
+				J1.X(), J1.Y(), J1.Z(), 
+				J2.X(), J2.Y(), J2.Z(), 
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z() 
+			};
 		}
 		//!< V
 		{
@@ -628,14 +758,20 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 			const auto J2 = RA.Cross(J1);
 			const auto J3 = -J1;
 			const auto J4 = RB.Cross(J3);
-			Jacobian[2] = { J1.X(), J1.Y(), J1.Z(), J2.X(), J2.Y(), J2.Z(), J3.X(), J3.Y(), J3.Z(), J4.X(), J4.Y(), J4.Z() };
+			Jacobian[2] = { 
+				J1.X(), J1.Y(), J1.Z(), 
+				J2.X(), J2.Y(), J2.Z(), 
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z() 
+			};
 		}
 	}
 
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
 
 	const auto C = (std::min)((WAnchorB - WAnchorA).Dot(WNormal) + 0.02f, 0.0f);
-	Baumgarte = 0.25f * C / DeltaSec;
+	constexpr auto Beta = 0.25f;
+	Baumgarte = Beta * C / DeltaSec;
 }
 void Physics::ConstraintPenetration::Solve()
 {

@@ -12,7 +12,7 @@ namespace Physics
 {
 	class Shape;
 	class RigidBody;
-	class Constraint;
+	class ConstraintBase;
 
 	class Scene 
 	{
