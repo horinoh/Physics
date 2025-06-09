@@ -61,7 +61,7 @@ void DX::CreateDevice([[maybe_unused]] HWND hWnd)
 	for (const auto i : FeatureLevels) {
 		if (SUCCEEDED(D3D12CreateDevice(COM_PTR_GET(Adapter), i, COM_PTR_UUIDOF_PUTVOID(Device)))) {
 			//!< NumFeatureLevels, pFeatureLevelsRequested ‚Í“ü—ÍAMaxSupportedFeatureLevel ‚Ío—Í‚Æ‚È‚é (NumFeatureLevels, pFeatureLevelsRequested is input, MaxSupportedFeatureLevel is output)
-			D3D12_FEATURE_DATA_FEATURE_LEVELS FDFL = { .NumFeatureLevels = static_cast<UINT>(size(FeatureLevels)), .pFeatureLevelsRequested = std::data(FeatureLevels) };
+			D3D12_FEATURE_DATA_FEATURE_LEVELS FDFL = { .NumFeatureLevels = static_cast<UINT>(std::size(FeatureLevels)), .pFeatureLevelsRequested = std::data(FeatureLevels) };
 			VERIFY_SUCCEEDED(Device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, reinterpret_cast<void*>(&FDFL), sizeof(FDFL)));
 #define D3D_FEATURE_LEVEL_ENTRY(fl) case D3D_FEATURE_LEVEL_##fl: break;
 			switch (FDFL.MaxSupportedFeatureLevel) {

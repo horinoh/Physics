@@ -99,7 +99,7 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
-	//!< ヤコビ行列を作成
+	//!< 距離コンストレイント ヤコビ行列を作成
 	//!< J = (2 * (WAnchorA - WAnchorB), 2 * RA.Cross(WAnchorA - WAnchorB), 2 * (WAnchorB - WAnchorA), 2 * RB.Cross(WAnchorB - WAnchorA))
 	//!< J = (2 * -AB, 2 * RA.Cross(-AB), 2 * AB, 2 * RB.Cross(AB))
 	{
@@ -171,7 +171,7 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
-	//!< 距離コンストレイント
+	//!< 距離コンストレイント ヤコビ行列
 	{
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
@@ -185,47 +185,55 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 		};
 	}
 
-	const auto& QA = RigidBodyA->Rotation;
-	const auto& QB = RigidBodyB->Rotation;
-	const auto InvQA = QA.Inverse();
-
-	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
-	//!< 本来は P の転置行列を求めるが、ここでは意味がない
-	const auto& PT = P; //P.Transpose();
-
-	const auto MatA = - P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
-	const auto MatB = - MatA;
-
-	//!< (Aローカル) ヒンジ軸 (LAxisA) に垂直な U, V 軸 
-	Math::Vec3 U, V;
-	LAxisA.GetOrtho(U, V);
-	//!< U コンストレイント
+	//!< J_1 = (0, A * u, 0, B * u)
+	//!< J_2 = (0, A * v, 0, B * v)
+	//!< ただし A = - 1/2 * L(conj(q_1)) * R(q_2 * conj(q_0)) * P^t, B = -A
 	{
-		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(U);
-		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(U);
-		Jacobian[1] = { 
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(), 
-			J3.X(), J3.Y(), J3.Z(), 
-			J4.X(), J4.Y(), J4.Z() 
-		};
+		const auto& QA = RigidBodyA->Rotation;
+		const auto& QB = RigidBodyB->Rotation;
+		const auto InvQA = QA.Inverse();
+
+		const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
+		//!< 本来は P の転置行列を求める (ここでは意味がないのでやらない)
+		const auto& PT = P; //P.Transpose();
+
+		const auto MatB = P * InvQA.ToLeftMat4() * (QB * InvInitRot).ToRightMat4() * PT * 0.5f;
+		const auto MatA = -MatB;
+
+		//!< 四元数コンストレイント ヤコビ行列
+		//!< (Aローカル) ヒンジ軸 (LAxisA) に垂直な U, V 軸
+		Math::Vec3 U, V;
+		LAxisA.GetOrtho(U, V);
+
+		//!< U コンストレイント
+		{
+			const auto J1 = Math::Vec3::Zero();
+			const auto J2 = MatA * Math::Vec4(U);
+			const auto J3 = Math::Vec3::Zero();
+			const auto J4 = MatB * Math::Vec4(U);
+			Jacobian[1] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
+
+		//!< V コンストレイント
+		{
+			const auto J1 = Math::Vec3::Zero();
+			const auto J2 = MatA * Math::Vec4(V);
+			const auto J3 = Math::Vec3::Zero();
+			const auto J4 = MatB * Math::Vec4(V);
+			Jacobian[2] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
 	}
-	//!< V コンストレイント
-	{
-		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(V);
-		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(V);
-		Jacobian[2] = {
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(), 
-			J3.X(), J3.Y(), J3.Z(), 
-			J4.X(), J4.Y(), J4.Z() 
-		};
-	}
-	
+
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
 
 	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
@@ -275,64 +283,66 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 		};
 	}
 
-	const auto& QA = RigidBodyA->Rotation;
-	const auto& QB = RigidBodyB->Rotation;
-	const auto InvQA = QA.Inverse();
-
-	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
-	const auto& PT = P;
-
-	const auto MatA = - P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
-	const auto MatB = - MatA;
-
-	Math::Vec3 U, V;
-	LAxisA.GetOrtho(U, V);
 	{
-		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(U);
-		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(U);
-		Jacobian[1] = {
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(),
-			J3.X(), J3.Y(), J3.Z(), 
-			J4.X(), J4.Y(), J4.Z() 
-		};
-	}
-	{
-		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(V);
-		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(V);
-		Jacobian[2] = { 
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(), 
-			J3.X(), J3.Y(), J3.Z(), 
-			J4.X(), J4.Y(), J4.Z() 
-		};
-	}
+		const auto& QA = RigidBodyA->Rotation;
+		const auto& QB = RigidBodyB->Rotation;
+		const auto InvQA = QA.Inverse();
 
-	//!< 現在の回転
-	const auto CurRot = InvQA * QB * InvInitRot;
-	//!< 初期位置からの回転角度を求め、破綻しているかどうか調査
-	Angle = TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(LAxisA)));
-	IsAngleViolated = std::fabsf(Angle) > LimitAngle;
+		const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
+		const auto& PT = P;
 
-	//!< 角度制限コンストレイント
-	if (IsAngleViolated) {
-		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(LAxisA);
-		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(LAxisA);
-		Jacobian[3] = { 
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(), 
-			J3.X(), J3.Y(), J3.Z(), 
-			J4.X(), J4.Y(), J4.Z() 
-		};
-	}
-	else {
-		Jacobian[3].ToZero();
+		const auto MatA = -P * InvQA.ToLeftMat4() * (QB * InvInitRot).ToRightMat4() * PT * 0.5f;
+		const auto MatB = -MatA;
+
+		Math::Vec3 U, V;
+		LAxisA.GetOrtho(U, V);
+		{
+			const auto J1 = Math::Vec3::Zero();
+			const auto J2 = MatA * Math::Vec4(U);
+			const auto J3 = Math::Vec3::Zero();
+			const auto J4 = MatB * Math::Vec4(U);
+			Jacobian[1] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
+		{
+			const auto J1 = Math::Vec3::Zero();
+			const auto J2 = MatA * Math::Vec4(V);
+			const auto J3 = Math::Vec3::Zero();
+			const auto J4 = MatB * Math::Vec4(V);
+			Jacobian[2] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
+
+		//!< 現在の回転
+		const auto CurRot = InvQA * QB * InvInitRot;
+		//!< 初期位置からの回転角度を求め、破綻しているかどうか調査
+		Angle = TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(LAxisA)));
+		IsAngleViolated = std::fabsf(Angle) > LimitAngle;
+
+		//!< 角度制限コンストレイント
+		if (IsAngleViolated) {
+			const auto J1 = Math::Vec3::Zero();
+			const auto J2 = MatA * Math::Vec4(LAxisA);
+			const auto J3 = Math::Vec3::Zero();
+			const auto J4 = MatB * Math::Vec4(LAxisA);
+			Jacobian[3] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
+		else {
+			Jacobian[3].ToZero();
+		}
 	}
 
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
@@ -393,27 +403,29 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 		};
 	}
 
-	const auto& QA = RigidBodyA->Rotation;
-	const auto& QB = RigidBodyB->Rotation;
-	const auto InvQA = QA.Inverse();
-
-	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
-	const auto& PT = P;
-
-	const auto MatA = - P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
-	const auto MatB = - MatA;
-
 	{
-		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = -0.5f * MatA * Math::Vec4(LAxisA);
-		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = 0.5f * MatB * Math::Vec4(LAxisA);
-		Jacobian[1] = {
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(),
-			J3.X(), J3.Y(), J3.Z(), 
-			J4.X(), J4.Y(), J4.Z() 
-		};
+		const auto& QA = RigidBodyA->Rotation;
+		const auto& QB = RigidBodyB->Rotation;
+		const auto InvQA = QA.Inverse();
+
+		const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
+		const auto& PT = P;
+
+		const auto MatB = P * InvQA.ToLeftMat4() * (QB * InvInitRot).ToRightMat4() * PT * 0.5f;
+		const auto MatA = -MatB;
+
+		{
+			const auto J1 = Math::Vec3::Zero();
+			const auto J2 = -0.5f * MatA * Math::Vec4(LAxisA);
+			const auto J3 = Math::Vec3::Zero();
+			const auto J4 = 0.5f * MatB * Math::Vec4(LAxisA);
+			Jacobian[1] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
 	}
 
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
@@ -465,71 +477,73 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 		};
 	}
 
-	const auto& QA = RigidBodyA->Rotation;
-	const auto& QB = RigidBodyB->Rotation;
-	const auto InvQA = QA.Inverse();
-
-	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
-	const auto& PT = P;
-
-	const auto MatA = -P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
-	const auto MatB = -MatA;
-
 	{
-		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = -0.5f * MatA * Math::Vec4(LAxisA);
-		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = 0.5f * MatB * Math::Vec4(LAxisA);
-		Jacobian[1] = { 
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(), 
-			J3.X(), J3.Y(), J3.Z(),
-			J4.X(), J4.Y(), J4.Z()
-		};
-	}
+		const auto& QA = RigidBodyA->Rotation;
+		const auto& QB = RigidBodyB->Rotation;
+		const auto InvQA = QA.Inverse();
 
-	Math::Vec3 U, V;
-	LAxisA.GetOrtho(U, V);
+		const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
+		const auto& PT = P;
 
-	const auto CurRot = InvQA * QB * InvInitRot;
-	Angles = { 
-		TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(U))), 
-		TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(V))) 
-	};
-	IsAngleViolated = { 
-		std::fabsf(Angles[0]) > LimitAngles[0],
-		std::fabsf(Angles[1]) > LimitAngles[1]
-	};
+		const auto MatB = P * InvQA.ToLeftMat4() * (QB * InvInitRot).ToRightMat4() * PT * 0.5f;
+		const auto MatA = -MatB;
 
-	if (IsAngleViolated[0]) {
-		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(U);
-		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(U);
-		Jacobian[2] = { 
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(),
-			J3.X(), J3.Y(), J3.Z(), 
-			J4.X(), J4.Y(), J4.Z() 
+		{
+			const auto J1 = Math::Vec3::Zero();
+			const auto J2 = -0.5f * MatA * Math::Vec4(LAxisA);
+			const auto J3 = Math::Vec3::Zero();
+			const auto J4 = 0.5f * MatB * Math::Vec4(LAxisA);
+			Jacobian[1] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
+
+		Math::Vec3 U, V;
+		LAxisA.GetOrtho(U, V);
+
+		const auto CurRot = InvQA * QB * InvInitRot;
+		Angles = {
+			TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(U))),
+			TO_DEGREE(2.0f * std::asinf(CurRot.ToVec3().Dot(V)))
 		};
-	}
-	else {
-		Jacobian[2].ToZero();
-	}
-	if (IsAngleViolated[1]) {
-		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(V);
-		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(V);
-		Jacobian[3] = { 
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(), 
-			J3.X(), J3.Y(), J3.Z(), 
-			J4.X(), J4.Y(), J4.Z() 
+		IsAngleViolated = {
+			std::fabsf(Angles[0]) > LimitAngles[0],
+			std::fabsf(Angles[1]) > LimitAngles[1]
 		};
-	}
-	else {
-		Jacobian[3].ToZero();
+
+		if (IsAngleViolated[0]) {
+			const auto J1 = Math::Vec3::Zero();
+			const auto J2 = MatA * Math::Vec4(U);
+			const auto J3 = Math::Vec3::Zero();
+			const auto J4 = MatB * Math::Vec4(U);
+			Jacobian[2] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
+		else {
+			Jacobian[2].ToZero();
+		}
+		if (IsAngleViolated[1]) {
+			const auto J1 = Math::Vec3::Zero();
+			const auto J2 = MatA * Math::Vec4(V);
+			const auto J3 = Math::Vec3::Zero();
+			const auto J4 = MatB * Math::Vec4(V);
+			Jacobian[3] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
+		else {
+			Jacobian[3].ToZero();
+		}
 	}
 
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
@@ -592,68 +606,71 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 		J4.X(), J4.Y(), J4.Z()
 	};
 
-	const auto& QA = RigidBodyA->Rotation;
-	const auto& QB = RigidBodyB->Rotation;
-	const auto InvQA = QA.Inverse();
-	
-	const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
-	const auto& PT = P;
+	{
+		const auto& QA = RigidBodyA->Rotation;
+		const auto& QB = RigidBodyB->Rotation;
+		const auto InvQA = QA.Inverse();
+		const auto QBInvInitRot = QB * InvInitRot;
 
-	const auto MatA = - P * InvQA.ToLMat4() * (QB * InvInitRot).ToRMat4() * PT * 0.5f;
-	const auto MatB = - MatA;
-	
-	const auto W = RigidBodyA->ToWorldDir(LAxisA);
-	Math::Vec3 U, V;
-	W.GetOrtho(U, V);
-	{
-		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(U);
-		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(U);
-		Jacobian[1] = {
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(), 
-			J3.X(), J3.Y(), J3.Z(), 
-			J4.X(), J4.Y(), J4.Z() 
-		};
-	}
-	{
-		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(V);
-		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(V);
-		Jacobian[2] = { 
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(), 
-			J3.X(), J3.Y(), J3.Z(),
-			J4.X(), J4.Y(), J4.Z()
-		};
-	}
-	{
-		const auto J1 = Math::Vec3::Zero();
-		const auto J2 = MatA * Math::Vec4(W);
-		const auto J3 = Math::Vec3::Zero();
-		const auto J4 = MatB * Math::Vec4(W);
-		Jacobian[3] = { 
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(), 
-			J3.X(), J3.Y(), J3.Z(), 
-			J4.X(), J4.Y(), J4.Z() 
-		};
-	}
+		const auto P = Math::Mat4(Math::Vec4::AxisX(), Math::Vec4::AxisY(), Math::Vec4::AxisZ(), Math::Vec4::Zero());
+		const auto& PT = P;
 
-	//!< A ローカルでの相対回転
-	const auto RelRot = RigidBodyA->Rotation.Inverse() * RigidBodyB->Rotation * InvInitRot;
-	//!< ワールドでの相対回転軸
-	const auto WRelAxis = RigidBodyA->ToWorldDir(RelRot.XYZ());
-	const auto C = AB.Dot(AB);
-	constexpr auto Beta = 0.05f;
-	const auto BDS = Beta / DeltaSec;
-	Baumgarte = { 
-		BDS * C,
-		BDS * U.Dot(WRelAxis),
-		BDS * V.Dot(WRelAxis)
-	};
+		const auto MatB = P * InvQA.ToLeftMat4() * QBInvInitRot.ToRightMat4() * PT * 0.5f;
+		const auto MatA = -MatB;
+
+		const auto W = RigidBodyA->ToWorldDir(LAxisA);
+		Math::Vec3 U, V;
+		W.GetOrtho(U, V);
+		{
+			const auto J1 = Math::Vec3::Zero();
+			const auto J2 = MatA * Math::Vec4(U);
+			const auto J3 = Math::Vec3::Zero();
+			const auto J4 = MatB * Math::Vec4(U);
+			Jacobian[1] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
+		{
+			const auto J1 = Math::Vec3::Zero();
+			const auto J2 = MatA * Math::Vec4(V);
+			const auto J3 = Math::Vec3::Zero();
+			const auto J4 = MatB * Math::Vec4(V);
+			Jacobian[2] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
+		{
+			const auto J1 = Math::Vec3::Zero();
+			const auto J2 = MatA * Math::Vec4(W);
+			const auto J3 = Math::Vec3::Zero();
+			const auto J4 = MatB * Math::Vec4(W);
+			Jacobian[3] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
+
+		//!< A ローカルでの相対回転
+		const auto RelRot = InvQA * QBInvInitRot;
+		//!< ワールドでの相対回転軸
+		const auto WRelAxis = RigidBodyA->ToWorldDir(RelRot.XYZ());
+		const auto C = AB.Dot(AB);
+		constexpr auto Beta = 0.05f;
+		const auto BDS = Beta / DeltaSec;
+		Baumgarte = {
+			BDS * C,
+			BDS * U.Dot(WRelAxis),
+			BDS * V.Dot(WRelAxis)
+		};
+	}
 }
 void Physics::ConstraintMotor::Solve() 
 {

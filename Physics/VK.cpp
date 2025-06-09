@@ -31,7 +31,7 @@ void VK::OnDestroy(HWND hWnd, HINSTANCE hInstance)
 	}
 	DescriptorUpdateTemplates.clear();
 	//!< 個別に開放できるのは VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT を指定した場合
-	//if (!empty(DescriptorSets)) { vkFreeDescriptorSets(Device, DescriptorPool, static_cast<uint32_t>(size(DescriptorSets)), std::data(DescriptorSets)); }
+	//if (!empty(DescriptorSets)) { vkFreeDescriptorSets(Device, DescriptorPool, static_cast<uint32_t>(std::size(DescriptorSets)), std::data(DescriptorSets)); }
 	DescriptorSets.clear();
 	//!< やらなくてもよい
 	//for (auto i : DescriptorPools) { vkResetDescriptorPool(Device, i, 0); }
@@ -104,11 +104,11 @@ void VK::OnDestroy(HWND hWnd, HINSTANCE hInstance)
 		Swapchain = VK_NULL_HANDLE;
 	}
 
-	if (VK_NULL_HANDLE != RenderFinishedSemaphore) [[likely]] {
-		vkDestroySemaphore(Device, RenderFinishedSemaphore, GetAllocationCallbacks());
+	for (auto i : RenderFinishedSemaphores) {
+		vkDestroySemaphore(Device, i, GetAllocationCallbacks());
 	}
-	if (VK_NULL_HANDLE != NextImageAcquiredSemaphore) [[likely]] {
-		vkDestroySemaphore(Device, NextImageAcquiredSemaphore, GetAllocationCallbacks());
+	for (auto i : NextImageAcquiredSemaphores) {
+		vkDestroySemaphore(Device, i, GetAllocationCallbacks());
 	}
 	if (VK_NULL_HANDLE != GraphicsFence) [[likely]] {
 		vkDestroyFence(Device, GraphicsFence, GetAllocationCallbacks());
@@ -226,14 +226,14 @@ void VK::CreateDevice(HWND hWnd, HINSTANCE hInstance, void* pNext, const std::ve
 
 		{
 			constexpr uint8_t QueueFamilyPropMax = 8;
-			VERIFY(size(QFPs) <= QueueFamilyPropMax);
+			VERIFY(std::size(QFPs) <= QueueFamilyPropMax);
 			//!< 機能を持つキューファミリインデックスのビットを立てておく
 			std::bitset<QueueFamilyPropMax> GraphicsMask;
 			std::bitset<QueueFamilyPropMax> PresentMask;
 			//!< 最初に見つかった、機能を持つキューファミリインデックス
 			GraphicsQueueFamilyIndex = UINT32_MAX;
 			PresentQueueFamilyIndex = UINT32_MAX;
-			for (auto i = 0; i < size(QFPs); ++i) {
+			for (auto i = 0; i < std::size(QFPs); ++i) {
 				if (VK_QUEUE_GRAPHICS_BIT & QFPs[i].queueFlags) {
 					GraphicsMask.set(i);
 					if (UINT32_MAX == GraphicsQueueFamilyIndex) {
@@ -255,13 +255,13 @@ void VK::CreateDevice(HWND hWnd, HINSTANCE hInstance, void* pNext, const std::ve
 			}
 
 			//!< キューファミリ内でのインデックス及びプライオリティ、ここではグラフィック、プレゼントの分をプライオリティ0.5fで追加している
-			std::vector<std::vector<float>> Priorites(size(QFPs));
-			const uint32_t GraphicsQueueIndexInFamily = static_cast<uint32_t>(size(Priorites[GraphicsQueueFamilyIndex])); Priorites[GraphicsQueueFamilyIndex].emplace_back(0.5f);
-			const uint32_t PresentQueueIndexInFamily = static_cast<uint32_t>(size(Priorites[PresentQueueFamilyIndex])); Priorites[PresentQueueFamilyIndex].emplace_back(0.5f);
+			std::vector<std::vector<float>> Priorites(std::size(QFPs));
+			const uint32_t GraphicsQueueIndexInFamily = static_cast<uint32_t>(std::size(Priorites[GraphicsQueueFamilyIndex])); Priorites[GraphicsQueueFamilyIndex].emplace_back(0.5f);
+			const uint32_t PresentQueueIndexInFamily = static_cast<uint32_t>(std::size(Priorites[PresentQueueFamilyIndex])); Priorites[PresentQueueFamilyIndex].emplace_back(0.5f);
 		
 			//!< キュー作成情報 (Queue create information)
 			std::vector<VkDeviceQueueCreateInfo> DQCIs;
-			for (size_t i = 0; i < size(Priorites); ++i) {
+			for (size_t i = 0; i < std::size(Priorites); ++i) {
 				if (!empty(Priorites[i])) {
 					DQCIs.emplace_back(
 						VkDeviceQueueCreateInfo({
@@ -312,10 +312,10 @@ VkSurfaceFormatKHR VK::SelectSurfaceFormat(VkPhysicalDevice PD, VkSurfaceKHR Sfc
 
 	const auto SelectedIndex = [&]() {
 		//!< 要素が 1 つのみで UNDEFINED の場合、制限は無く好きなものを選択できる (If there is only 1 element and which is UNDEFINED, we can choose any)
-		if (1 == size(SFs) && VK_FORMAT_UNDEFINED == SFs[0].format) {
+		if (1 == std::size(SFs) && VK_FORMAT_UNDEFINED == SFs[0].format) {
 			return -1;
 		}
-		for (auto i = 0; i < size(SFs); ++i) {
+		for (auto i = 0; i < std::size(SFs); ++i) {
 			//!< VK_FORMAT_UNDEFINED でない最初のもの
 			if (VK_FORMAT_UNDEFINED != SFs[i].format) {
 				return i;
@@ -462,7 +462,7 @@ void VK::AllocatePrimaryCommandBuffer(const size_t Num)
 		.pNext = nullptr,
 		.commandPool = CP,
 		.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-		.commandBufferCount = static_cast<uint32_t>(size(CommandBuffers))
+		.commandBufferCount = static_cast<uint32_t>(std::size(CommandBuffers))
 	};
 	VERIFY_SUCCEEDED(vkAllocateCommandBuffers(Device, &CBAI, std::data(CommandBuffers)));
 }
@@ -483,7 +483,7 @@ void VK::AllocateSecondaryCommandBuffer(const size_t Num)
 		.pNext = nullptr,
 		.commandPool = SCP,
 		.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY,
-		.commandBufferCount = static_cast<uint32_t>(size(SecondaryCommandBuffers))
+		.commandBufferCount = static_cast<uint32_t>(std::size(SecondaryCommandBuffers))
 	};
 	VERIFY_SUCCEEDED(vkAllocateCommandBuffers(Device, &CBAI, std::data(SecondaryCommandBuffers)));
 }
@@ -691,12 +691,12 @@ void VK::WaitForFence(VkDevice Device, VkFence Fence)
 }
 void VK::SubmitGraphics(const uint32_t i)
 {
-	const std::array WaitSems = { NextImageAcquiredSemaphore };
+	const std::array WaitSems = { NextImageAcquiredSemaphores[i]};
 	const std::array WaitStages = { VkPipelineStageFlags(VK_PIPELINE_STAGE_TRANSFER_BIT) };
 	//!< 実行するコマンドバッファ
 	const std::array CBs = { CommandBuffers[i], };
 	//!< 完了時にシグナルされるセマフォ (RenderFinishedSemaphore) -> これを待ってからプレゼントが行われる
-	const std::array SigSems = { RenderFinishedSemaphore };
+	const std::array SigSems = { RenderFinishedSemaphores[i]};
 	const std::array SIs = {
 		VkSubmitInfo({
 			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -710,11 +710,11 @@ void VK::SubmitGraphics(const uint32_t i)
 }
 void VK::Present() 
 {
-	const std::array WaitSems = { RenderFinishedSemaphore };
+	const std::array WaitSems = { RenderFinishedSemaphores[SwapchainImageIndex] };
 	//!< 同時に複数のプレゼントが可能だが、1つのスワップチェインからは1つのみ
 	const std::array Swapchains = { Swapchain };
 	const std::array ImageIndices = { SwapchainImageIndex };
-	VERIFY(size(Swapchains) == size(ImageIndices));
+	VERIFY(std::size(Swapchains) == std::size(ImageIndices));
 
 	//!< サブミット時に指定したセマフォ(RenderFinishedSemaphore)を待ってからプレゼントが行なわれる
 	const VkPresentInfoKHR PresentInfo = {
@@ -730,7 +730,8 @@ void VK::Draw()
 {
 	WaitForFence(Device, GraphicsFence);
 
-	VERIFY_SUCCEEDED(vkAcquireNextImageKHR(Device, Swapchain, UINT64_MAX, NextImageAcquiredSemaphore, VK_NULL_HANDLE, &SwapchainImageIndex));
+	const auto Index = (SwapchainImageIndex + 1) % std::size(NextImageAcquiredSemaphores);
+	VERIFY_SUCCEEDED(vkAcquireNextImageKHR(Device, Swapchain, UINT64_MAX, NextImageAcquiredSemaphores[Index], VK_NULL_HANDLE, &SwapchainImageIndex));
 	DrawFrame(SwapchainImageIndex);
 	SubmitGraphics(SwapchainImageIndex);
 

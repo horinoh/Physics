@@ -188,14 +188,14 @@ public:
 
 	virtual void CreateCommandList() override {
 		DX::CreateCommandList();
-		DX::CreateBundleCommandList(size(SwapChainBackBuffers));
+		DX::CreateBundleCommandList(std::size(SwapChainBackBuffers));
 	}
 	virtual void CreateGeometry() override {
 		std::vector<Math::Vec3> Vec3s;
 #ifdef USE_MESH
 		Meshes.emplace_back();
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
-		Vec3s.reserve(size(Meshes.back().Vertices));
+		Vec3s.reserve(std::size(Meshes.back().Vertices));
 		for (auto& i : Meshes.back().Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
@@ -236,7 +236,7 @@ public:
 		UploadResource UploadIndex;
 		UploadIndex.Create(COM_PTR_GET(Device), TotalSizeOf(Mesh.Indices), std::data(Mesh.Indices));
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = { 
-			.IndexCountPerInstance = static_cast<UINT32>(size(Mesh.Indices)),
+			.IndexCountPerInstance = static_cast<UINT32>(std::size(Mesh.Indices)),
 			.InstanceCount = _countof(WorldBuffer.Instances0),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
@@ -254,7 +254,7 @@ public:
 		UploadResource UploadIndex_CH;
 		UploadIndex_CH.Create(COM_PTR_GET(Device), TotalSizeOf(Indices_CH), std::data(Indices_CH));
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA_CH = {
-			.IndexCountPerInstance = static_cast<UINT32>(size(Indices_CH)),
+			.IndexCountPerInstance = static_cast<UINT32>(std::size(Indices_CH)),
 			.InstanceCount = _countof(WorldBuffer.Instances0),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
@@ -438,7 +438,7 @@ public:
 		}
 
 		{
-			const auto BackBufferCount = size(SwapChainBackBuffers);
+			const auto BackBufferCount = std::size(SwapChainBackBuffers);
 			const auto DescCount = 2;
 
 			const auto CB0Index = 0;
@@ -588,7 +588,7 @@ public:
 
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
-			for (auto i = 0, i0 = 0, i1 = 0; i < size(Scene->RigidBodies); ++i) {
+			for (auto i = 0, i0 = 0, i1 = 0; i < std::size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances0)) {
 					const auto Rb = Scene->RigidBodies[i].get();
 					const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));

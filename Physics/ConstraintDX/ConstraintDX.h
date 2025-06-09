@@ -240,7 +240,7 @@ public:
 
 	virtual void CreateCommandList() override {
 		DX::CreateCommandList();
-		DX::CreateBundleCommandList(size(SwapChainBackBuffers));
+		DX::CreateBundleCommandList(std::size(SwapChainBackBuffers));
 	}
 	virtual void CreateGeometry() override {
 		const auto CA = COM_PTR_GET(DirectCommandAllocators[0]);
@@ -266,7 +266,7 @@ public:
 		UploadIndex_Box.Create(COM_PTR_GET(Device), TotalSizeOf(Box.Indices), std::data(Box.Indices));
 
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA_Box = {
-			.IndexCountPerInstance = static_cast<UINT32>(size(Box.Indices)),
+			.IndexCountPerInstance = static_cast<UINT32>(std::size(Box.Indices)),
 			.InstanceCount = _countof(WorldBuffer.Instances0),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
@@ -290,7 +290,7 @@ public:
 		UploadIndex_Sphere.Create(COM_PTR_GET(Device), TotalSizeOf(Sphere.Indices), std::data(Sphere.Indices));
 
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA_Sphere = {
-			.IndexCountPerInstance = static_cast<UINT32>(size(Sphere.Indices)),
+			.IndexCountPerInstance = static_cast<UINT32>(std::size(Sphere.Indices)),
 			.InstanceCount = _countof(WorldBuffer.Instances1),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
@@ -346,7 +346,7 @@ public:
 			{
 				D3D12_ROOT_PARAMETER1({
 					.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-					.DescriptorTable = D3D12_ROOT_DESCRIPTOR_TABLE1({.NumDescriptorRanges = static_cast<UINT>(size(DRs)), .pDescriptorRanges = std::data(DRs) }),
+					.DescriptorTable = D3D12_ROOT_DESCRIPTOR_TABLE1({.NumDescriptorRanges = static_cast<UINT>(std::size(DRs)), .pDescriptorRanges = std::data(DRs) }),
 					.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
 				}),
 			},
@@ -411,7 +411,7 @@ public:
 		}
 
 		{
-			const auto BackBufferCount = size(SwapChainBackBuffers);
+			const auto BackBufferCount = std::size(SwapChainBackBuffers);
 			const auto DescCount = 2;
 
 			const auto CB0Index = 0;
@@ -502,8 +502,8 @@ public:
 				const auto& HandleDSV = DsvDescs[0].second;
 
 				constexpr std::array<D3D12_RECT, 0> Rects = {};
-				DCL->ClearRenderTargetView(SwapChainBackBuffers[i].Handle, DirectX::Colors::SkyBlue, static_cast<UINT>(size(Rects)), std::data(Rects));
-				DCL->ClearDepthStencilView(HandleDSV[0], D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, static_cast<UINT>(size(Rects)), std::data(Rects));
+				DCL->ClearRenderTargetView(SwapChainBackBuffers[i].Handle, DirectX::Colors::SkyBlue, static_cast<UINT>(std::size(Rects)), std::data(Rects));
+				DCL->ClearDepthStencilView(HandleDSV[0], D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, static_cast<UINT>(std::size(Rects)), std::data(Rects));
 
 				const std::array CHs = { SwapChainBackBuffers[i].Handle };
 				DCL->OMSetRenderTargets(static_cast<UINT>(std::size(CHs)), std::data(CHs), FALSE, &HandleDSV[0]);
@@ -528,7 +528,7 @@ public:
 
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
-			for (auto i = 0, i0 = 0, i1 = 0; i < size(Scene->RigidBodies); ++i) {
+			for (auto i = 0, i0 = 0, i1 = 0; i < std::size(Scene->RigidBodies); ++i) {
 				const auto Rb = Scene->RigidBodies[i].get();
 				const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
 				const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));

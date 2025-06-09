@@ -186,7 +186,7 @@ public:
 
 	virtual void AllocateCommandBuffer() override {
 		VK::AllocateCommandBuffer();
-		VK::AllocateSecondaryCommandBuffer(size(SwapchainBackBuffers));
+		VK::AllocateSecondaryCommandBuffer(std::size(SwapchainBackBuffers));
 	}
 
 	virtual void CreateGeometry() override {
@@ -352,7 +352,7 @@ public:
 		for (auto i : SMs_CP) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
 	}
 	virtual void CreateDescriptor() override {
-		const auto BackBufferCount = static_cast<uint32_t>(size(SwapchainBackBuffers));
+		const auto BackBufferCount = static_cast<uint32_t>(std::size(SwapchainBackBuffers));
 		const auto DescCount = 2;
 
 		const auto UB0Index = 0;

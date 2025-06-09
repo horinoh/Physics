@@ -17,7 +17,7 @@ namespace Math
 		}
 
 		inline static Quat Identity() { return { 0.0f, 0.0f, 0.0f, 1.0f }; }
-		inline static Mat4 ToLMat4(const Quat& rhs) {
+		inline static Mat4 ToLeftMat4(const Quat& rhs) {
 			return {
 				{ rhs.W(), -rhs.Z(), rhs.Y(), rhs.X() },
 				{ rhs.Z(), rhs.W(), -rhs.X(), rhs.Y() },
@@ -25,7 +25,7 @@ namespace Math
 				{ -rhs.X(), -rhs.Y(), -rhs.Z(), rhs.W() },
 			};
 		}
-		inline static Mat4 ToRMat4(const Quat& rhs) {
+		inline static Mat4 ToRightMat4(const Quat& rhs) {
 			return {
 				{ rhs.W(), rhs.Z(), -rhs.Y(), rhs.X() },
 				{ -rhs.Z(), rhs.W(), rhs.X(), rhs.Y() },
@@ -74,8 +74,8 @@ namespace Math
 		inline Mat3 ToMat3() const { return static_cast<Mat3>(*this); }
 	
 		//!< A * B = L(A) * B = R(B) * A ‚Æ‚È‚é‚æ‚¤‚È 4x4 s—ñ
-		inline Mat4 ToLMat4() const { return ToLMat4(*this); }
-		inline Mat4 ToRMat4() const { return ToRMat4(*this); }
+		inline Mat4 ToLeftMat4() const { return ToLeftMat4(*this); }
+		inline Mat4 ToRightMat4() const { return ToRightMat4(*this); }
 
 		inline float Dot(const Quat& rhs) const {
 			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);

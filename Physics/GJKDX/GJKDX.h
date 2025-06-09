@@ -205,7 +205,7 @@ public:
 
 	virtual void CreateCommandList() override {
 		DX::CreateCommandList();
-		DX::CreateBundleCommandList(size(SwapChainBackBuffers));
+		DX::CreateBundleCommandList(std::size(SwapChainBackBuffers));
 	}
 	virtual void CreateGeometry() override {
 		std::vector<Math::Vec3> Vec3s;
@@ -213,7 +213,7 @@ public:
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
 		//Load(GLTF_PATH / "Avocado" / "glTF-Binary" / "Avocado.glb");
 		//Load(ASSET_PATH / "bunny4.glb");
-		Vec3s.reserve(size(Vertices));
+		Vec3s.reserve(std::size(Vertices));
 		for (auto& i : Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
@@ -256,7 +256,7 @@ public:
 		UploadResource UploadIndex;
 		UploadIndex.Create(COM_PTR_GET(Device), TotalSizeOf(Indices), std::data(Indices));
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = {
-			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)),
+			.IndexCountPerInstance = static_cast<UINT32>(std::size(Indices)),
 			.InstanceCount = _countof(WorldBuffer.Instances),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
@@ -445,7 +445,7 @@ public:
 		}
 
 		{
-			const auto BackBufferCount = size(SwapChainBackBuffers);
+			const auto BackBufferCount = std::size(SwapChainBackBuffers);
 			const auto DescCount = 2;
 
 			const auto CB0Index = 0;
@@ -575,7 +575,7 @@ public:
 
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
+			for (auto i = 0; i < std::size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances)) {
 					const auto Rb = Scene->RigidBodies[i].get();
 					const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
@@ -584,7 +584,7 @@ public:
 					DirectX::XMStoreFloat4x4(&WorldBuffer.Instances[i].World, DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 				}
 			}
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
+			for (auto i = 0; i < std::size(Scene->RigidBodies); ++i) {
 				WorldBuffer.Instances[i].Color = { 1.0f, 1.0f, 1.0f };
 				WorldBuffer.Instances[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
 			}

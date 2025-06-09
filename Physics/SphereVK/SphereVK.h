@@ -187,7 +187,7 @@ public:
 
 	virtual void AllocateCommandBuffer() override {
 		VK::AllocateCommandBuffer();
-		VK::AllocateSecondaryCommandBuffer(size(SwapchainBackBuffers));
+		VK::AllocateSecondaryCommandBuffer(std::size(SwapchainBackBuffers));
 	}
 
 	virtual void CreateGeometry() override {
@@ -209,7 +209,7 @@ public:
 		StagingIndex.Create(Device, PDMP, TotalSizeOf(Indices), std::data(Indices));
 
 		const VkDrawIndexedIndirectCommand DIIC = {
-			.indexCount = static_cast<uint32_t>(size(Indices)), 
+			.indexCount = static_cast<uint32_t>(std::size(Indices)), 
 			.instanceCount = _countof(WorldBuffer.Instances),
 			.firstIndex = 0, 
 			.vertexOffset = 0, 
@@ -300,7 +300,7 @@ public:
 		for (auto i : SMs) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
 	}
 	virtual void CreateDescriptor() override {
-		const auto BackBufferCount = static_cast<uint32_t>(size(SwapchainBackBuffers));
+		const auto BackBufferCount = static_cast<uint32_t>(std::size(SwapchainBackBuffers));
 		const auto DescCount = 2;
 
 		const auto UB0Index = 0;
@@ -426,7 +426,7 @@ public:
 
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
+			for (auto i = 0; i < std::size(Scene->RigidBodies); ++i) {
 				const auto Rb = Scene->RigidBodies[i].get();
 				const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 				const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));

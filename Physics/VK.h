@@ -68,8 +68,8 @@ public:
 		SelectPhysicalDevice(Instance);
 		CreateDevice(hWnd, hInstance);
 		CreateFence(Device);
-		CreateSemaphore(Device);
 		CreateSwapchain();
+		CreateSemaphore(Device);
 		AllocateCommandBuffer();
 		CreateGeometry();
 		CreateUniformBuffer();
@@ -94,7 +94,7 @@ public:
 			const auto W = Rect.right - Rect.left, H = Rect.bottom - Rect.top;
 			CreateViewport(static_cast<const FLOAT>(W), static_cast<const FLOAT>(H));
 
-			for (auto i = 0; i < size(CommandBuffers); ++i) {
+			for (auto i = 0; i < std::size(CommandBuffers); ++i) {
 				PopulateSecondaryCommandBuffer(i);
 				PopulateCommandBuffer(i);
 			}
@@ -131,8 +131,10 @@ public:
 			.pNext = nullptr,
 			.flags = 0
 		};
-		VERIFY_SUCCEEDED(vkCreateSemaphore(Dev, &SCI, GetAllocationCallbacks(), &NextImageAcquiredSemaphore));
-		VERIFY_SUCCEEDED(vkCreateSemaphore(Dev, &SCI, GetAllocationCallbacks(), &RenderFinishedSemaphore));
+		for(auto i=0; i < std::size(SwapchainBackBuffers); ++i) {
+			VERIFY_SUCCEEDED(vkCreateSemaphore(Dev, &SCI, GetAllocationCallbacks(), &NextImageAcquiredSemaphores.emplace_back()));
+			VERIFY_SUCCEEDED(vkCreateSemaphore(Dev, &SCI, GetAllocationCallbacks(), &RenderFinishedSemaphores.emplace_back()));
+		}
 	}
 
 	[[nodiscard]] virtual VkSurfaceFormatKHR SelectSurfaceFormat(VkPhysicalDevice PD, VkSurfaceKHR Surface);
@@ -145,9 +147,9 @@ public:
 	}
 
 	void AllocatePrimaryCommandBuffer(const size_t Num);
-	virtual void AllocatePrimaryCommandBuffer() { AllocatePrimaryCommandBuffer(size(SwapchainBackBuffers)); }
+	virtual void AllocatePrimaryCommandBuffer() { AllocatePrimaryCommandBuffer(std::size(SwapchainBackBuffers)); }
 	void AllocateSecondaryCommandBuffer(const size_t Num);
-	virtual void AllocateSecondaryCommandBuffer() { AllocateSecondaryCommandBuffer(size(SwapchainBackBuffers)); }
+	virtual void AllocateSecondaryCommandBuffer() { AllocateSecondaryCommandBuffer(std::size(SwapchainBackBuffers)); }
 	virtual void AllocateCommandBuffer() {
 		AllocatePrimaryCommandBuffer();
 		AllocateSecondaryCommandBuffer();
@@ -198,7 +200,7 @@ public:
 			if (Size) {
 				In.seekg(0, std::ios_base::beg);
 				std::vector<std::byte> Code(Size);
-				In.read(reinterpret_cast<char*>(std::data(Code)), size(Code));
+				In.read(reinterpret_cast<char*>(std::data(Code)), std::size(Code));
 				const VkShaderModuleCreateInfo SMCI = {
 					.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
 					.pNext = nullptr,
@@ -480,7 +482,7 @@ protected:
 		constexpr std::array<VkAttachmentReference, 0> InPreAtts = {};
 		constexpr std::array ColAtts = { VkAttachmentReference({.attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL }), };
 		constexpr std::array ResAtts = { VkAttachmentReference({.attachment = VK_ATTACHMENT_UNUSED, .layout = VK_IMAGE_LAYOUT_UNDEFINED }), };
-		assert(size(ColAtts) == size(ResAtts) && "");
+		assert(std::size(ColAtts) == std::size(ResAtts) && "");
 		constexpr std::array<uint32_t, 0> PreAtts = {};
 		VK::CreateRenderPass(RenderPasses.emplace_back(), 
 			{
@@ -938,14 +940,14 @@ protected:
 	uint32_t PresentQueueFamilyIndex = UINT32_MAX;
 	
 	VkFence GraphicsFence = VK_NULL_HANDLE;
-	VkSemaphore NextImageAcquiredSemaphore = VK_NULL_HANDLE;
-	VkSemaphore RenderFinishedSemaphore = VK_NULL_HANDLE;
+	std::vector<VkSemaphore> NextImageAcquiredSemaphores;
+	std::vector<VkSemaphore> RenderFinishedSemaphores;
 
 	VkExtent2D SurfaceExtent2D;
 	VkFormat ColorFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
 	VkSwapchainKHR Swapchain = VK_NULL_HANDLE;
-	uint32_t SwapchainImageIndex = 0;
+	uint32_t SwapchainImageIndex = (std::numeric_limits<uint32_t>::max)();
 	struct SwapchainBackBuffer
 	{
 		SwapchainBackBuffer(VkImage Img) { Image = Img; }

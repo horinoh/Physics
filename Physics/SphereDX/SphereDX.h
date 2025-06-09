@@ -184,7 +184,7 @@ public:
 
 	virtual void CreateCommandList() override {
 		DX::CreateCommandList();
-		DX::CreateBundleCommandList(size(SwapChainBackBuffers));
+		DX::CreateBundleCommandList(std::size(SwapChainBackBuffers));
 	}
 	virtual void CreateGeometry() override {
 		Load(ASSET_PATH / "Sphere.glb");
@@ -206,7 +206,7 @@ public:
 		UploadIndex.Create(COM_PTR_GET(Device), TotalSizeOf(Indices), std::data(Indices));
 
 		const D3D12_DRAW_INDEXED_ARGUMENTS DIA = {
-			.IndexCountPerInstance = static_cast<UINT32>(size(Indices)),
+			.IndexCountPerInstance = static_cast<UINT32>(std::size(Indices)),
 			.InstanceCount = _countof(WorldBuffer.Instances),
 			.StartIndexLocation = 0,
 			.BaseVertexLocation = 0,
@@ -256,7 +256,7 @@ public:
 			{
 				D3D12_ROOT_PARAMETER1({
 					.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-					.DescriptorTable = D3D12_ROOT_DESCRIPTOR_TABLE1({.NumDescriptorRanges = static_cast<UINT>(size(DRs)), .pDescriptorRanges = std::data(DRs) }),
+					.DescriptorTable = D3D12_ROOT_DESCRIPTOR_TABLE1({.NumDescriptorRanges = static_cast<UINT>(std::size(DRs)), .pDescriptorRanges = std::data(DRs) }),
 					.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
 				}),
 			},
@@ -311,7 +311,7 @@ public:
 		}
 
 		{
-			const auto BackBufferCount = size(SwapChainBackBuffers);
+			const auto BackBufferCount = std::size(SwapChainBackBuffers);
 			const auto DescCount = 2;
 
 			const auto CB0Index = 0;
@@ -368,7 +368,7 @@ public:
 			BCL->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 			const std::array VBVs = { VertexBuffers[0].View, VertexBuffers[1].View };
-			BCL->IASetVertexBuffers(0, static_cast<UINT>(size(VBVs)), std::data(VBVs));
+			BCL->IASetVertexBuffers(0, static_cast<UINT>(std::size(VBVs)), std::data(VBVs));
 			BCL->IASetIndexBuffer(&IndexBuffers[0].View);
 			BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
 		}

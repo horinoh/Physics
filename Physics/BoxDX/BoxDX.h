@@ -304,7 +304,7 @@ public:
 		}
 
 		{
-			const auto BackBufferCount = size(SwapChainBackBuffers);
+			const auto BackBufferCount = std::size(SwapChainBackBuffers);
 			const auto DescCount = 2;
 
 			const auto CB0Index = 0;
@@ -411,7 +411,7 @@ public:
 
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
+			for (auto i = 0; i < std::size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances)) {
 					const auto Rb = Scene->RigidBodies[i].get();
 					if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::BOX) {

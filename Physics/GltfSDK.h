@@ -154,7 +154,7 @@ namespace Gltf {
 						//!< 埋め込まれていないとこの取り方はできない？
 						//{
 						//	const auto Data = ResourceReader->ReadBinaryData<uint16_t>(Document, Accessor);
-						//	assert(Accessor.count == size(Data) && "");
+						//	assert(Accessor.count == std::size(Data) && "");
 						//}
 						break;
 					default: break;
@@ -167,7 +167,7 @@ namespace Gltf {
 						//!< 埋め込まれていないとこの取り方はできない？
 						//{
 						//	const auto Data = ResourceReader->ReadBinaryData<uint32_t>(Document, Accessor);
-						//	assert(Accessor.count == size(Data) && "");
+						//	assert(Accessor.count == std::size(Data) && "");
 						//}
 						break;
 					default: break;
@@ -181,12 +181,12 @@ namespace Gltf {
 			}
 
 			//!< バーテックス
-			if (size(Primitive.attributes)) {
+			if (std::size(Primitive.attributes)) {
 				for (const auto& i : Primitive.attributes) {
 					Process(Document.accessors.Get(i.second), i.first);
 				}
 			}
-			if (size(Primitive.targets)) {
+			if (std::size(Primitive.targets)) {
 				std::cout << "\tMorphTarget" << std::endl;
 				for (const auto& i : Primitive.targets) {
 					if (Document.accessors.Has(i.positionsAccessorId)) {

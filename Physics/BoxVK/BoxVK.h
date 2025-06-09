@@ -177,7 +177,7 @@ public:
 
 	virtual void AllocateCommandBuffer() override {
 		VK::AllocateCommandBuffer();
-		VK::AllocateSecondaryCommandBuffer(size(SwapchainBackBuffers));
+		VK::AllocateSecondaryCommandBuffer(std::size(SwapchainBackBuffers));
 	}
 
 	virtual void CreateGeometry() override {
@@ -199,7 +199,7 @@ public:
 		StagingIndex.Create(Device, PDMP, TotalSizeOf(Indices), std::data(Indices));
 
 		const VkDrawIndexedIndirectCommand DIIC = {
-			.indexCount = static_cast<uint32_t>(size(Indices)),
+			.indexCount = static_cast<uint32_t>(std::size(Indices)),
 			.instanceCount = _countof(WorldBuffer.Instances),
 			.firstIndex = 0,
 			.vertexOffset = 0,
@@ -290,7 +290,7 @@ public:
 		for (auto i : SMs) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
 	}
 	virtual void CreateDescriptor() override {
-		const auto BackBufferCount = static_cast<uint32_t>(size(SwapchainBackBuffers));
+		const auto BackBufferCount = static_cast<uint32_t>(std::size(SwapchainBackBuffers));
 		const auto DescCount = 2;
 
 		const auto UB0Index = 0;
@@ -405,7 +405,7 @@ public:
 				.renderPass = RP,
 				.framebuffer = FB,
 				.renderArea = VkRect2D({.offset = VkOffset2D({.x = 0, .y = 0 }), .extent = SurfaceExtent2D }),
-				.clearValueCount = static_cast<uint32_t>(size(CVs)), .pClearValues = std::data(CVs)
+				.clearValueCount = static_cast<uint32_t>(std::size(CVs)), .pClearValues = std::data(CVs)
 			};
 			vkCmdBeginRenderPass(CB, &RPBI, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS); {
 				const std::array SCBs = { SCB };
@@ -416,7 +416,7 @@ public:
 
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
+			for (auto i = 0; i < std::size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances)) {
 					const auto Rb = Scene->RigidBodies[i].get();
 					if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::BOX) {

@@ -196,7 +196,7 @@ public:
 #ifdef USE_MESH
 		Meshes.emplace_back();
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
-		Vec3s.reserve(size(Meshes.back().Vertices));
+		Vec3s.reserve(std::size(Meshes.back().Vertices));
 		for (auto& i : Meshes.back().Vertices) { Vec3s.emplace_back(Math::Vec3({i.x, i.y, i.z})); }
 #else
 		//!< ダイアモンド形状
@@ -235,7 +235,7 @@ public:
 		VK::Scoped<StagingBuffer> StagingIndex(Device);
 		StagingIndex.Create(Device, PDMP, TotalSizeOf(Mesh.Indices), std::data(Mesh.Indices));
 		const VkDrawIndexedIndirectCommand DIIC = { 
-			.indexCount = static_cast<uint32_t>(size(Mesh.Indices)),
+			.indexCount = static_cast<uint32_t>(std::size(Mesh.Indices)),
 			.instanceCount = _countof(WorldBuffer.Instances0),
 			.firstIndex = 0, 
 			.vertexOffset = 0, 
@@ -253,7 +253,7 @@ public:
 		VK::Scoped<StagingBuffer> StagingIndex_CH(Device);
 		StagingIndex_CH.Create(Device, PDMP, TotalSizeOf(Indices_CH), std::data(Indices_CH));
 		const VkDrawIndexedIndirectCommand DIIC_CH = { 
-			.indexCount = static_cast<uint32_t>(size(Indices_CH)), 
+			.indexCount = static_cast<uint32_t>(std::size(Indices_CH)), 
 			.instanceCount = _countof(WorldBuffer.Instances0),
 			.firstIndex = 0, 
 			.vertexOffset = 0, 
@@ -278,7 +278,7 @@ public:
 		VK::Scoped<StagingBuffer> StagingIndex_FLR(Device);
 		StagingIndex_FLR.Create(Device, PDMP, TotalSizeOf(Floor.Indices), std::data(Floor.Indices));
 		const VkDrawIndexedIndirectCommand DIIC_FLR = {
-			.indexCount = static_cast<uint32_t>(size(Floor.Indices)),
+			.indexCount = static_cast<uint32_t>(std::size(Floor.Indices)),
 			.instanceCount = _countof(WorldBuffer.Instances1),
 			.firstIndex = 0,
 			.vertexOffset = 0,
@@ -434,7 +434,7 @@ public:
 		for (auto i : SMs_FLR) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
 	}
 	virtual void CreateDescriptor() override {
-		const auto BackBufferCount = static_cast<uint32_t>(size(SwapchainBackBuffers));
+		const auto BackBufferCount = static_cast<uint32_t>(std::size(SwapchainBackBuffers));
 		const auto DescCount = 2;
 
 		const auto UB0Index = 0;
@@ -606,7 +606,7 @@ public:
 
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
-			for (auto i = 0, i0 = 0, i1 = 0; i < size(Scene->RigidBodies); ++i) {
+			for (auto i = 0, i0 = 0, i1 = 0; i < std::size(Scene->RigidBodies); ++i) {
 				const auto Rb = Scene->RigidBodies[i].get();
 				const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 				const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));

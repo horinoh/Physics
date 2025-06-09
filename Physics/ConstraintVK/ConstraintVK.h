@@ -240,7 +240,7 @@ public:
 
 	virtual void AllocateCommandBuffer() override {
 		VK::AllocateCommandBuffer();
-		VK::AllocateSecondaryCommandBuffer(size(SwapchainBackBuffers));
+		VK::AllocateSecondaryCommandBuffer(std::size(SwapchainBackBuffers));
 	}
 
 	virtual void CreateGeometry() override {
@@ -266,7 +266,7 @@ public:
 		StagingIndex_Box.Create(Device, PDMP, TotalSizeOf(Box.Indices), std::data(Box.Indices));
 
 		const VkDrawIndexedIndirectCommand DIIC_Box = {
-			.indexCount = static_cast<uint32_t>(size(Box.Indices)),
+			.indexCount = static_cast<uint32_t>(std::size(Box.Indices)),
 			.instanceCount = _countof(WorldBuffer.Instances0),
 			.firstIndex = 0,
 			.vertexOffset = 0,
@@ -290,7 +290,7 @@ public:
 		StagingIndex_Sphere.Create(Device, PDMP, TotalSizeOf(Sphere.Indices), std::data(Sphere.Indices));
 
 		const VkDrawIndexedIndirectCommand DIIC_Sphere = {
-			.indexCount = static_cast<uint32_t>(size(Sphere.Indices)),
+			.indexCount = static_cast<uint32_t>(std::size(Sphere.Indices)),
 			.instanceCount = _countof(WorldBuffer.Instances1),
 			.firstIndex = 0,
 			.vertexOffset = 0,
@@ -398,7 +398,7 @@ public:
 		for (auto i : SMs) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
 	}
 	virtual void CreateDescriptor() override {
-		const auto BackBufferCount = static_cast<uint32_t>(size(SwapchainBackBuffers));
+		const auto BackBufferCount = static_cast<uint32_t>(std::size(SwapchainBackBuffers));
 		const auto DescCount = 2;
 
 		const auto UB0Index = 0;
@@ -480,7 +480,7 @@ public:
 
 			const std::array DSs = { DS };
 			const std::array<uint32_t, 0> DynamicOffsets = {};
-			vkCmdBindDescriptorSets(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PLL, 0, static_cast<uint32_t>(size(DSs)), std::data(DSs), static_cast<uint32_t>(std::size(DynamicOffsets)), std::data(DynamicOffsets));
+			vkCmdBindDescriptorSets(SCB, VK_PIPELINE_BIND_POINT_GRAPHICS, PLL, 0, static_cast<uint32_t>(std::size(DSs)), std::data(DSs), static_cast<uint32_t>(std::size(DynamicOffsets)), std::data(DynamicOffsets));
 
 			const std::array Offsets = { VkDeviceSize(0) };
 
@@ -536,7 +536,7 @@ public:
 
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
-			for (auto i = 0, i0 = 0, i1 = 0; i < size(Scene->RigidBodies); ++i) {
+			for (auto i = 0, i0 = 0, i1 = 0; i < std::size(Scene->RigidBodies); ++i) {
 				const auto Rb = Scene->RigidBodies[i].get();
 				const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
 				const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));

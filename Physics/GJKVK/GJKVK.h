@@ -183,7 +183,7 @@ public:
 		while (RotY > 360.0f) { RotY -= 360.0f; }
 
 		if (nullptr != Scene) {
-			if (0 < size(Scene->RigidBodies)) {
+			if (0 < std::size(Scene->RigidBodies)) {
 				const auto Rb = Scene->RigidBodies[0].get();
 
 				Rb->Position = Math::Vec3(
@@ -205,7 +205,7 @@ public:
 
 	virtual void AllocateCommandBuffer() override {
 		VK::AllocateCommandBuffer();
-		VK::AllocateSecondaryCommandBuffer(size(SwapchainBackBuffers));
+		VK::AllocateSecondaryCommandBuffer(std::size(SwapchainBackBuffers));
 	}
 
 	virtual void CreateGeometry() override {
@@ -214,7 +214,7 @@ public:
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
 		//Load(GLTF_PATH / "Avocado" / "glTF-Binary" / "Avocado.glb");
 		//Load(ASSET_PATH / "bunny4.glb");
-		Vec3s.reserve(size(Vertices));
+		Vec3s.reserve(std::size(Vertices));
 		for (auto& i : Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
@@ -255,7 +255,7 @@ public:
 		VK::Scoped<StagingBuffer> StagingIndex(Device);
 		StagingIndex.Create(Device, PDMP, TotalSizeOf(Indices), std::data(Indices));
 		const VkDrawIndexedIndirectCommand DIIC = {
-			.indexCount = static_cast<uint32_t>(size(Indices)),
+			.indexCount = static_cast<uint32_t>(std::size(Indices)),
 			.instanceCount = _countof(WorldBuffer.Instances),
 			.firstIndex = 0,
 			.vertexOffset = 0,
@@ -273,7 +273,7 @@ public:
 		VK::Scoped<StagingBuffer> StagingIndex_CH(Device);
 		StagingIndex_CH.Create(Device, PDMP, TotalSizeOf(Indices_CH), std::data(Indices_CH));
 		const VkDrawIndexedIndirectCommand DIIC_CH = {
-			.indexCount = static_cast<uint32_t>(size(Indices_CH)),
+			.indexCount = static_cast<uint32_t>(std::size(Indices_CH)),
 			.instanceCount = _countof(WorldBuffer.Instances),
 			.firstIndex = 0,
 			.vertexOffset = 0,
@@ -448,7 +448,7 @@ public:
 		for (auto i : SMs_CP) { vkDestroyShaderModule(Device, i, GetAllocationCallbacks()); }
 	}
 	virtual void CreateDescriptor() override {
-		const auto BackBufferCount = static_cast<uint32_t>(size(SwapchainBackBuffers));
+		const auto BackBufferCount = static_cast<uint32_t>(std::size(SwapchainBackBuffers));
 		const auto DescCount = 2;
 
 		const auto UB0Index = 0;
@@ -596,7 +596,7 @@ public:
 
 	virtual void UpdateWorldBuffer() {
 		if (nullptr != Scene) {
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
+			for (auto i = 0; i < std::size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances)) {
 					const auto Rb = Scene->RigidBodies[i].get();
 					const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
@@ -605,7 +605,7 @@ public:
 					WorldBuffer.Instances[i].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
 				}
 			}
-			for (auto i = 0; i < size(Scene->RigidBodies); ++i) {
+			for (auto i = 0; i < std::size(Scene->RigidBodies); ++i) {
 				WorldBuffer.Instances[i].Color = { 1.0f, 1.0f, 1.0f };
 				WorldBuffer.Instances[i].ClosestPoint = { 0.0f, 0.0f, 0.0f };
 			}

@@ -78,7 +78,7 @@ public:
 			const auto W = Rect.right - Rect.left, H = Rect.bottom - Rect.top;
 			CreateViewport(static_cast<const FLOAT>(W), static_cast<const FLOAT>(H));
 
-			for (auto i = 0; i < size(DirectCommandLists); ++i) {
+			for (auto i = 0; i < std::size(DirectCommandLists); ++i) {
 				PopulateBundleCommandList(i);
 				PopulateCommandList(i);
 			}
@@ -108,9 +108,9 @@ public:
 	}
 
 	void CreateDirectCommandList(const size_t Num);
-	virtual void CreateDirectCommandList() { CreateDirectCommandList(size(SwapChainBackBuffers)); }
+	virtual void CreateDirectCommandList() { CreateDirectCommandList(std::size(SwapChainBackBuffers)); }
 	void CreateBundleCommandList(const size_t Num);
-	virtual void CreateBundleCommandList() { CreateBundleCommandList(size(SwapChainBackBuffers)); }
+	virtual void CreateBundleCommandList() { CreateBundleCommandList(std::size(SwapChainBackBuffers)); }
 	virtual void CreateCommandList() {
 		CreateDirectCommandList();
 		CreateBundleCommandList();
@@ -198,7 +198,7 @@ protected:
 
 		BYTE* Data;
 		VERIFY_SUCCEEDED((*Resource)->Map(0, nullptr, reinterpret_cast<void**>(&Data))); {
-			for (auto i = 0; i < size(PSFs); ++i) {
+			for (auto i = 0; i < std::size(PSFs); ++i) {
 				const auto NR = NumRows[i];
 				const auto RSIB = RowSizeInBytes[i];
 				const D3D12_MEMCPY_DEST MCD = {
