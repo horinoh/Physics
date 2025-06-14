@@ -20,7 +20,10 @@ namespace Math
 		inline static Mat2 Zero() { return { Vec2::Zero(), Vec2::Zero() }; }
 
 		inline bool NearlyEqual(const Mat2& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { 
-			return std::ranges::equal(Rows, rhs.Rows, [&](const Vec2& l, const Vec2& r) { return l.NearlyEqual(r, Epsilon); });
+			return std::ranges::equal(Rows, rhs.Rows, 
+				[&](const Vec2& l, const Vec2& r) {
+					return l.NearlyEqual(r, Epsilon); 
+				});
 		}
 
 		inline bool operator==(const Mat2& rhs) const {
@@ -99,7 +102,9 @@ namespace Math
 		inline Mat2& ToZero() { return (*this = Zero()); }
 		inline Mat2& ToIdentity() { return (*this = Identity()); }
 
-		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f})\n", Rows[0].X(), Rows[0].Y(), Rows[1].X(), Rows[1].Y()); }
+		inline std::string ToString() const { 
+			return std::format("({:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f})\n", Rows[0].X(), Rows[0].Y(), Rows[1].X(), Rows[1].Y());
+		}
 
 	private:
 		std::array<Vec2, 2> Rows = { Vec2::AxisX(), Vec2::AxisY() };
@@ -116,7 +121,10 @@ namespace Math
 		inline static Mat3 Zero() { return { Vec3::Zero(), Vec3::Zero(), Vec3::Zero() }; }
 
 		inline bool NearlyEqual(const Mat3& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { 
-			return std::ranges::equal(Rows, rhs.Rows, [&](const Vec3& l, const Vec3& r) { return l.NearlyEqual(r, Epsilon); });
+			return std::ranges::equal(Rows, rhs.Rows,
+				[&](const Vec3& l, const Vec3& r) { 
+					return l.NearlyEqual(r, Epsilon); 
+				});
 		}
 
 		inline bool operator==(const Mat3& rhs) const { 
@@ -248,7 +256,9 @@ namespace Math
 		inline Mat3& ToZero() { return (*this = Zero()); }
 		inline Mat3& ToIdentity() { return (*this = Identity()); }
 
-		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f})\n", Rows[0].X(), Rows[0].Y(), Rows[0].Z(), Rows[1].X(), Rows[1].Y(), Rows[1].Z(), Rows[2].X(), Rows[2].Y(), Rows[2].Z()); }
+		inline std::string ToString() const { 
+			return std::format("({:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f})\n", Rows[0].X(), Rows[0].Y(), Rows[0].Z(), Rows[1].X(), Rows[1].Y(), Rows[1].Z(), Rows[2].X(), Rows[2].Y(), Rows[2].Z());
+		}
 
 	private:
 		std::array<Vec3, 3> Rows = { Vec3::AxisX(), Vec3::AxisY(), Vec3::AxisZ() };
@@ -265,7 +275,10 @@ namespace Math
 		inline static Mat4 Zero() { return { Vec4::Zero(), Vec4::Zero(), Vec4::Zero(), Vec4::Zero() }; }
 
 		inline bool NearlyEqual(const Mat4& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { 
-			return std::ranges::equal(Rows, rhs.Rows, [&](const Vec4& l, const Vec4& r) { return l.NearlyEqual(r, Epsilon); });
+			return std::ranges::equal(Rows, rhs.Rows, 
+				[&](const Vec4& l, const Vec4& r) {
+					return l.NearlyEqual(r, Epsilon); 
+				});
 		}
 
 		inline bool operator==(const Mat4& rhs) const { 
@@ -393,7 +406,9 @@ namespace Math
 		inline Mat4& ToZero() { return (*this = Zero()); }
 		inline Mat4& ToIdentity() { return (*this = Identity()); }
 
-		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n", Rows[0].X(), Rows[0].Y(), Rows[0].Z(), Rows[0].W(), Rows[1].X(), Rows[1].Y(), Rows[1].Z(), Rows[1].W(), Rows[2].X(), Rows[2].Y(), Rows[2].Z(), Rows[2].W(), Rows[3].X(), Rows[3].Y(), Rows[3].Z(), Rows[3].W()); }
+		inline std::string ToString() const {
+			return std::format("({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n", Rows[0].X(), Rows[0].Y(), Rows[0].Z(), Rows[0].W(), Rows[1].X(), Rows[1].Y(), Rows[1].Z(), Rows[1].W(), Rows[2].X(), Rows[2].Y(), Rows[2].Z(), Rows[2].W(), Rows[3].X(), Rows[3].Y(), Rows[3].Z(), Rows[3].W()); 
+		}
 
 	private:
 		std::array<Vec4, 4> Rows = { Vec4::AxisX() , Vec4::AxisY(), Vec4::AxisZ(), Vec4::AxisW() };
@@ -423,7 +438,10 @@ namespace Math
 		inline static Mat Zero() { return Mat(); }
 
 		inline bool NearlyEqual(const Mat& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
-			return std::ranges::equal(Rows, rhs.Rows, [&](const Vec4& l, const Vec4& r) { return l.NearlyEqual(r, Epsilon); });
+			return std::ranges::equal(Rows, rhs.Rows,
+				[&](const Vec4& l, const Vec4& r) { 
+					return l.NearlyEqual(r, Epsilon);
+				});
 		}
 
 		inline bool operator==(const Mat& rhs) const {

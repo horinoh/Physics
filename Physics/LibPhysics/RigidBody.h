@@ -37,14 +37,9 @@ namespace Physics
 		[[nodiscard]] Math::Mat3 GetWorldSpaceInverseInertiaTensor() const { return ToWorld(InvInertiaTensor); }
 
 		void ApplyGravity(const float DeltaSec) {
-#if 1
 			if (0.0f != InvMass) {
 				LinearVelocity += Graivity * DeltaSec;				
 			}
-#else
-			//!< ^–Ê–Ú‚É‚â‚é‚Æ‚±‚¤‚¾‚ªAŒvŽZ—Ê‚ª‘‚¦‚é‚¾‚¯
-			ApplyLinearImpulse(Graivity * DeltaSec / InvMass);
-#endif
 		}
 		void ApplyLinearImpulse(const Math::Vec3& Impulse) {
 			if (0.0f != InvMass) {

@@ -17,8 +17,6 @@ namespace Physics
 	{
 	public:
 		using CollidablePair = std::pair<int, int>;
-
-		//virtual ~Scene() { for (auto& i : RigidBodies) { i.reset(); } }
 	
 		//!< BruteForce の場合チェックする回数 (Check count on brute force)
 		int BruteForceCount() const {

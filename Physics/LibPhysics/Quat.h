@@ -35,7 +35,10 @@ namespace Math
 		}
 
 		inline bool NearlyEqual(const Quat& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
-			return std::ranges::equal(Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
+			return std::ranges::equal(Comps, rhs.Comps,
+				[&](const float l, const float r) { 
+					return std::abs(l - r) < Epsilon; 
+				});
 		}
 
 		inline bool operator==(const Quat& rhs) const { 
@@ -81,11 +84,11 @@ namespace Math
 			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
 		}
 		inline float LengthSq() const { return Dot(*this); }
-		inline float Length() const { return sqrtf(LengthSq()); }
+		inline float Length() const { return std::sqrtf(LengthSq()); }
 		inline Quat Normalize() const {
 			const auto Sq = LengthSq();
 			if (Sq > std::numeric_limits<float>::epsilon()) {
-				return *this / sqrt(Sq);
+				return *this / std::sqrtf(Sq);
 			}
 			return *this;
 		}

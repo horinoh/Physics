@@ -13,8 +13,8 @@ namespace Math
 	{
 	public:
 		Vec2() {}
-		Vec2(const float x, const float y) : Comps({x, y}) {}
-		Vec2(const float rhs) : Comps({rhs, rhs}) {}
+		Vec2(const float x, const float y) : Comps({ x, y }) {}
+		Vec2(const float rhs) : Comps({ rhs, rhs }) {}
 
 		inline static Vec2 Zero() { return Vec2(0.0f); }
 		inline static Vec2 One() { return Vec2(1.0f); }
@@ -24,12 +24,17 @@ namespace Math
 		inline static Vec2 Min() { return Vec2((std::numeric_limits<float>::min)()); }
 		inline static Vec2 Max() { return Vec2((std::numeric_limits<float>::max)()); }
 		inline static bool NearlyEqual(const Vec2& lhs, const Vec2& rhs, const float Epsilon) {
-			return std::ranges::equal(lhs.Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
+			return std::ranges::equal(lhs.Comps, rhs.Comps, 
+				[&](const float l, const float r) {
+					return std::abs(l - r) < Epsilon;
+				});
 		}
 
-		inline bool NearlyEqual(const Vec2& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { return NearlyEqual(*this, rhs, Epsilon); }
+		inline bool NearlyEqual(const Vec2& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
+			return NearlyEqual(*this, rhs, Epsilon); 
+		}
 
-		inline bool operator==(const Vec2& rhs) const { 
+		inline bool operator==(const Vec2& rhs) const {
 			return std::ranges::equal(Comps, rhs.Comps);
 		}
 		inline bool operator!=(const Vec2& rhs) const { return !(*this == rhs); }
@@ -39,30 +44,30 @@ namespace Math
 		inline Vec2 operator-(const Vec2& rhs) const {
 			Vec2 r; std::ranges::transform(Comps, rhs.Comps, std::begin(r.Comps), std::minus()); return r;
 		}
-		inline Vec2 operator*(const float rhs) const { 
+		inline Vec2 operator*(const float rhs) const {
 			Vec2 r; std::ranges::transform(Comps, std::begin(r.Comps), std::bind(std::multiplies(), std::placeholders::_1, rhs)); return r;
 		}
-		inline Vec2 operator/(const float rhs) const { 
+		inline Vec2 operator/(const float rhs) const {
 			Vec2 r; std::ranges::transform(Comps, std::begin(r.Comps), std::bind(std::divides(), std::placeholders::_1, rhs)); return r;
 		}
 		inline Vec2 operator-() const {
 			Vec2 r; std::ranges::transform(Comps, std::begin(r.Comps), std::negate()); return r;
 		}
-		
+
 		inline float X() const { return Comps[0]; }
 		inline float Y() const { return Comps[1]; }
 		inline float operator[](const int i) const { return Comps[i]; }
 		inline operator const float* () const { return std::data(Comps); }
 
-		inline float Dot(const Vec2& rhs) const { 
+		inline float Dot(const Vec2& rhs) const {
 			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
 		}
 		inline float LengthSq() const { return Dot(*this); }
-		inline float Length() const { return sqrtf(LengthSq()); }
+		inline float Length() const { return std::sqrtf(LengthSq()); }
 		inline Vec2 Normalize([[maybe_unused]] const bool AssertZero = false) const {
 			const auto Sq = LengthSq();
 			if (Sq > std::numeric_limits<float>::epsilon()) {
-				return *this / sqrt(Sq);
+				return *this / std::sqrtf(Sq);
 			}
 #ifdef _DEBUG
 			if (AssertZero) { __debugbreak(); }
@@ -78,15 +83,15 @@ namespace Math
 			std::ranges::transform(Comps, rhs.Comps, std::begin(Comps), std::plus());
 			return *this;
 		}
-		inline const Vec2& operator-=(const Vec2& rhs) { 
+		inline const Vec2& operator-=(const Vec2& rhs) {
 			std::ranges::transform(Comps, rhs.Comps, std::begin(Comps), std::minus());
 			return *this;
 		}
-		inline const Vec2& operator*=(const float rhs) { 
+		inline const Vec2& operator*=(const float rhs) {
 			std::ranges::transform(Comps, std::begin(Comps), std::bind(std::multiplies(), std::placeholders::_1, rhs));
 			return *this;
 		}
-		inline const Vec2& operator/=(const float rhs) { 
+		inline const Vec2& operator/=(const float rhs) {
 			std::ranges::transform(Comps, std::begin(Comps), std::bind(std::divides(), std::placeholders::_1, rhs));
 			return *this;
 		}
@@ -122,12 +127,17 @@ namespace Math
 		inline static Vec3 Min() { return Vec3((std::numeric_limits<float>::min)()); }
 		inline static Vec3 Max() { return Vec3((std::numeric_limits<float>::max)()); }
 		inline static bool NearlyEqual(const Vec3& lhs, const Vec3& rhs, const float Epsilon) {
-			return std::ranges::equal(lhs.Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
+			return std::ranges::equal(lhs.Comps, rhs.Comps, 
+				[&](const float l, const float r) { 
+					return std::abs(l - r) < Epsilon; 
+				});
 		}
 		inline static Vec3 Normal(const Vec3& A, const Vec3& B, const Vec3& C) { return (B - A).Cross(C - A); }
 		inline static Vec3 UnitNormal(const Vec3& A, const Vec3& B, const Vec3& C) { return Normal(A, B, C).Normalize(); }
 		
-		inline bool NearlyEqual(const Vec3& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { return NearlyEqual(*this, rhs, Epsilon); }
+		inline bool NearlyEqual(const Vec3& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { 
+			return NearlyEqual(*this, rhs, Epsilon); 
+		}
 
 		inline bool operator==(const Vec3& rhs) const {
 			return std::ranges::equal(Comps, rhs.Comps);
@@ -159,11 +169,11 @@ namespace Math
 			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
 		}
 		inline float LengthSq() const { return Dot(*this); }
-		inline float Length() const { return sqrt(LengthSq()); }
+		inline float Length() const { return std::sqrtf(LengthSq()); }
 		inline Vec3 Normalize([[maybe_unused]] const bool AssertZero = false) const {
 			const auto Sq = LengthSq();
 			if (Sq > std::numeric_limits<float>::epsilon()) { 
-				return *this / sqrt(Sq); 
+				return *this / std::sqrtf(Sq); 
 			}
 #ifdef _DEBUG
 			if (AssertZero) { __debugbreak(); }
@@ -226,7 +236,6 @@ namespace Math
 		Vec4() {}
 		Vec4(const float x, const float y, const float z, const float w) : Comps({x, y, z, w}) {}
 		Vec4(const float rhs) : Comps({ rhs, rhs, rhs, rhs }) {}
-		//Vec4(const Vec3& rhs) : Comps({ rhs.X(), rhs.Y(), rhs.Z(), 0.0f }) {}
 		Vec4(const Vec3& rhs, const float w = 0.0f) : Comps({ rhs.X(), rhs.Y(), rhs.Z(), w }) {}
 
 		inline static Vec4 Zero() { return Vec4(0.0f); }
@@ -239,10 +248,15 @@ namespace Math
 		inline static Vec4 Min() { return Vec4((std::numeric_limits<float>::min)()); }
 		inline static Vec4 Max() { return Vec4((std::numeric_limits<float>::max)()); }
 		inline static bool NearlyEqual(const Vec4& lhs, const Vec4& rhs, const float Epsilon) {
-			return std::ranges::equal(lhs.Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
+			return std::ranges::equal(lhs.Comps, rhs.Comps,
+				[&](const float l, const float r) {
+					return std::abs(l - r) < Epsilon; 
+				});
 		}
 
-		inline bool NearlyEqual(const Vec4& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { return NearlyEqual(*this, rhs, Epsilon); }
+		inline bool NearlyEqual(const Vec4& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { 
+			return NearlyEqual(*this, rhs, Epsilon);
+		}
 
 		inline bool operator==(const Vec4& rhs) const {
 			return std::ranges::equal(Comps, rhs.Comps);
@@ -275,11 +289,11 @@ namespace Math
 			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
 		}
 		inline float LengthSq() const { return Dot(*this); }
-		inline float Length() const { return sqrtf(LengthSq()); }
+		inline float Length() const { return std::sqrtf(LengthSq()); }
 		inline Vec4 Normalize([[maybe_unused]] const bool AssertZero = false) const {
 			const auto Sq = LengthSq();
 			if (Sq > std::numeric_limits<float>::epsilon()) {
-				return *this / sqrt(Sq);
+				return *this / std::sqrtf(Sq);
 			}
 #ifdef _DEBUG
 			if (AssertZero) { __debugbreak(); }
@@ -352,10 +366,15 @@ namespace Math
 		inline static Vec Min() { return Vec((std::numeric_limits<float>::min)()); }
 		inline static Vec Max() { return Vec((std::numeric_limits<float>::max)()); }
 		inline static bool NearlyEqual(const Vec lhs, const Vec& rhs, const float Epsilon) {
-			return std::ranges::equal(lhs.Comps, rhs.Comps, [&](const float l, const float r) { return std::abs(l - r) < Epsilon; });
+			return std::ranges::equal(lhs.Comps, rhs.Comps,
+				[&](const float l, const float r) { 
+					return std::abs(l - r) < Epsilon; 
+				});
 		}
 
-		inline bool NearlyEqual(const Vec& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { return NearlyEqual(*this, rhs, Epsilon); }
+		inline bool NearlyEqual(const Vec& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
+			return NearlyEqual(*this, rhs, Epsilon); 
+		}
 
 		inline bool operator==(const Vec& rhs) const { return std::ranges::equal(Comps, rhs.Comps); }
 		inline bool operator!=(const Vec& rhs) const { return !(*this == rhs); }
@@ -382,11 +401,11 @@ namespace Math
 			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
 		}
 		inline float LengthSq() const { return Dot(*this); }
-		inline float Length() const { return sqrtf(LengthSq()); }
+		inline float Length() const { return std::sqrtf(LengthSq()); }
 		inline Vec Normalize() const {
 			const auto Sq = LengthSq();
 			if (Sq > std::numeric_limits<float>::epsilon()) {
-				return *this / sqrt(Sq);
+				return *this / std::sqrtf(Sq);
 			}
 			return *this;
 		}

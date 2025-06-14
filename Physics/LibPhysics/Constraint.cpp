@@ -93,26 +93,27 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	//!< ワールドへ変換 (オブジェクトが動く事を考慮して都度やる必要がある)
 	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
-
 	const auto AB = WAnchorB - WAnchorA;
-	//!< それぞれの剛体における、重心からアンカー位置 (ワールド) へのベクトル
-	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
-
-	//!< 距離コンストレイント ヤコビ行列を作成
-	//!< J = (2 * (WAnchorA - WAnchorB), 2 * RA.Cross(WAnchorA - WAnchorB), 2 * (WAnchorB - WAnchorA), 2 * RB.Cross(WAnchorB - WAnchorA))
-	//!< J = (2 * -AB, 2 * RA.Cross(-AB), 2 * AB, 2 * RB.Cross(AB))
 	{
-		const auto J1 = -AB * 2.0f;
-		const auto J2 = RA.Cross(J1);
-		const auto J3 = -J1;
-		const auto J4 = RB.Cross(J3);
-		Jacobian[0] = { 
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(),
-			J3.X(), J3.Y(), J3.Z(), 
-			J4.X(), J4.Y(), J4.Z() 
-		};
+		//!< それぞれの剛体における、重心からアンカー位置 (ワールド) へのベクトル
+		const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
+		const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+
+		//!< 距離コンストレイント ヤコビ行列を作成
+		//!< J = (2 * (WAnchorA - WAnchorB), 2 * RA.Cross(WAnchorA - WAnchorB), 2 * (WAnchorB - WAnchorA), 2 * RB.Cross(WAnchorB - WAnchorA))
+		//!< J = (2 * -AB, 2 * RA.Cross(-AB), 2 * AB, 2 * RB.Cross(AB))
+		{
+			const auto J1 = -AB * 2.0f;
+			const auto J2 = RA.Cross(J1);
+			const auto J3 = -J1;
+			const auto J4 = RB.Cross(J3);
+			Jacobian[0] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
 	}
 
 #pragma region WARM_STARTING
@@ -138,7 +139,7 @@ void Physics::ConstraintDistance::Solve()
 	const auto A = Jacobian * GetInverseMassMatrix() * JT;
 	const auto B = -Jacobian * GetVelocties()
 #pragma region BAUMGARTE_STABILIZATION
-		//!< 侵された制約距離を修正するような速度を与える
+		//!< 侵された制約を修正するような速度を与える
 		- Math::Vec<1>(Baumgarte);
 #pragma endregion
 
@@ -148,7 +149,7 @@ void Physics::ConstraintDistance::Solve()
 	ApplyImpulse(JT * Lambda);
 
 #pragma region WARM_STARTING
-	//!< ウォームスタート用に力積を蓄積しておく
+	//!< ウォームスタート用に今回の力積を蓄積しておく
 	CachedLambda += Lambda;
 #pragma endregion
 }
@@ -156,36 +157,35 @@ void Physics::ConstraintDistance::PostSolve()
 {
 #pragma region WARM_STARTING
 	//!< 短時間に大きな力積が加わった場合に不安定になるのを防ぐために、リーズナブルな範囲に制限する
-	//if (CachedLambda[0] * 0.0f != CachedLambda[0] * 0.0f) { CachedLambda[0] = 0.0f; }
 	constexpr auto Eps = std::numeric_limits<float>::epsilon();
 	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Eps, Eps);
 #pragma endregion
 }
 
-void Physics::ConstraintHinge::PreSolve(const float DeltaSec) 
+void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 {
 	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
-
 	const auto AB = WAnchorB - WAnchorA;
-	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
-
-	//!< 距離コンストレイント ヤコビ行列
 	{
-		const auto J1 = -AB * 2.0f;
-		const auto J2 = RA.Cross(J1);
-		const auto J3 = -J1;
-		const auto J4 = RB.Cross(J3);
-		Jacobian[0] = { 
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(), 
-			J3.X(), J3.Y(), J3.Z(), 
-			J4.X(), J4.Y(), J4.Z() 
-		};
+		const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
+		const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+		//!< 距離コンストレイント ヤコビ行列
+		{
+			const auto J1 = -AB * 2.0f;
+			const auto J2 = RA.Cross(J1);
+			const auto J3 = -J1;
+			const auto J4 = RB.Cross(J3);
+			Jacobian[0] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
 	}
 
-	//!< 四元数コンストレイント (ヒンジ軸に垂直な U, V 軸)
+	//!< 四元数コンストレイント
 	//!< J_1 = (0, A * u, 0, B * u)
 	//!< J_2 = (0, A * v, 0, B * v)
 	//!< ただし A = - 1/2 * L(conj(q_1)) * R(q_2 * conj(q_0)) * P^t, B = -A
@@ -201,11 +201,10 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 		const auto MatB = P * InvQA.ToLeftMat4() * (QB * InvInitRot).ToRightMat4() * PT * 0.5f;
 		const auto MatA = -MatB;
 
-		//!< ヤコビ行列
+		//!< ヒンジ軸に垂直な U, V 軸
 		Math::Vec3 U, V;
 		LAxisA.GetOrtho(U, V);
-
-		//!< U コンストレイント
+		//!< U
 		{
 			const auto J1 = Math::Vec3::Zero();
 			const auto J2 = MatA * Math::Vec4(U);
@@ -218,8 +217,7 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 				J4.X(), J4.Y(), J4.Z()
 			};
 		}
-
-		//!< V コンストレイント
+		//!< V
 		{
 			const auto J1 = Math::Vec3::Zero();
 			const auto J2 = MatA * Math::Vec4(V);
@@ -255,32 +253,33 @@ void Physics::ConstraintHinge::Solve()
 void Physics::ConstraintHinge::PostSolve()
 {
 	constexpr auto Limit = 20.0f;
-	for (auto i = 0; i < CachedLambda.Size();++i) {
-		//if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
-		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
-	}
+	CachedLambda = { 
+		(std::clamp)(CachedLambda[0], -Limit, Limit), 
+		(std::clamp)(CachedLambda[1], -Limit, Limit), 
+		(std::clamp)(CachedLambda[2], -Limit, Limit) 
+	};
 }
 
 void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 {
 	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
-
 	const auto AB = WAnchorB - WAnchorA;
-	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
-
 	{
-		const auto J1 = -AB * 2.0f;
-		const auto J2 = RA.Cross(J1);
-		const auto J3 = -J1;
-		const auto J4 = RB.Cross(J3);
-		Jacobian[0] = {
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(),
-			J3.X(), J3.Y(), J3.Z(),
-			J4.X(), J4.Y(), J4.Z() 
-		};
+		const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
+		const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+		{
+			const auto J1 = -AB * 2.0f;
+			const auto J2 = RA.Cross(J1);
+			const auto J3 = -J1;
+			const auto J4 = RB.Cross(J3);
+			Jacobian[0] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
 	}
 
 	//!< 四元数コンストレイント (角度制限付き)
@@ -322,8 +321,7 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 			};
 		}
 
-		//!< 角度制限
-		//!< 角度違反している場合、追加の制約
+		//!< 角度制限 (角度違反している場合に追加の制約)
 		{
 			//!< 現在の回転
 			const auto CurRot = InvQA * QB * InvInitRot;
@@ -379,32 +377,31 @@ void Physics::ConstraintHingeLimited::Solve()
 }
 void Physics::ConstraintHingeLimited::PostSolve()
 {
-	//if (CachedLambda[0] * 0.0f != CachedLambda[0] * 0.0f) { CachedLambda[0] = 0.0f; }
 	constexpr auto Limit = 20.0f;
-	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Limit, Limit);
-	CachedLambda[1] = CachedLambda[2] = CachedLambda[3] = 0.0f;
+	CachedLambda = { (std::clamp)(CachedLambda[0], -Limit, Limit), 0.0f, 0.0f, 0.0f };
 }
 
 void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 {
 	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
-
 	const auto AB = WAnchorB - WAnchorA;
-	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
-
 	{
-		const auto J1 = -AB * 2.0f;
-		const auto J2 = RA.Cross(J1);
-		const auto J3 = -J1;
-		const auto J4 = RB.Cross(J3);
-		Jacobian[0] = { 
-			J1.X(), J1.Y(), J1.Z(), 
-			J2.X(), J2.Y(), J2.Z(), 
-			J3.X(), J3.Y(), J3.Z(),
-			J4.X(), J4.Y(), J4.Z()
-		};
+		const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
+		const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+
+		{
+			const auto J1 = -AB * 2.0f;
+			const auto J2 = RA.Cross(J1);
+			const auto J3 = -J1;
+			const auto J4 = RB.Cross(J3);
+			Jacobian[0] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
 	}
 
 	{
@@ -453,32 +450,33 @@ void Physics::ConstraintBallSocket::Solve()
 void Physics::ConstraintBallSocket::PostSolve()
 {
 	constexpr auto Limit = 20.0f;
-	for (auto i = 0; i < CachedLambda.Size(); ++i) {
-		//if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
-		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
-	}
+	CachedLambda = {
+		(std::clamp)(CachedLambda[0], -Limit, Limit),
+		(std::clamp)(CachedLambda[1], -Limit, Limit)
+	};
 }
 
 void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 {
 	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
-
 	const auto AB = WAnchorB - WAnchorA;
-	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
-
 	{
-		const auto J1 = -AB * 2.0f;
-		const auto J2 = RA.Cross(J1);
-		const auto J3 = -J1;
-		const auto J4 = RB.Cross(J3);
-		Jacobian[0] = { 
-			J1.X(), J1.Y(), J1.Z(),
-			J2.X(), J2.Y(), J2.Z(), 
-			J3.X(), J3.Y(), J3.Z(),
-			J4.X(), J4.Y(), J4.Z()
-		};
+		const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
+		const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+
+		{
+			const auto J1 = -AB * 2.0f;
+			const auto J2 = RA.Cross(J1);
+			const auto J3 = -J1;
+			const auto J4 = RB.Cross(J3);
+			Jacobian[0] = {
+				J1.X(), J1.Y(), J1.Z(),
+				J2.X(), J2.Y(), J2.Z(),
+				J3.X(), J3.Y(), J3.Z(),
+				J4.X(), J4.Y(), J4.Z()
+			};
+		}
 	}
 
 	{
@@ -585,32 +583,29 @@ void Physics::ConstraintBallSocketLimited::Solve()
 void Physics::ConstraintBallSocketLimited::PostSolve()
 {
 	constexpr auto Limit = 20.0f;
-	for (auto i = 0; i < CachedLambda.Size(); ++i) {
-		if (i > 0) CachedLambda[i] = 0.0f;
-		//if (CachedLambda[i] * 0.0f != CachedLambda[i] * 0.0f) { CachedLambda[i] = 0.0f; }
-		CachedLambda[i] = (std::clamp)(CachedLambda[i], -Limit, Limit);
-	}
+	CachedLambda = { (std::clamp)(CachedLambda[0], -Limit, Limit), 0.0f, 0.0f, 0.0f };
 }
 
 void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 {
 	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
-
 	const auto AB = WAnchorB - WAnchorA;
-	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+	{
+		const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
+		const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
 
-	const auto J1 = -AB * 2.0f;
-	const auto J2 = RA.Cross(J1);
-	const auto J3 = -J1;
-	const auto J4 = RB.Cross(J3);
-	Jacobian[0] = { 
-		J1.X(), J1.Y(), J1.Z(), 
-		J2.X(), J2.Y(), J2.Z(), 
-		J3.X(), J3.Y(), J3.Z(), 
-		J4.X(), J4.Y(), J4.Z()
-	};
+		const auto J1 = -AB * 2.0f;
+		const auto J2 = RA.Cross(J1);
+		const auto J3 = -J1;
+		const auto J4 = RB.Cross(J3);
+		Jacobian[0] = {
+			J1.X(), J1.Y(), J1.Z(),
+			J2.X(), J2.Y(), J2.Z(),
+			J3.X(), J3.Y(), J3.Z(),
+			J4.X(), J4.Y(), J4.Z()
+		};
+	}
 
 	{
 		const auto& QA = RigidBodyA->Rotation;
@@ -627,6 +622,8 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 		{
 			//!< モーター軸 (W)
 			const auto W = RigidBodyA->ToWorldDir(LAxisA);
+
+			//!< モーター軸に垂直な U, V 軸
 			Math::Vec3 U, V;
 			W.GetOrtho(U, V);
 			{
@@ -672,12 +669,7 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 			const auto WRelAxis = RigidBodyA->ToWorldDir(RelRot.XYZ());
 			const auto C = AB.Dot(AB);
 			constexpr auto Beta = 0.05f;
-			const auto BDS = Beta / DeltaSec;
-			Baumgarte = {
-				BDS * C,
-				BDS * U.Dot(WRelAxis),
-				BDS * V.Dot(WRelAxis)
-			};
+			Baumgarte = { C, U.Dot(WRelAxis), V.Dot(WRelAxis) } * Beta / DeltaSec;
 		}
 	}
 }
@@ -739,31 +731,30 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 {
 	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
-
-	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
-
+	const auto AB = WAnchorB - WAnchorA;
 	//!< 法線をワールドスペースへ
 	const auto WNormal = RigidBodyA->ToWorldDir(LNormal);
-
-	//!< J = (-N, RA x N, N, RB x N)
-	const auto J1 = -WNormal;
-	const auto J2 = RA.Cross(J1);
-	const auto J3 = -J1;
-	const auto J4 = RB.Cross(J3);
-	Jacobian[0] = { 
-		J1.X(), J1.Y(), J1.Z(), 
-		J2.X(), J2.Y(), J2.Z(), 
-		J3.X(), J3.Y(), J3.Z(), 
-		J4.X(), J4.Y(), J4.Z() 
-	};
+	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
+	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass(); 
+	{
+		//!< J = (-N, RA x N, N, RB x N)
+		const auto J1 = -WNormal;
+		const auto J2 = RA.Cross(J1);
+		const auto J3 = -J1;
+		const auto J4 = RB.Cross(J3);
+		Jacobian[0] = {
+			J1.X(), J1.Y(), J1.Z(),
+			J2.X(), J2.Y(), J2.Z(),
+			J3.X(), J3.Y(), J3.Z(),
+			J4.X(), J4.Y(), J4.Z()
+		};
+	}
 
 	//!< 摩擦がある場合、接線方向のコンストレイントを考慮
 	if (Friction > 0.0f) {
 		//!< 直交ベクトル U, V を求める
 		Math::Vec3 U, V;
 		WNormal.GetOrtho(U, V);
-		
 		//!< U
 		{
 			const auto J1 = -U;
@@ -794,7 +785,7 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 
 	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
 
-	const auto C = (std::min)((WAnchorB - WAnchorA).Dot(WNormal) + 0.02f, 0.0f);
+	const auto C = (std::min)(AB.Dot(WNormal) + 0.02f, 0.0f);
 	constexpr auto Beta = 0.25f;
 	Baumgarte = Beta * C / DeltaSec;
 }
@@ -910,12 +901,6 @@ void Physics::ManifoldCollector::Add(const Collision::Contact& Ct)
 
 void Physics::ManifoldCollector::PreSolve(const float DeltaSec) 
 {
-#ifdef _DEBUG
-	//for (auto i = 0; i < std::size(Manifolds);++i) {
-	//	LOG(std::data(std::format("Manifold[{}] Contacts = {}\n", i, std::size(Manifolds[i].Constraints))));
-	//}
-#endif
-
 	for (auto& i : Manifolds) {
 		for (auto& j : i.Constraints) {
 			j.second.PreSolve(DeltaSec);
