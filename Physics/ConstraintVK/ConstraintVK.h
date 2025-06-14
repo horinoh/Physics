@@ -121,7 +121,7 @@ public:
 			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f));
 			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius));
 
-			//!< 距離コンストレイント
+			//!< 距離コンストレイント (中央上)
 			{
 				const auto JntRootPos = Math::Vec3(0.0f, 6.0f, 0.0f);
 				constexpr auto JntLen = 1.1f;
@@ -138,17 +138,20 @@ public:
 					RbA = RbB;
 				}
 			}
-			//!< 移動コンストレイント
+			//!< 移動、回転ムーバーコンストレイント (中央下)
 			{
-				const auto Pos = Math::Vec3(0.0f, -4.0f, 0.0f);
+				const auto Pos = Math::Vec3(0.0f, -6.0f, 0.0f);
 
-				auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[1].get(), 0.0f)).get();
+				auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[0].get(), 0.0f)).get();
 				Rb->Position = Pos;
 
 				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverUpDown>(Rb));
 				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverRotate>(Rb));
+
+				Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[0].get(), 1.0f)).get();
+				Rb->Position = Pos + Math::Vec3::AxisY() * 5.2f;
 			}
-			//!< ヒンジコンストレイント
+			//!< ヒンジコンストレイント (右)
 			{
 				const auto JntRootPos = Math::Vec3(7.5f, 6.0f, 0.0f);
 				constexpr auto JntLen = 1.2f;
@@ -165,7 +168,7 @@ public:
 					RbA = RbB;
 				}
 			}
-			//!< 角度制限ヒンジコンストレイント
+			//!< 角度制限ヒンジコンストレイント (左)
 			{
 				const auto JntRootPos = Math::Vec3(-7.5f, 6.0f, 0.0f);
 				constexpr auto JntLen = 1.2f;
@@ -182,7 +185,7 @@ public:
 					RbA = RbB;
 				}
 			}
-			//!< ボールソケットコンストレイント
+			//!< ボールソケットコンストレイント (最右)
 			{
 				const auto Pos = Math::Vec3(15.0f, 6.0f, 0.0f);
 
@@ -193,10 +196,9 @@ public:
 				RbB->Position = Pos + Math::Vec3::AxisX() * 1.2f;
 
 				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintBallSocket>(RbA, RbB, RbA->Position, Math::Vec3::AxisY()));
-				//Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintBallSocketLimited>(RbA, RbB, RbA->Position, Math::Vec3::AxisY(), 45.0f, 45.0f));
-				//Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverRotate>(RbB));
+				//Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintBallSocketLimited>(RbA, RbB, RbA->Position, Math::Vec3::AxisY(), 135.0f, 135.0f));
 			}
-			//!< モーターコンストレイント
+			//!< モーターコンストレイント (最左)
 			{
 				const auto Pos = Math::Vec3(-15.0f, 6.0f, 0.0f);
 

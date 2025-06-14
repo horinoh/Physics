@@ -4,7 +4,6 @@
 
 #include "Collision.h"
 #include "Constraint.h"
-#include "Util.h"
 
 //#define USE_BRUTE_FORCE
 
