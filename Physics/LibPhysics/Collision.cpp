@@ -439,7 +439,8 @@ void Collision::ResolveContact(const Contact& Ct)
 		}
 	}
 
-	//!< めり込みの追い出し (TOI == 0.0f の時点で衝突している場合、非 GJK 時)
+	//!< めり込みの追い出し (TOI == 0.0f の時点で衝突している場合)
+	//!< (GJK では Manifold で処理していて、Contact へは追加していないのでここには来ない)
 	if (0.0f == Ct.TimeOfImpact) {
 		//!< 質量により追い出し割合を考慮
 		const auto DistAB = WPointB - WPointA;

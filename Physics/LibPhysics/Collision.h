@@ -51,7 +51,10 @@ namespace Collision
 			return *this;
 		}
 
-		[[nodiscard]] Math::Vec3 GetCenter() const { return (Min + Max) * 0.5f; }
+		[[nodiscard]] Math::Vec3 GetCenter() const { 
+			//return (Min + Max) * 0.5f; 
+			return Math::Vec3(std::midpoint(Min.X(), Max.X()), std::midpoint(Min.Y(), Max.Y()), std::midpoint(Min.Z(), Max.Z()));
+		}
 		[[nodiscard]] Math::Vec3 GetExtent() const { return Max - Min; }
 
 		Math::Vec3 Min = Math::Vec3::Max();
