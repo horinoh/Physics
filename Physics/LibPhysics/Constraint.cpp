@@ -707,12 +707,18 @@ void Physics::ConstraintMoverUpDown::PreSolve(const float DeltaSec)
 	RigidBodyA->LinearVelocity[1] = std::cosf(Timer) * Radius;
 	Timer += DeltaSec;
 }
-void Physics::ConstraintMoverRotate::PreSolve(const float DeltaSec)
+void Physics::ConstraintMoverRotateX::PreSolve(const float DeltaSec) 
 {
-	//!< Y Ž²‰ñ‚è‚ÌŠp‘¬“x
+	RigidBodyA->AngularVelocity[0] = TO_RADIAN(60.0f);
+}
+void Physics::ConstraintMoverRotateY::PreSolve(const float DeltaSec)
+{
 	RigidBodyA->AngularVelocity[1] = TO_RADIAN(60.0f);
 }
-
+void Physics::ConstraintMoverRotateZ::PreSolve(const float DeltaSec)
+{
+	RigidBodyA->AngularVelocity[2] = TO_RADIAN(60.0f);
+}
 Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Collision::Contact& Ct)
 {
 	Super::Init(Ct.RigidBodyA, Ct.RigidBodyB);

@@ -291,14 +291,34 @@ namespace Physics
 	protected:
 		float Timer = 0.0f;
 	}; 
-	class ConstraintMoverRotate : public ConstraintMover
+	class ConstraintMoverRotateX : public ConstraintMover
 	{
 	public:
 		using Super = ConstraintMover;
 		
-		ConstraintMoverRotate() {}
-		ConstraintMoverRotate(const Physics::RigidBody* Rb) { Init(Rb); }
+		ConstraintMoverRotateX() {}
+		ConstraintMoverRotateX(const Physics::RigidBody* Rb) { Init(Rb); }
 		
+		virtual void PreSolve(const float DeltaSec) override;
+	};
+	class ConstraintMoverRotateY : public ConstraintMover
+	{
+	public:
+		using Super = ConstraintMover;
+
+		ConstraintMoverRotateY() {}
+		ConstraintMoverRotateY(const Physics::RigidBody* Rb) { Init(Rb); }
+
+		virtual void PreSolve(const float DeltaSec) override;
+	};
+	class ConstraintMoverRotateZ : public ConstraintMover
+	{
+	public:
+		using Super = ConstraintMover;
+
+		ConstraintMoverRotateZ() {}
+		ConstraintMoverRotateZ(const Physics::RigidBody* Rb) { Init(Rb); }
+
 		virtual void PreSolve(const float DeltaSec) override;
 	};
 	

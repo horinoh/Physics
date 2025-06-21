@@ -118,8 +118,8 @@ public:
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f));
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius));
+			const auto Box = Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f)).get();
+			const auto Sp = Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius)).get();
 
 			//!< 距離コンストレイント (中央上)
 			{
@@ -127,11 +127,11 @@ public:
 				constexpr auto JntLen = 1.1f;
 				constexpr auto JntCount = 5;
 
-				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[1].get(), 0.0f)).get();
+				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Sp, 0.0f)).get();
 				RbA->Position = JntRootPos;
 
 				for (auto i = 0; i < JntCount; ++i) {
-					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[1].get(), 1.0f)).get();
+					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Sp, 1.0f)).get();
 					RbB->Position = RbA->Position + Math::Vec3::AxisX() * JntLen;
 
 					Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintDistance>(RbA, RbB, RbA->Position));
@@ -142,13 +142,13 @@ public:
 			{
 				const auto Pos = Math::Vec3(0.0f, -6.0f, 0.0f);
 
-				auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[0].get(), 0.0f)).get();
+				auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 0.0f)).get();
 				Rb->Position = Pos;
 
 				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverUpDown>(Rb));
-				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverRotate>(Rb));
+				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverRotateY>(Rb));
 
-				Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[0].get(), 1.0f)).get();
+				Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
 				Rb->Position = Pos + Math::Vec3::AxisY() * 5.2f;
 			}
 			//!< ヒンジコンストレイント (右)
@@ -157,28 +157,63 @@ public:
 				constexpr auto JntLen = 1.2f;
 				constexpr auto JntCount = 5;
 
-				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[0].get(), 0.0f)).get();
+				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 0.0f)).get();
 				RbA->Position = JntRootPos;
 
 				for (auto i = 0; i < JntCount; ++i) {
-					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[0].get(), 1.0f)).get();
+					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
 					RbB->Position = RbA->Position + Math::Vec3::AxisZ() * JntLen;
 
 					Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintHinge>(RbA, RbB, RbA->Position, Math::Vec3::AxisX()));
 					RbA = RbB;
 				}
 			}
+#ifndef _DEBUG
+			//!< コンストレイント (右下)
+			{
+				const auto Pos = Math::Vec3(7.5f, -5.0f, 0.0f);
+
+				auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 0.0f)).get();
+				Rb->Position = Pos;
+				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverRotateZ>(Rb));
+
+				Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 0.0f)).get();
+				Rb->Position = Pos - Math::Vec3::AxisZ() + Math::Vec3::AxisY() * 0.0f;
+				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverRotateZ>(Rb));
+				Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 0.0f)).get();
+				Rb->Position = Pos + Math::Vec3::AxisZ() + Math::Vec3::AxisY() * 0.0f;
+				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverRotateZ>(Rb));
+
+				constexpr auto Div = 16;
+				constexpr auto Radius = 2.5f;
+				constexpr auto DRadian = std::numbers::pi_v<float> *2.0f / Div;
+
+				auto Rb0 = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
+				Rb0->Position = Pos + Math::Vec3(Radius * std::cosf(0.0f), Radius * std::sin(0.0f), 0.0f);
+				auto RbA = Rb0;
+				for (auto i = 1; i < Div; ++i) {
+					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
+					const auto Rad = DRadian * i;
+					RbB->Position = Pos + Math::Vec3(Radius * std::cosf(Rad), Radius * std::sin(Rad), 0.0f);
+
+					const auto Anchor = (RbA->Position + RbB->Position) * 0.5f;
+					Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintDistance>(RbA, RbB, Anchor));
+					RbA = RbB;
+				}
+				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintDistance>(RbA, Rb0, RbA->Position));
+			}
+#endif
 			//!< 角度制限ヒンジコンストレイント (左)
 			{
 				const auto JntRootPos = Math::Vec3(-7.5f, 6.0f, 0.0f);
 				constexpr auto JntLen = 1.2f;
 				constexpr auto JntCount = 5;
 
-				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[0].get(), 0.0f)).get();
+				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 0.0f)).get();
 				RbA->Position = JntRootPos;
 
 				for (auto i = 0; i < JntCount; ++i) {
-					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[0].get(), 1.0f)).get();
+					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
 					RbB->Position = RbA->Position + Math::Vec3::AxisX() * JntLen;
 
 					Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintHingeLimited>(RbA, RbB, RbA->Position, Math::Vec3::AxisZ()));
@@ -189,10 +224,10 @@ public:
 			{
 				const auto Pos = Math::Vec3(15.0f, 6.0f, 0.0f);
 
-				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[1].get(), 0.0f)).get();
+				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Sp, 0.0f)).get();
 				RbA->Position = Pos;
 
-				auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[0].get(), 1.0f)).get();
+				auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
 				RbB->Position = Pos - Math::Vec3::AxisX() * 1.2f;
 
 				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintBallSocket>(RbA, RbB, RbA->Position, Math::Vec3::AxisY()));
@@ -202,10 +237,10 @@ public:
 			{
 				const auto Pos = Math::Vec3(-15.0f, 6.0f, 0.0f);
 
-				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[1].get(), 0.0f)).get();
+				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Sp, 0.0f)).get();
 				RbA->Position = Pos;
 
-				auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes[0].get(), 1.0f)).get();
+				auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
 				RbB->Position = Pos - Math::Vec3::AxisY() * 1.2f;
 
 				Scene->Constraints.emplace_back(std::make_unique <Physics::ConstraintMotor>(RbA, RbB, RbA->Position, Math::Vec3::AxisY(), 2.0f));
