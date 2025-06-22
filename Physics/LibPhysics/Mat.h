@@ -7,7 +7,7 @@
 //!< C++26 #TODO
 //#include <linalg>
 
-namespace Math 
+namespace LinAlg 
 {
 	class Mat2 
 	{

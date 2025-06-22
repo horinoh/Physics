@@ -11,7 +11,7 @@ Physics::RigidBody::RigidBody(const Physics::Shape* Sh, const float InvMass)
 	InvInertiaTensor = Shape->GetInvInertiaTensor() * InvMass;
 }
 
-Math::Vec3 Physics::RigidBody::GetCenterOfMass() const 
+LinAlg::Vec3 Physics::RigidBody::GetCenterOfMass() const 
 {
 	return Shape->GetCenterOfMass(); 
 };
@@ -42,7 +42,7 @@ void Physics::RigidBody::Update(const float DeltaSec)
 
 		//!< Šp•Ï‰»‚ÌŽlŒ³”•\Œ»
 		const auto DeltaAng = AngularVelocity * DeltaSec;
-		const auto DeltaQuat = Math::Quat(DeltaAng, DeltaAng.Length());
+		const auto DeltaQuat = LinAlg::Quat(DeltaAng, DeltaAng.Length());
 	
 		//!< (Šp•Ï‰»‚É‚æ‚é) ‰ñ“]‚ÌXV
 		Rotation = (DeltaQuat * Rotation).Normalize();

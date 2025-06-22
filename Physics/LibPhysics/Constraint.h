@@ -1,6 +1,6 @@
 #pragma once
 
-#include "PhysicsMath.h"
+#include "LinAlg.h"
 
 namespace Collision 
 {
@@ -35,13 +35,13 @@ namespace Physics
 		//!<     (   0   0  M_B    0) ... B の質量の逆数が対角成分
 		//!<     (   0   0    0  I_B) ... B の慣性テンソルの逆行列
 		//!< #TODO 疎行列専用処理最適化の余地あり
-		using MassMatrix = Math::Mat<3 * 4, 3 * 4>;
+		using MassMatrix = LinAlg::Mat<3 * 4, 3 * 4>;
 
 		//!< V = (V_A) ... A の速度
 		//!<     (W_A) ... A の角速度
 		//!<     (V_B) ... B の速度
 		//!<     (W_B) ... B の角速度
-		using Velocities = Math::Vec<3 * 4>;
+		using Velocities = LinAlg::Vec<3 * 4>;
 	
 	protected:
 		Physics::RigidBody* RigidBodyB = nullptr;
@@ -56,7 +56,7 @@ namespace Physics
 		ConstraintAnchor(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB) {
 			Init(RbA, RbB);
 		}
-		ConstraintAnchor(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor) {
+		ConstraintAnchor(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor) {
 			Init(RbA, RbB, WAnchor);
 		}
 
@@ -68,11 +68,11 @@ namespace Physics
 		void ApplyImpulse(const Velocities& Impulse);
 
 		ConstraintAnchor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
-		ConstraintAnchor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor);
+		ConstraintAnchor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor);
 
 	protected:
-		Math::Vec3 LAnchorA;
-		Math::Vec3 LAnchorB;
+		LinAlg::Vec3 LAnchorA;
+		LinAlg::Vec3 LAnchorB;
 	};
 
 	//!< 軸を持つ基底
@@ -82,16 +82,16 @@ namespace Physics
 		using Super = ConstraintAnchor;
 
 		ConstraintAnchorAxis() {}
-		ConstraintAnchorAxis(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis) {
+		ConstraintAnchorAxis(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor, const LinAlg::Vec3& WAxis) {
 			Init(RbA, RbB, WAnchor, WAxis);
 		}
 
-		ConstraintAnchorAxis& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis);
+		ConstraintAnchorAxis& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor, const LinAlg::Vec3& WAxis);
 
 	protected:
-		Math::Vec3 LAxisA;
+		LinAlg::Vec3 LAxisA;
 
-		Math::Quat InvInitRot;
+		LinAlg::Quat InvInitRot;
 	};
 
 	class ConstraintDistance : public ConstraintAnchor
@@ -100,11 +100,11 @@ namespace Physics
 		using Super = ConstraintAnchor;
 
 		ConstraintDistance() {}
-		ConstraintDistance(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor) {
+		ConstraintDistance(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor) {
 			Init(RbA, RbB, WAnchor);
 		}
 
-		ConstraintDistance& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor) {
+		ConstraintDistance& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor) {
 			Super::Init(RbA, RbB, WAnchor);
 			return *this;
 		}
@@ -116,8 +116,8 @@ namespace Physics
 	protected:
 		//!< ヤコビ行列 (n * 12) n == コンストレイント数, 12 == 6 (移動3、回転3) 軸の自由度 * 2 オブジェクト
 		//!< 距離 (n == 1)
-		Math::Mat<1, 3 * 4> Jacobian;
-		Math::Vec<1> CachedLambda;
+		LinAlg::Mat<1, 3 * 4> Jacobian;
+		LinAlg::Vec<1> CachedLambda;
 
 		//!< 適正な位置へ戻すような力を適用する事で位置ドリフトを修正 (Baumgarte stabilization)
 		//!< 一気にやるとシステムにエネルギーを追加しすぎる為、数フレームかけて適用する
@@ -130,11 +130,11 @@ namespace Physics
 		using Super = ConstraintAnchorAxis;
 		
 		ConstraintHinge() {}
-		ConstraintHinge(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis) {
+		ConstraintHinge(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor, const LinAlg::Vec3& WAxis) {
 			Init(RbA, RbB, WAnchor, WAxis);
 		}
 
-		ConstraintHinge& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis) {
+		ConstraintHinge& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor, const LinAlg::Vec3& WAxis) {
 			Super::Init(RbA, RbB, WAnchor, WAxis);
 			return *this;
 		}
@@ -145,8 +145,8 @@ namespace Physics
 
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V (n == 3)
-		Math::Mat<3, 3 * 4> Jacobian;
-		Math::Vec<3> CachedLambda;
+		LinAlg::Mat<3, 3 * 4> Jacobian;
+		LinAlg::Vec<3> CachedLambda;
 
 		float Baumgarte = 0.0f;
 	};
@@ -157,11 +157,11 @@ namespace Physics
 		using Super = ConstraintAnchorAxis;
 		
 		ConstraintHingeLimited() {}
-		ConstraintHingeLimited(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float LimAng = 45.0f) {
+		ConstraintHingeLimited(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor, const LinAlg::Vec3& WAxis, const float LimAng = 45.0f) {
 			Init(RbA, RbB, WAnchor, WAxis, LimAng);
 		}
 
-		ConstraintHingeLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float LimAng = 45.0f) {
+		ConstraintHingeLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor, const LinAlg::Vec3& WAxis, const float LimAng = 45.0f) {
 			Super::Init(RbA, RbB, WAnchor, WAxis);
 			LimitAngle = LimAng;
 			return *this;
@@ -173,8 +173,8 @@ namespace Physics
 
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V、角度制限 (n == 4)
-		Math::Mat<4, 3 * 4> Jacobian;
-		Math::Vec<4> CachedLambda;
+		LinAlg::Mat<4, 3 * 4> Jacobian;
+		LinAlg::Vec<4> CachedLambda;
 
 		float Baumgarte = 0.0f;
 
@@ -189,11 +189,11 @@ namespace Physics
 		using Super = ConstraintAnchorAxis;
 
 		ConstraintBallSocket() {}
-		ConstraintBallSocket(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis) {
+		ConstraintBallSocket(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor, const LinAlg::Vec3& WAxis) {
 			Init(RbA, RbB, WAnchor, WAxis);
 		}
 
-		ConstraintBallSocket& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis) {
+		ConstraintBallSocket& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor, const LinAlg::Vec3& WAxis) {
 			Super::Init(RbA, RbB, WAnchor, WAxis);
 			return *this;
 		}
@@ -204,8 +204,8 @@ namespace Physics
 	
 	protected:
 		//!< 距離、軸 (n == 2)
-		Math::Mat<2, 3 * 4> Jacobian;
-		Math::Vec<2> CachedLambda;
+		LinAlg::Mat<2, 3 * 4> Jacobian;
+		LinAlg::Vec<2> CachedLambda;
 
 		float Baumgarte = 0.0f;
 	};
@@ -216,11 +216,11 @@ namespace Physics
 		using Super = ConstraintAnchorAxis;
 
 		ConstraintBallSocketLimited() {}
-		ConstraintBallSocketLimited(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float LimAngU = 45.0f, const float LimAngV = 45.0f) {
+		ConstraintBallSocketLimited(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor, const LinAlg::Vec3& WAxis, const float LimAngU = 45.0f, const float LimAngV = 45.0f) {
 			Init(RbA, RbB, WAnchor, WAxis, LimAngU, LimAngV);
 		}
 
-		ConstraintBallSocketLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float LimAngU = 45.0f, const float LimAngV = 45.0f) {
+		ConstraintBallSocketLimited& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor, const LinAlg::Vec3& WAxis, const float LimAngU = 45.0f, const float LimAngV = 45.0f) {
 			Super::Init(RbA, RbB, WAnchor, WAxis);
 
 			LimitAngles = { LimAngU, LimAngV };
@@ -233,8 +233,8 @@ namespace Physics
 		virtual void PostSolve() override;
 
 	protected:
-		Math::Mat<4, 3 * 4> Jacobian;
-		Math::Vec<4> CachedLambda;
+		LinAlg::Mat<4, 3 * 4> Jacobian;
+		LinAlg::Vec<4> CachedLambda;
 
 		float Baumgarte = 0.0f;
 
@@ -249,11 +249,11 @@ namespace Physics
 		using Super = ConstraintAnchorAxis;
 
 		ConstraintMotor() {}
-		ConstraintMotor(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float Spd) {
+		ConstraintMotor(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor, const LinAlg::Vec3& WAxis, const float Spd) {
 			Init(RbA, RbB, WAnchor, WAxis, Spd);
 		}
 
-		ConstraintMotor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const Math::Vec3& WAnchor, const Math::Vec3& WAxis, const float Spd) {
+		ConstraintMotor& Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, const LinAlg::Vec3& WAnchor, const LinAlg::Vec3& WAxis, const float Spd) {
 			Super::Init(RbA, RbB, WAnchor, WAxis);
 			Speed = Spd;
 			return *this;
@@ -264,9 +264,9 @@ namespace Physics
 
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V、ヒンジ軸 (n == 4)
-		Math::Mat<4, 3 * 4> Jacobian;
+		LinAlg::Mat<4, 3 * 4> Jacobian;
 
-		Math::Vec3 Baumgarte;
+		LinAlg::Vec3 Baumgarte;
 
 		float Speed;
 	};
@@ -337,12 +337,12 @@ namespace Physics
 
 	protected:
 		//!< 法線 N、接面の U, V (n == 3)
-		Math::Mat<3, 3 * 4> Jacobian;
-		Math::Vec<3> CachedLambda;
+		LinAlg::Mat<3, 3 * 4> Jacobian;
+		LinAlg::Vec<3> CachedLambda;
 
 		float Baumgarte = 0.0f;
 
-		Math::Vec3 LNormal;
+		LinAlg::Vec3 LNormal;
 		float Friction = 0.0f;
 	};
 
@@ -405,9 +405,9 @@ namespace Physics
 	//!<		|xy_ij| >= Sigma_j,j!=i |xy_ij|
 	//!<		対角成分の和の絶対値が、非対角成分の和の絶対値以上となるような行列
 	template<size_t N>
-	static Math::Vec<N> GaussSiedel(const Math::Mat<N, N>& A, const Math::Vec<N>& b, const uint32_t ItCount = 10)
+	static LinAlg::Vec<N> GaussSiedel(const LinAlg::Mat<N, N>& A, const LinAlg::Vec<N>& b, const uint32_t ItCount = 10)
 	{
-		auto x = Math::Vec<N>();
+		auto x = LinAlg::Vec<N>();
 
 		for (uint32_t It = 0; It < ItCount; ++It) {
 			for (auto i = 0; i < N; ++i) {

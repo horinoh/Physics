@@ -7,7 +7,7 @@
 #include <functional>
 #include <format>
 
-namespace Math 
+namespace LinAlg 
 {
 	class Vec2
 	{
@@ -97,8 +97,8 @@ namespace Math
 		}
 		inline float& operator[](const int i) { return Comps[i]; }
 		inline operator float* () { return std::data(Comps); }
-		inline operator const Component2& () const { return Comps; }
-		inline operator Component2& () { return Comps; }
+		inline operator const Comp2& () const { return Comps; }
+		inline operator Comp2& () { return Comps; }
 
 		inline Vec2& ToZero() { return (*this = Zero()); }
 		inline Vec2& ToNormalize() { return (*this = Normalize()); }
@@ -107,7 +107,7 @@ namespace Math
 		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f})\n", X(), Y()); }
 
 	private:
-		Component2 Comps = { 0.0f, 0.0f };
+		Comp2 Comps = { 0.0f, 0.0f };
 	};
 
 	class Vec3
@@ -217,8 +217,8 @@ namespace Math
 		}
 		inline float& operator[](const int i) { return Comps[i]; }
 		inline operator float* () { return std::data(Comps); }
-		inline operator const Component3& () const { return Comps; }
-		inline operator Component3& () { return Comps; }
+		inline operator const Comp3& () const { return Comps; }
+		inline operator Comp3& () { return Comps; }
 
 		inline Vec3& ToZero() { return (*this = Zero()); }
 		inline Vec3& ToNormalized() { return (*this = Normalize()); }
@@ -227,7 +227,7 @@ namespace Math
 		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f})\n", X(), Y(), Z()); }
 	
 	private:
-		Component3 Comps = { 0.0f, 0.0f, 0.0f };
+		Comp3 Comps = { 0.0f, 0.0f, 0.0f };
 	};
 
 	class Vec4
@@ -330,8 +330,8 @@ namespace Math
 		}
 		inline float& operator[](const int i) { return Comps[i]; }
 		inline operator float* () { return std::data(Comps); }
-		inline operator const Component4& () const { return Comps; }
-		inline operator Component4& () { return Comps; }
+		inline operator const Comp4& () const { return Comps; }
+		inline operator Comp4& () { return Comps; }
 
 		inline Vec4& ToZero() { return (*this = Zero()); }
 		inline Vec4& ToNormalized() { return (*this = Normalize()); }
@@ -340,7 +340,7 @@ namespace Math
 		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n", X(), Y(), Z(), W()); }
 
 	private:
-		Component4 Comps = { 0.0f, 0.0f, 0.0f, 0.0f };
+		Comp4 Comps = { 0.0f, 0.0f, 0.0f, 0.0f };
 	};
 
 	template<size_t N>

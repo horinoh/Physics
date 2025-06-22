@@ -3,16 +3,16 @@
 #include <vector>
 #include <algorithm>
 
-#include "PhysicsMath.h"
+#include "LinAlg.h"
 #include "RigidBody.h"
 #include "Collision.h"
 
 namespace Convex
 {
-	void BuildTetrahedron(const std::vector<Math::Vec3>& Mesh, std::vector<Math::Vec3>& Vertices, std::vector<Collision::TriInds >& Indices);
+	void BuildTetrahedron(const std::vector<LinAlg::Vec3>& Mesh, std::vector<LinAlg::Vec3>& Vertices, std::vector<Collision::TriInds >& Indices);
 
 	//!< 指定の点が凸包の内部点かどうか
-	[[nodiscard]] static bool IsInternal(const Math::Vec3& Pt, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
+	[[nodiscard]] static bool IsInternal(const LinAlg::Vec3& Pt, const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
 	{
 		//!< 全ての三角形に対し、負の側にあれば内部点
 		return std::ranges::all_of(Indices,
@@ -22,28 +22,28 @@ namespace Convex
 	}
 
 	//!< 凸包の内部点を削除
-	void RemoveInternal(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, std::vector<Math::Vec3>& Mesh);
+	void RemoveInternal(const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, std::vector<LinAlg::Vec3>& Mesh);
 	
 	void CollectUniqueEdges(std::vector<Collision::TriInds>::const_iterator Begin, std::vector<Collision::TriInds>::const_iterator End, std::vector<Collision::EdgeIndsWithCount>& EdgeCounts);
 	static void CollectUniqueEdges(const std::vector<Collision::TriInds>& Indices, std::vector<Collision::EdgeIndsWithCount>& EdgeCounts) { 
 		CollectUniqueEdges(std::ranges::cbegin(Indices), std::ranges::cend(Indices), EdgeCounts);
 	}
 
-	void BuildConvexHull(const std::vector<Math::Vec3>& Pts, std::vector<Math::Vec3>& Vertices, std::vector<Collision::TriInds>& Indices);
+	void BuildConvexHull(const std::vector<LinAlg::Vec3>& Pts, std::vector<LinAlg::Vec3>& Vertices, std::vector<Collision::TriInds>& Indices);
 
 	namespace Uniform {
-		[[nodiscard]] Math::Vec3 CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices);
-		[[nodiscard]] Math::Mat3 CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass);
+		[[nodiscard]] LinAlg::Vec3 CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices);
+		[[nodiscard]] LinAlg::Mat3 CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const LinAlg::Vec3& CenterOfMass);
 	}
 	namespace MonteCarlo
 	{
-		[[nodiscard]] Math::Vec3 CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices);
-		[[nodiscard]] Math::Mat3 CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass);
+		[[nodiscard]] LinAlg::Vec3 CalcCenterOfMass(const Collision::AABB& Aabb, const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices);
+		[[nodiscard]] LinAlg::Mat3 CalcInertiaTensor(const Collision::AABB& Aabb, const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const LinAlg::Vec3& CenterOfMass);
 	}
 	namespace Tetrahedron 
 	{
-		[[nodiscard]] Math::Vec3 CalcCenterOfMass(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices);
-		[[nodiscard]] Math::Mat3 CalcInertiaTensor(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D);
-		[[nodiscard]] Math::Mat3 CalcInertiaTensor(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass);
+		[[nodiscard]] LinAlg::Vec3 CalcCenterOfMass(const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices);
+		[[nodiscard]] LinAlg::Mat3 CalcInertiaTensor(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C, const LinAlg::Vec3& D);
+		[[nodiscard]] LinAlg::Mat3 CalcInertiaTensor(const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const LinAlg::Vec3& CenterOfMass);
 	}
 }

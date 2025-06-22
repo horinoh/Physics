@@ -117,7 +117,7 @@ public:
 		}
 	}
 	
-	void PlaceRigidBodies(const std::vector<Math::Vec3>& Vertices) {
+	void PlaceRigidBodies(const std::vector<LinAlg::Vec3>& Vertices) {
 		//!< 動的オブジェクト配置
 		{
 			constexpr auto Offset = 3.0f * 1.5f;
@@ -134,8 +134,8 @@ public:
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
 					auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 1.0f)).get();
-					Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Offset, Y, static_cast<float>(z - n2) * Offset);
-					Rb->Rotation = Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(90.0f));
+					Rb->Position = LinAlg::Vec3(static_cast<float>(x - n2) * Offset, Y, static_cast<float>(z - n2) * Offset);
+					Rb->Rotation = LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(90.0f));
 				}
 			}
 		}
@@ -144,14 +144,14 @@ public:
 			constexpr auto Y = -20.0f;
 
 			//!< 拡大する
-			std::vector<Math::Vec3> ExpandedVertices(std::size(Vertices));
+			std::vector<LinAlg::Vec3> ExpandedVertices(std::size(Vertices));
 			std::ranges::transform(Vertices, std::back_inserter(ExpandedVertices), [&](const auto& i) { return i * FloorScale; });
 
 			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>(ExpandedVertices));
 
 			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
-			Rb->Position = Math::Vec3::AxisY() * Y;
-			Rb->Rotation = Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(270.0f));
+			Rb->Position = LinAlg::Vec3::AxisY() * Y;
+			Rb->Rotation = LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(270.0f));
 			Rb->Elasticity = 0.99f;
 		}
 	}
@@ -192,12 +192,12 @@ public:
 	}
 
 	virtual void CreateGeometry() override {
-		std::vector<Math::Vec3> Vec3s;
+		std::vector<LinAlg::Vec3> Vec3s;
 #ifdef USE_MESH
 		Meshes.emplace_back();
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
 		Vec3s.reserve(std::size(Meshes.back().Vertices));
-		for (auto& i : Meshes.back().Vertices) { Vec3s.emplace_back(Math::Vec3({i.x, i.y, i.z})); }
+		for (auto& i : Meshes.back().Vertices) { Vec3s.emplace_back(LinAlg::Vec3({i.x, i.y, i.z})); }
 #else
 		//!< ダイアモンド形状
 		std::vector<Math::Vec3> ShapeVert;

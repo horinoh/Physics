@@ -9,30 +9,30 @@ void Collision::Contact::CalcLocal()
 	LPointB = RigidBodyB->ToLocalPos(WPointB);
 }
 
-float Collision::Distance::CapsulePointSq(const Math::Vec3& CapA, const Math::Vec3& CapB, const float CapR,
-	const Math::Vec3& Pt) 
+float Collision::Distance::CapsulePointSq(const LinAlg::Vec3& CapA, const LinAlg::Vec3& CapB, const float CapR,
+	const LinAlg::Vec3& Pt) 
 {
 	if (Collision::Intersection::CapsulePoint(CapA, CapB, CapR, Pt)) { return 0.0f; }
 	return (Pt - Collision::Closest::CapsulePoint(CapA, CapB, CapR, Pt)).LengthSq();
 }
 
-float Collision::Distance::CylinderPointSq(const Math::Vec3& CyA, const Math::Vec3& CyB, const float CyR,
-	const Math::Vec3& Pt) 
+float Collision::Distance::CylinderPointSq(const LinAlg::Vec3& CyA, const LinAlg::Vec3& CyB, const float CyR,
+	const LinAlg::Vec3& Pt) 
 {
 	if (Collision::Intersection::CylinderPoint(CyA, CyB, CyR, Pt)) { return 0.0f; }
 	return (Pt - Collision::Closest::CylinderPoint(CyA, CyB, CyR, Pt)).LengthSq();
 }
 
-float Collision::Distance::SegmentSegmentSq(const Math::Vec3& SegA, const Math::Vec3& SegB,
-	const Math::Vec3& SegC, const Math::Vec3& SegD,
+float Collision::Distance::SegmentSegmentSq(const LinAlg::Vec3& SegA, const LinAlg::Vec3& SegB,
+	const LinAlg::Vec3& SegC, const LinAlg::Vec3& SegD,
 	float& T0, float& T1)
 {
-	Math::Vec3 OnAB, OnCD;
+	LinAlg::Vec3 OnAB, OnCD;
 	Collision::Closest::SegmentSegment(SegA, SegB, SegC, SegD, T0, T1, &OnAB, &OnCD);
 	return (OnAB - OnCD).LengthSq();
 }
-float Collision::Distance::SegmentSegmentSq(const Math::Vec3& SegA, const Math::Vec3& SegB,
-	const Math::Vec3& SegC, const Math::Vec3& SegD) {
+float Collision::Distance::SegmentSegmentSq(const LinAlg::Vec3& SegA, const LinAlg::Vec3& SegB,
+	const LinAlg::Vec3& SegC, const LinAlg::Vec3& SegD) {
 	float T0, T1;
 	return SegmentSegmentSq(SegA, SegB,
 		SegC, SegD,
@@ -40,7 +40,7 @@ float Collision::Distance::SegmentSegmentSq(const Math::Vec3& SegA, const Math::
 }
 
 bool Collision::Intersection::AABBAABB(const AABB& AbA, const AABB& AbB,
-	const Math::Vec3& VelA, const Math::Vec3& VelB,
+	const LinAlg::Vec3& VelA, const LinAlg::Vec3& VelB,
 	float& T)
 {
 	if (AABBAABB(AbA, AbB)) {
@@ -72,7 +72,7 @@ bool Collision::Intersection::AABBAABB(const AABB& AbA, const AABB& AbB,
 }
 
 bool Collision::Intersection::AABBRay(const AABB& Ab,
-	const Math::Vec3& RayPos, const Math::Vec3& RayDir,
+	const LinAlg::Vec3& RayPos, const LinAlg::Vec3& RayDir,
 	float& T) 
 {
 	T = 0.0f;
@@ -95,14 +95,14 @@ bool Collision::Intersection::AABBRay(const AABB& Ab,
 	}
 	return true;
 }
-bool Collision::Intersection::CapsulePoint(const Math::Vec3& CapA, const Math::Vec3& CapB, const float CapR,
-	const Math::Vec3& Pt) 
+bool Collision::Intersection::CapsulePoint(const LinAlg::Vec3& CapA, const LinAlg::Vec3& CapB, const float CapR,
+	const LinAlg::Vec3& Pt) 
 {
 	return Collision::Distance::PointSegmentSq(CapA, CapB, Pt) <= std::pow(CapR, 2.0f);
 }
 
-bool Collision::Intersection::CylinderPoint(const Math::Vec3& CyA, const Math::Vec3& CyB, const float CyR,
-	const Math::Vec3& Pt) 
+bool Collision::Intersection::CylinderPoint(const LinAlg::Vec3& CyA, const LinAlg::Vec3& CyB, const float CyR,
+	const LinAlg::Vec3& Pt) 
 {
 	if (!CapsulePoint(CyA, CyB, CyR, Pt)) { return false; }
 	const auto AB = CyB - CyA;
@@ -111,7 +111,7 @@ bool Collision::Intersection::CylinderPoint(const Math::Vec3& CyA, const Math::V
 	return true;
 }
 
-std::optional<std::pair<float, float>> Collision::Intersection::RaySphere(const Math::Vec3& RayPos, const Math::Vec3& RayDir, const Math::Vec3& SpPos, const float SpRad)
+std::optional<std::pair<float, float>> Collision::Intersection::RaySphere(const LinAlg::Vec3& RayPos, const LinAlg::Vec3& RayDir, const LinAlg::Vec3& SpPos, const float SpRad)
 {
 	//!< 1)球	(x - SpPos)^2 = SpRad^2
 	//!<		x^2 - 2 * x * SpPos + SpPos^2 - SpRad^2 = 0
@@ -135,8 +135,8 @@ std::optional<std::pair<float, float>> Collision::Intersection::RaySphere(const 
 }
 
 std::optional<float> Collision::Intersection::SphereShpere(const float RadA, const float RadB,
-	const Math::Vec3& PosA, const Math::Vec3& PosB,
-	const Math::Vec3& VelA, const Math::Vec3& VelB)
+	const LinAlg::Vec3& PosA, const LinAlg::Vec3& PosB,
+	const LinAlg::Vec3& VelA, const LinAlg::Vec3& VelB)
 {
 	// A の相対速度
 	const auto Ray = VelA - VelB;
@@ -162,15 +162,15 @@ std::optional<float> Collision::Intersection::SphereShpere(const float RadA, con
 	}
 }
 
-Math::Vec3 Collision::Closest::CapsulePoint(const Math::Vec3& CapA, const Math::Vec3& CapB, const float CapR,
-	const Math::Vec3& Pt) 
+LinAlg::Vec3 Collision::Closest::CapsulePoint(const LinAlg::Vec3& CapA, const LinAlg::Vec3& CapB, const float CapR,
+	const LinAlg::Vec3& Pt) 
 {
 	const auto C = PointSegment(Pt, CapA, CapB);
 	return C + (Pt - C).Normalize() * CapR;
 }
 
-Math::Vec3 Collision::Closest::CylinderPoint(const Math::Vec3& CyA, const Math::Vec3& CyB, const float CyR,
-	const Math::Vec3& Pt) 
+LinAlg::Vec3 Collision::Closest::CylinderPoint(const LinAlg::Vec3& CyA, const LinAlg::Vec3& CyB, const float CyR,
+	const LinAlg::Vec3& Pt) 
 {
 	const auto AB = CyB - CyA;
 	if ((Pt - CyB).Dot(-AB) < 0.0f) {
@@ -199,16 +199,16 @@ Math::Vec3 Collision::Closest::CylinderPoint(const Math::Vec3& CyA, const Math::
 	}
 }
 
-Math::Vec3 Collision::Closest::PlanePoint(const Math::Vec3 & PlN, const float PlD,
-	const Math::Vec3& Pt) 
+LinAlg::Vec3 Collision::Closest::PlanePoint(const LinAlg::Vec3 & PlN, const float PlD,
+	const LinAlg::Vec3& Pt) 
 {
 	return Pt - Collision::Distance::PlanePoint(PlN, PlD, Pt) * PlN;
 }
 
-void Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
-	const Math::Vec3& SegC, const Math::Vec3& SegD,
+void Collision::Closest::SegmentSegment(const LinAlg::Vec3& SegA, const LinAlg::Vec3& SegB,
+	const LinAlg::Vec3& SegC, const LinAlg::Vec3& SegD,
 	float& T0, float& T1,
-	Math::Vec3* OnAB, Math::Vec3* OnCD)
+	LinAlg::Vec3* OnAB, LinAlg::Vec3* OnCD)
 {
 	const auto AB = SegB - SegA;
 	const auto CD = SegD - SegC;
@@ -266,9 +266,9 @@ void Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math::Vec3
 	}
 	return;
 }
-void Collision::Closest::SegmentSegment(const Math::Vec3& SegA, const Math::Vec3& SegB,
-	const Math::Vec3& SegC, const Math::Vec3& SegD,
-	Math::Vec3& OnAB, Math::Vec3& OnCD) 
+void Collision::Closest::SegmentSegment(const LinAlg::Vec3& SegA, const LinAlg::Vec3& SegB,
+	const LinAlg::Vec3& SegC, const LinAlg::Vec3& SegD,
+	LinAlg::Vec3& OnAB, LinAlg::Vec3& OnCD) 
 {
 	float T0, T1;
 	SegmentSegment(SegA, SegB,
@@ -328,7 +328,7 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 	constexpr auto WithClosestPoint = true;
 	while (DT > 0.0f) {
 		//!< 衝突点、最近接点
-		Math::Vec3 OnA, OnB;
+		LinAlg::Vec3 OnA, OnB;
 		if (Intersection::GJK_EPA(&WRbA,
 				&WRbB,
 				Bias,

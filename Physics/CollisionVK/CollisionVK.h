@@ -173,8 +173,8 @@ public:
 		while (RotY < 0.0f) { RotY += 360.0f; }
 		while (RotY > 360.0f) { RotY -= 360.0f; }
 
-		Position = Math::Vec3((std::clamp)(Position.X() + X, -5.0f, 5.0f), (std::clamp)(Position.Y() + Y, -5.0f, 5.0f), (std::clamp)(Position.Z() + Z, -5.0f, 5.0f));
-		Rotation = Math::Quat(Math::Vec3::AxisY(), TO_RADIAN(RotY)) * Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(RotX));
+		Position = LinAlg::Vec3((std::clamp)(Position.X() + X, -5.0f, 5.0f), (std::clamp)(Position.Y() + Y, -5.0f, 5.0f), (std::clamp)(Position.Z() + Z, -5.0f, 5.0f));
+		Rotation = LinAlg::Quat(LinAlg::Vec3::AxisY(), LinAlg::ToRadian(RotY)) * LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(RotX));
 		
 		Win::OnKeyDown(hWnd, hInstance, Param);
 	}
@@ -505,7 +505,7 @@ public:
 	}
 
 	virtual void UpdateWorldBuffer() {		
-		auto NoRot = [&]() { return Rotation.NearlyEqual(Math::Quat::Identity()); };
+		auto NoRot = [&]() { return Rotation.NearlyEqual(LinAlg::Quat::Identity()); };
 
 		//!< カラーと最近接点をリセット
 		for (auto& i : WorldBuffers) {
@@ -525,7 +525,7 @@ public:
 			}
 		}
 
-		const auto Position1 = Math::Vec3::Zero();
+		const auto Position1 = LinAlg::Vec3::Zero();
 		constexpr auto Rad = 1.0f;
 		auto& WB0 = WorldBuffers[static_cast<uint8_t>(ColiType0)];
 		auto& WB1 = WorldBuffers[static_cast<uint8_t>(ColiType1)];
@@ -540,14 +540,14 @@ public:
 					WB0.Instances[0].Color = WB1.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
 				}
 				else {
-					Math::Vec3 OnA, OnB;
+					LinAlg::Vec3 OnA, OnB;
 					Collision::Closest::SphereSphere(Position, Rad, Position1, Rad, OnA, OnB);
 					WBCP.Instances[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
 					WBCP.Instances[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());
 				}
 				break;
 			case CollisionVK::COLLISION_TYPE::Box:
-				if (Collision::Intersection::AABBSphere(Collision::AABB(Position1 - Math::Vec3::One(), Position1 + Math::Vec3::One()), Position, Rad)) {
+				if (Collision::Intersection::AABBSphere(Collision::AABB(Position1 - LinAlg::Vec3::One(), Position1 + LinAlg::Vec3::One()), Position, Rad)) {
 					WB0.Instances[0].Color = WB1.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
 				}
 				else {
@@ -569,7 +569,7 @@ public:
 			{
 			case CollisionVK::COLLISION_TYPE::Sphere:
 				if (NoRot()) {
-					if (Collision::Intersection::AABBSphere(Collision::AABB(Position - Math::Vec3::One(), Position + Math::Vec3::One()), Position1, Rad)) {
+					if (Collision::Intersection::AABBSphere(Collision::AABB(Position - LinAlg::Vec3::One(), Position + LinAlg::Vec3::One()), Position1, Rad)) {
 						WB0.Instances[0].Color = WB1.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
 					}
 					else {
@@ -579,7 +579,7 @@ public:
 				break;
 			case CollisionVK::COLLISION_TYPE::Box:
 				if (NoRot()) {
-					if (Collision::Intersection::AABBAABB(Collision::AABB(Position - Math::Vec3::One(), Position + Math::Vec3::One()), Collision::AABB(Position1 - Math::Vec3::One(), Position1 + Math::Vec3::One()))) {
+					if (Collision::Intersection::AABBAABB(Collision::AABB(Position - LinAlg::Vec3::One(), Position + LinAlg::Vec3::One()), Collision::AABB(Position1 - LinAlg::Vec3::One(), Position1 + LinAlg::Vec3::One()))) {
 						WB0.Instances[0].Color = WB1.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
 					}
 					else {
@@ -617,7 +617,7 @@ public:
 				}
 				else {
 					const auto OnA = Position;
-					const auto OnB = Collision::Closest::AABBPoint(Collision::AABB(Position1 - Math::Vec3::One(), Position1 + Math::Vec3::One()), Position);
+					const auto OnB = Collision::Closest::AABBPoint(Collision::AABB(Position1 - LinAlg::Vec3::One(), Position1 + LinAlg::Vec3::One()), Position);
 					WBCP.Instances[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
 					WBCP.Instances[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());
 				}
@@ -717,8 +717,8 @@ protected:
 		}
 	}
 
-	Math::Vec3 Position = Math::Vec3::AxisZ() * 5.0f;
-	Math::Quat Rotation;
+	LinAlg::Vec3 Position = LinAlg::Vec3::AxisZ() * 5.0f;
+	LinAlg::Quat Rotation;
 
 	struct MESH {
 		std::vector<uint32_t> Indices;

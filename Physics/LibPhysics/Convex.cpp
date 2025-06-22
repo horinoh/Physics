@@ -4,10 +4,10 @@
 #include "Log.h"
 
 //!< 頂点を「なるべく」包含するような四面体を作成
-void Convex::BuildTetrahedron(const std::vector<Math::Vec3>& Mesh, std::vector<Math::Vec3>& Vertices, std::vector<Collision::TriInds>& Indices)
+void Convex::BuildTetrahedron(const std::vector<LinAlg::Vec3>& Mesh, std::vector<LinAlg::Vec3>& Vertices, std::vector<Collision::TriInds>& Indices)
 {
 	//!< 特定の軸 (ここではX) に一番遠い点
-	std::array<Math::Vec3, 4> Pts = { *Collision::Distance::Farthest(Mesh, Math::Vec3::AxisX()) };
+	std::array<LinAlg::Vec3, 4> Pts = { *Collision::Distance::Farthest(Mesh, LinAlg::Vec3::AxisX()) };
 	//< 前出の逆向きに一番遠い点
 	Pts[1] = *Collision::Distance::Farthest(Mesh, -Pts[0]);
 	//!< 前出の 2 点からなる線分に一番遠い点
@@ -28,7 +28,7 @@ void Convex::BuildTetrahedron(const std::vector<Math::Vec3>& Mesh, std::vector<M
 }
 
 //!< 凸包の内部点を削除
-void Convex::RemoveInternal(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, std::vector<Math::Vec3>& Mesh)
+void Convex::RemoveInternal(const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, std::vector<LinAlg::Vec3>& Mesh)
 {
 	//!< 内部点を除外
 	{
@@ -91,7 +91,7 @@ void Convex::CollectUniqueEdges(std::vector<Collision::TriInds>::const_iterator 
 }
 
 //!< ハイポリを食わせるとかなり時間がかかる上に結局ハイポリの凸包ができるだけなのでコリジョンとして現実的ではない、ローポリを食わせること
-void Convex::BuildConvexHull(const std::vector<Math::Vec3>& Mesh, std::vector<Math::Vec3>& Vertices, std::vector<Collision::TriInds>& Indices)
+void Convex::BuildConvexHull(const std::vector<LinAlg::Vec3>& Mesh, std::vector<LinAlg::Vec3>& Vertices, std::vector<Collision::TriInds>& Indices)
 {
 	//PERFORMANCE_COUNTER_FUNC();
 	PERFORMANCE_COUNTER("BuildConvexHull()");
@@ -156,21 +156,21 @@ void Convex::BuildConvexHull(const std::vector<Math::Vec3>& Mesh, std::vector<Ma
 	}
 }
 
-Math::Vec3 Convex::Uniform::CalcCenterOfMass(const Collision::AABB& Ab, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
+LinAlg::Vec3 Convex::Uniform::CalcCenterOfMass(const Collision::AABB& Ab, const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
 {
 	LOG(std::data(std::format("Calculating center of mass (Uniform)...\n")));
 
 	//!< 各軸にサンプリングする個数 (計算に時間がかかる)
 	constexpr auto SampleCount = 100;
 
-	auto CenterOfMass = Math::Vec3::Zero();
+	auto CenterOfMass = LinAlg::Vec3::Zero();
 	auto Sampled = 0;
 	const auto Delta = Ab.GetExtent() / static_cast<float>(SampleCount);
 	for (auto x = 0; x < SampleCount; ++x) {
 		for (auto y = 0; y < SampleCount; ++y) {
 			for (auto z = 0; z < SampleCount; ++z) {
 				//!< AABB 内のサンプル点
-				const auto Pt = Ab.Min + Math::Vec3(Delta.X() * x, Delta.Y() * y, Delta.Z() * z);
+				const auto Pt = Ab.Min + LinAlg::Vec3(Delta.X() * x, Delta.Y() * y, Delta.Z() * z);
 				if (IsInternal(Pt, Vertices, Indices)) {
 					//!< 内部点なら収集
 					CenterOfMass += Pt;
@@ -183,21 +183,21 @@ Math::Vec3 Convex::Uniform::CalcCenterOfMass(const Collision::AABB& Ab, const st
 	return CenterOfMass / static_cast<float>(Sampled);
 }
 
-Math::Mat3 Convex::Uniform::CalcInertiaTensor(const Collision::AABB& Ab, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
+LinAlg::Mat3 Convex::Uniform::CalcInertiaTensor(const Collision::AABB& Ab, const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const LinAlg::Vec3& CenterOfMass)
 {
 	LOG(std::data(std::format("Calculating inertia tensor (Uniform)...\n")));
 
 	//!< 各軸にサンプリングする個数 (計算に時間がかかる)
 	constexpr auto SampleCount = 100;
 
-	auto InertiaTensor = Math::Mat3::Zero();
+	auto InertiaTensor = LinAlg::Mat3::Zero();
 	auto Sampled = 0;
 	const auto Delta = Ab.GetExtent() / static_cast<float>(SampleCount);
 	for (auto x = 0; x < SampleCount; ++x) {
 		for (auto y = 0; y < SampleCount; ++y) {
 			for (auto z = 0; z < SampleCount; ++z) {
 				//!< AABB 内のサンプル点 (重心からの相対)
-				const auto Pt = Ab.Min + Math::Vec3(Delta.X() * x, Delta.Y() * y, Delta.Z() * z) - CenterOfMass;
+				const auto Pt = Ab.Min + LinAlg::Vec3(Delta.X() * x, Delta.Y() * y, Delta.Z() * z) - CenterOfMass;
 				if (IsInternal(Pt, Vertices, Indices)) {
 					const auto XX = Pt.X() * Pt.X();
 					const auto YY = Pt.Y() * Pt.Y();
@@ -220,7 +220,7 @@ Math::Mat3 Convex::Uniform::CalcInertiaTensor(const Collision::AABB& Ab, const s
 	return InertiaTensor / static_cast<float>(Sampled);
 }
 
-Math::Vec3 Convex::MonteCarlo::CalcCenterOfMass(const Collision::AABB& Ab, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
+LinAlg::Vec3 Convex::MonteCarlo::CalcCenterOfMass(const Collision::AABB& Ab, const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
 {
 	LOG(std::data(std::format("Calculating center of mass (Monte carlo)...\n")));
 
@@ -239,12 +239,12 @@ Math::Vec3 Convex::MonteCarlo::CalcCenterOfMass(const Collision::AABB& Ab, const
 	//!< サンプリングする個数
 	constexpr auto SampleCount = 100 * 100;
 
-	auto CenterOfMass = Math::Vec3::Zero();
+	auto CenterOfMass = LinAlg::Vec3::Zero();
 	auto Sampled = 0;
 	const auto Ext = Ab.GetExtent();
 	for (auto i = 0; i < SampleCount; ++i) {
 		//!< AABB 内のサンプル点
-		const auto Pt = Ab.Min + Math::Vec3(Ext.X() * Distribution(MersenneTwister), 
+		const auto Pt = Ab.Min + LinAlg::Vec3(Ext.X() * Distribution(MersenneTwister), 
 			Ext.Y() * Distribution(MersenneTwister), 
 			Ext.Z() * Distribution(MersenneTwister));
 		if (IsInternal(Pt, Vertices, Indices)) {
@@ -257,7 +257,7 @@ Math::Vec3 Convex::MonteCarlo::CalcCenterOfMass(const Collision::AABB& Ab, const
 	return CenterOfMass / static_cast<float>(Sampled);
 }
 
-Math::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Ab, const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
+LinAlg::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Ab, const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const LinAlg::Vec3& CenterOfMass)
 {
 	LOG(std::data(std::format("Calculating inertia tensor (Monte carlo)...\n")));
 
@@ -272,12 +272,12 @@ Math::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Ab, cons
 	//!< サンプリングする個数
 	constexpr auto SampleCount = 100 * 100;
 
-	auto InertiaTensor = Math::Mat3::Zero();
+	auto InertiaTensor = LinAlg::Mat3::Zero();
 	auto Sampled = 0;
 	const auto Ext = Ab.GetExtent();
 	for (auto i = 0; i < SampleCount; ++i) {
 		//!< AABB 内のサンプル点 (重心からの相対)
-		const auto Pt = Ab.Min + Math::Vec3(Ext.X() * Distribution(MersenneTwister), 
+		const auto Pt = Ab.Min + LinAlg::Vec3(Ext.X() * Distribution(MersenneTwister), 
 			Ext.Y() * Distribution(MersenneTwister),
 			Ext.Z() * Distribution(MersenneTwister)) - CenterOfMass;
 		if (IsInternal(Pt, Vertices, Indices)) {
@@ -300,13 +300,13 @@ Math::Mat3 Convex::MonteCarlo::CalcInertiaTensor(const Collision::AABB& Ab, cons
 	return InertiaTensor / static_cast<float>(Sampled);
 }
 
-Math::Vec3 Convex::Tetrahedron::CalcCenterOfMass(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
+LinAlg::Vec3 Convex::Tetrahedron::CalcCenterOfMass(const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
 {
 	LOG(std::data(std::format("Calculating center of mass (Tetrahedron)...\n")));
 
 	//!< 頂点の平均 (中心) を求め A と表す
-	const auto A = std::accumulate(std::cbegin(Vertices), std::cend(Vertices), Math::Vec3::Zero()) / static_cast<float>(std::size(Vertices));
-	const auto CenterVolumeSum = std::accumulate(std::cbegin(Indices), std::cend(Indices), std::pair<Math::Vec3, float>(Math::Vec3::Zero(), 0.0f),
+	const auto A = std::accumulate(std::cbegin(Vertices), std::cend(Vertices), LinAlg::Vec3::Zero()) / static_cast<float>(std::size(Vertices));
+	const auto CenterVolumeSum = std::accumulate(std::cbegin(Indices), std::cend(Indices), std::pair<LinAlg::Vec3, float>(LinAlg::Vec3::Zero(), 0.0f),
 		[&](const auto& Acc, const auto& rhs) {
 			//!< A を頂点とした四面体
 			const auto& B = Vertices[rhs[0]];
@@ -317,17 +317,17 @@ Math::Vec3 Convex::Tetrahedron::CalcCenterOfMass(const std::vector<Math::Vec3>& 
 			const auto Volume = Collision::Volume::Tetrahedron(A, B, C, D);
 			const auto Center = (A + B + C + D) * 0.25f;
 
-			return std::pair<Math::Vec3, float>(Acc.first + Center * Volume, Acc.second + Volume);
+			return std::pair<LinAlg::Vec3, float>(Acc.first + Center * Volume, Acc.second + Volume);
 		});
 	return CenterVolumeSum.first / CenterVolumeSum.second;
 }
-Math::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const Math::Vec3& A, const Math::Vec3& B, const Math::Vec3& C, const Math::Vec3& D)
+LinAlg::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C, const LinAlg::Vec3& D)
 {
 	//!< 四面体の 4 頂点からなる行列
 	const auto AB = B - A;
 	const auto AC = C - A;
 	const auto AD = D - A;
-	const auto Det = Math::Mat3(AB, AC, AD).Transpose().Determinant();
+	const auto Det = LinAlg::Mat3(AB, AC, AD).Transpose().Determinant();
 
 	auto XX = 0.0f, YY = 0.0f, ZZ = 0.0f, XY = 0.0f, XZ = 0.0f, YZ = 0.0f;
 	const std::array Pts = { A, B, C, D };
@@ -344,23 +344,23 @@ Math::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const Math::Vec3& A, const Mat
 		}
 	}
 
-	return Math::Mat3(
-		Math::Vec3(2.0f * (YY + ZZ), -XY, -XZ),
-		Math::Vec3(-XY, 2.0f * (XX + ZZ), -YZ),
-		Math::Vec3(-XZ, -YZ, 2.0f * (XX + YY))) * Det / 120.0f;
+	return LinAlg::Mat3(
+		LinAlg::Vec3(2.0f * (YY + ZZ), -XY, -XZ),
+		LinAlg::Vec3(-XY, 2.0f * (XX + ZZ), -YZ),
+		LinAlg::Vec3(-XZ, -YZ, 2.0f * (XX + YY))) * Det / 120.0f;
 }
-Math::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const std::vector<Math::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const Math::Vec3& CenterOfMass)
+LinAlg::Mat3 Convex::Tetrahedron::CalcInertiaTensor(const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices, const LinAlg::Vec3& CenterOfMass)
 {
 	LOG(std::data(std::format("Calculating inertia tensor (Tetrahedron)...\n")));
 
-	const auto A = Math::Vec3::Zero(); //!< CenterOfMass - CenterOfMass なので
-	const auto TensorVolumeSum = std::accumulate(std::cbegin(Indices), std::cend(Indices), std::pair<Math::Mat3, float>(Math::Mat3::Zero(), 0.0f),
+	const auto A = LinAlg::Vec3::Zero(); //!< CenterOfMass - CenterOfMass なので
+	const auto TensorVolumeSum = std::accumulate(std::cbegin(Indices), std::cend(Indices), std::pair<LinAlg::Mat3, float>(LinAlg::Mat3::Zero(), 0.0f),
 		[&](const auto& Acc, const auto& rhs) {
 			const auto B = Vertices[rhs[0]] - CenterOfMass;
 			const auto C = Vertices[rhs[1]] - CenterOfMass;
 			const auto D = Vertices[rhs[2]] - CenterOfMass;
 
-			return std::pair<Math::Mat3, float>(Acc.first + CalcInertiaTensor(A, B, C, D), Acc.second + Collision::Volume::Tetrahedron(A, B, C, D));
+			return std::pair<LinAlg::Mat3, float>(Acc.first + CalcInertiaTensor(A, B, C, D), Acc.second + Collision::Volume::Tetrahedron(A, B, C, D));
 		});
 
 	return TensorVolumeSum.first / TensorVolumeSum.second;

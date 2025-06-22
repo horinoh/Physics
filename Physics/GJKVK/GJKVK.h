@@ -186,12 +186,12 @@ public:
 			if (0 < std::size(Scene->RigidBodies)) {
 				const auto Rb = Scene->RigidBodies[0].get();
 
-				Rb->Position = Math::Vec3(
+				Rb->Position = LinAlg::Vec3(
 					(std::clamp)(Rb->Position.X() + X, -5.0f, 5.0f),
 					(std::clamp)(Rb->Position.Y() + Y, -5.0f, 5.0f),
 					(std::clamp)(Rb->Position.Z() + Z, -5.0f, 5.0f)
 				);
-				Rb->Rotation = Math::Quat(Math::Vec3::AxisY(), TO_RADIAN(RotY)) * Math::Quat(Math::Vec3::AxisX(), TO_RADIAN(RotX));
+				Rb->Rotation = LinAlg::Quat(LinAlg::Vec3::AxisY(), LinAlg::ToRadian(RotY)) * LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(RotX));
 			}
 		}
 
@@ -209,7 +209,7 @@ public:
 	}
 
 	virtual void CreateGeometry() override {
-		std::vector<Math::Vec3> Vec3s;
+		std::vector<LinAlg::Vec3> Vec3s;
 #ifdef USE_MESH
 		Load(GLTF_PATH / "SuzanneMorphSparse" / "glTF-Binary" / "SuzanneMorphSparse.glb");
 		//Load(GLTF_PATH / "Avocado" / "glTF-Binary" / "Avocado.glb");
@@ -218,7 +218,7 @@ public:
 		for (auto& i : Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
-		std::vector<Math::Vec3> ShapeVert;
+		std::vector<LinAlg::Vec3> ShapeVert;
 		Physics::CreateVertices_Diamond(ShapeVert);
 		std::ranges::copy(ShapeVert, std::back_inserter(Vec3s));
 #endif
@@ -237,8 +237,8 @@ public:
 
 		for (auto i = 0; i < _countof(WorldBuffer.Instances); ++i) {
 			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
-			Rb->Position = 0 == i ? Math::Vec3::AxisZ() * 5.0f : Math::Vec3::Zero();
-			Rb->Rotation = Math::Quat::Identity();
+			Rb->Position = 0 == i ? LinAlg::Vec3::AxisZ() * 5.0f : LinAlg::Vec3::Zero();
+			Rb->Rotation = LinAlg::Quat::Identity();
 		}
 
 		const auto& CB = CommandBuffers[0];
@@ -612,7 +612,7 @@ public:
 			const auto RbA = Scene->RigidBodies[0].get();
 			const auto RbB = Scene->RigidBodies[1].get();
 			constexpr auto WithClosestPoint = true;
-			Math::Vec3 OnA, OnB;
+			LinAlg::Vec3 OnA, OnB;
 			if (Collision::Intersection::GJK_EPA(RbA, RbB, 0.01f, WithClosestPoint, OnA, OnB)) {
 				WorldBuffer.Instances[0].Color = { 1.0f, 1.0f, 0.0f };
 				WorldBuffer.Instances[1].Color = { 1.0f, 1.0f, 0.0f };

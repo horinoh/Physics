@@ -130,7 +130,7 @@ public:
 				for (auto x = 0; x < n; ++x) {
 					for (auto z = 0; z < n; ++z) {
 						auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 1.0f)).get();
-						Rb->Position = Math::Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y + static_cast<float>(y) * 1.5f, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+						Rb->Position = LinAlg::Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y + static_cast<float>(y) * 1.5f, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
 					}
 				}
 			}
@@ -143,7 +143,7 @@ public:
 			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f));
 
 			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
-			Rb->Position = Math::Vec3::AxisY() * Y;
+			Rb->Position = LinAlg::Vec3::AxisY() * Y;
 			Rb->Elasticity = 0.99f;
 		}
 	}

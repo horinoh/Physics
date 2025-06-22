@@ -8,7 +8,7 @@
 
 #include "Log.h"
 
-const Math::Vec3 Physics::Scene::BroadPhaseAxis = Math::Vec3::One().Normalize();
+const LinAlg::Vec3 Physics::Scene::BroadPhaseAxis = LinAlg::Vec3::One().Normalize();
 
 #ifdef USE_BRUTE_FORCE
 void Physics::Scene::BruteForce(const float DeltaSec, std::vector<Collision::Contact>& Contacts)
@@ -54,7 +54,7 @@ void Physics::Scene::BroadPhase(const float DeltaSec, std::vector<CollidablePair
 
 			//!< ‚³‚ç‚É­‚µŠg’£ (Žæ‚è‚±‚Ú‚µ–hŽ~H)
 			const auto Epsilon = 0.01f;
-			const auto DEp = Math::Vec3::One() * Epsilon;
+			const auto DEp = LinAlg::Vec3::One() * Epsilon;
 			Aabb.Expand(Aabb.Min - DEp);
 			Aabb.Expand(Aabb.Max + DEp);
 
@@ -227,7 +227,7 @@ void Physics::Scene::Update(const float DeltaSec)
 		if (i->Position.Y() < -100.0f) {
 			i->Position[1] = -100.0f;
 			i->InvMass = 0.0f;
-			i->LinearVelocity = i->AngularVelocity = Math::Vec3::Zero();
+			i->LinearVelocity = i->AngularVelocity = LinAlg::Vec3::Zero();
 		}
 	}
 #endif
