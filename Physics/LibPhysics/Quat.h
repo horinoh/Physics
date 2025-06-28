@@ -1,19 +1,17 @@
 #pragma once
 
-#include <format>
-
 namespace LinAlg 
 {
 	class Quat 
 	{
 	public:
 		Quat() {}
-		Quat(const float x, const float y, const float z, const float w) : Comps({x, y, z, w}) {}
-		Quat(const Vec3& rhs) : Comps({ rhs.X(), rhs.Y(), rhs.Z(), 0.0f }) {}
+		Quat(const float x, const float y, const float z, const float w) : Data({x, y, z, w}) {}
+		Quat(const Vec3& rhs) : Data({ rhs.X(), rhs.Y(), rhs.Z(), 0.0f }) {}
 		Quat(const Vec3& Axis, const float Radian) {
 			const auto HalfRadian = 0.5f * Radian;
 			const auto Ax = Axis.Normalize() * sinf(HalfRadian);
-			Comps = { Ax.X(),Ax.Y(),Ax.Z(), cosf(HalfRadian) };
+			Data = { Ax.X(),Ax.Y(),Ax.Z(), cosf(HalfRadian) };
 		}
 
 		inline static Quat Identity() { return { 0.0f, 0.0f, 0.0f, 1.0f }; }
@@ -35,18 +33,21 @@ namespace LinAlg
 		}
 
 		inline bool NearlyEqual(const Quat& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
-			return std::ranges::equal(Comps, rhs.Comps,
+			return std::ranges::equal(Data, rhs.Data,
 				[&](const float l, const float r) { 
 					return std::abs(l - r) < Epsilon; 
 				});
 		}
 
 		inline bool operator==(const Quat& rhs) const { 
-			return std::ranges::equal(Comps, rhs.Comps);
+			return std::ranges::equal(Data, rhs.Data);
 		}
 		inline bool operator!=(const Quat& rhs) const { return !(*this == rhs); }
 		inline Quat operator*(const float rhs) const {
-			Quat r; std::ranges::transform(Comps, std::begin(r.Comps), std::bind(std::multiplies(), std::placeholders::_1, rhs)); return r;
+			Quat r; 
+			//r.View = std::linalg::scale(rhs, View);
+			std::ranges::transform(Data, std::begin(r.Data), std::bind(std::multiplies(), std::placeholders::_1, rhs)); 
+			return r;
 		}
 		inline Quat operator*(const Quat& rhs) const {
 			return Quat(X() * rhs.W() + W() * rhs.X() + Y() * rhs.Z() - Z() * rhs.Y(),
@@ -55,16 +56,19 @@ namespace LinAlg
 				W() * rhs.W() - X() * rhs.X() - Y() * rhs.Y() - Z() * rhs.Z());
 		}
 		inline Quat operator/(const float rhs) const { 
-			Quat r; std::ranges::transform(Comps, std::begin(r.Comps), std::bind(std::divides(), std::placeholders::_1, rhs)); return r;
+			Quat r;
+			//r.View = std::linalg::scale(1.0f / rhs, View);
+			std::ranges::transform(Data, std::begin(r.Data), std::bind(std::divides(), std::placeholders::_1, rhs)); 
+			return r;
 		}
 
-		inline float X() const { return Comps[0]; }
-		inline float Y() const { return Comps[1]; }
-		inline float Z() const { return Comps[2]; }
-		inline float W() const { return Comps[3]; }
+		inline float X() const { return Data[0]; }
+		inline float Y() const { return Data[1]; }
+		inline float Z() const { return Data[2]; }
+		inline float W() const { return Data[3]; }
 		inline Vec3 XYZ() const { return { X(), Y(), Z() }; }
-		inline float operator[](const int i) const { return Comps[i]; }
-		inline operator const float* () const { return std::data(Comps); }
+		inline float operator[](const int i) const { return Data[i]; }
+		inline operator const float* () const { return std::data(Data); }
 		inline operator Vec3() const { return { X(), Y(), Z() }; }
 		inline operator Mat3() const {
 			return {
@@ -81,13 +85,15 @@ namespace LinAlg
 		inline Mat4 ToRightMat4() const { return ToRightMat4(*this); }
 
 		inline float Dot(const Quat& rhs) const {
-			return std::inner_product(std::cbegin(Comps), std::cend(Comps), std::cbegin(rhs.Comps), 0.0f);
+			//return std::linalg::dot(View, rhs.View)
+			return std::inner_product(std::cbegin(Data), std::cend(Data), std::cbegin(rhs.Data), 0.0f);
 		}
 		inline float LengthSq() const { return Dot(*this); }
 		inline float Length() const { return std::sqrtf(LengthSq()); }
 		inline Quat Normalize() const {
+			//View = std::linalg::scale(1.0f / std::linalg::vector_two_norm(View), View);
 			const auto Sq = LengthSq();
-			if (Sq > std::numeric_limits<float>::epsilon()) {
+			if (Sq > (std::numeric_limits<float>::epsilon)()) {
 				return *this / std::sqrtf(Sq);
 			}
 			return *this;
@@ -106,21 +112,24 @@ namespace LinAlg
 		}
 
 		inline Quat& operator=(const Quat& rhs) { 
-			std::ranges::copy(rhs.Comps, std::begin(Comps));
+			//std::linalg::copy(rhs.View, View);
+			std::ranges::copy(rhs.Data, std::begin(Data));
 			return *this;
 		}
 		inline const Quat& operator*=(const float rhs) {
-			std::ranges::transform(Comps, std::begin(Comps), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+			//std::linalg::scale(rhs, View);
+			std::ranges::transform(Data, std::begin(Data), std::bind(std::multiplies(), std::placeholders::_1, rhs));
 			return *this; 
 		}
 		inline const Quat& operator/=(const float rhs) {
-			std::ranges::transform(Comps, std::begin(Comps), std::bind(std::divides(), std::placeholders::_1, rhs));
+			//std::linalg::scale(1.0f / rhs, View);
+			std::ranges::transform(Data, std::begin(Data), std::bind(std::divides(), std::placeholders::_1, rhs));
 			return *this; 
 		}
-		inline float& operator[](const int i) { return Comps[i]; }
-		inline operator float* () { return std::data(Comps); }
-		inline operator const Comp4& () const { return Comps; }
-		inline operator Comp4& () { return Comps; }
+		inline float& operator[](const int i) { return Data[i]; }
+		inline operator float* () { return std::data(Data); }
+		inline operator const Float4& () const { return Data; }
+		inline operator Float4& () { return Data; }
 
 		inline Quat& ToIdentity() { return (*this = Identity()); }
 		inline Quat& ToNormalized() { return (*this = Normalize()); }
@@ -128,7 +137,8 @@ namespace LinAlg
 		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n", X(), Y(), Z(), W()); }
 
 	private:
-		Comp4 Comps = { 0.0f, 0.0f, 0.0f, 1.0f };
+		Float4 Data = { 0.0f, 0.0f, 0.0f, 1.0f };
+		View4 View{ std::data(Data) };
 	};
 }
 

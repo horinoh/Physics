@@ -157,7 +157,7 @@ void Physics::ConstraintDistance::PostSolve()
 {
 #pragma region WARM_STARTING
 	//!< 短時間に大きな力積が加わった場合に不安定になるのを防ぐために、リーズナブルな範囲に制限する
-	constexpr auto Eps = std::numeric_limits<float>::epsilon();
+	constexpr auto Eps = (std::numeric_limits<float>::epsilon)();
 	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Eps, Eps);
 #pragma endregion
 }

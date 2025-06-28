@@ -1,17 +1,12 @@
 #pragma once
 
-#include <format>
-
-//!< C++23
-#include <mdspan>
-//!< C++26 #TODO
-//#include <linalg>
-
 namespace LinAlg 
 {
 	class Mat2 
 	{
 	public:
+		friend class Mat3;
+
 		Mat2() {}
 		Mat2(const Vec2& Row0, const Vec2& Row1) : Rows{ Row0, Row1 } {}
 		Mat2(const Mat2& rhs) : Rows{ rhs.Rows[0], rhs.Rows[1] } {}
@@ -30,16 +25,32 @@ namespace LinAlg
 			return std::ranges::equal(Rows, rhs.Rows);
 		}
 		inline Mat2 operator+(const Mat2& rhs) const {
-			Mat2 r; std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus()); return r;
+			Mat2 r; 
+			//std::linalg::add(View, rhs.View, r.View);
+			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus());
+			return r;
 		}
 		inline Mat2 operator-(const Mat2& rhs) const { 
 			Mat2 r; std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::minus()); return r;
 		}
 		inline Mat2 operator*(const float rhs) const { 
-			Mat2 r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs)); return r;
+			Mat2 r;
+			//r.View = std::linalg::scale(rhs, View);
+			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+			return r;
 		}
-		inline Vec2 operator*(const Vec2& rhs) const { return { Rows[0].Dot(rhs), Rows[1].Dot(rhs) }; }
+		inline Vec2 operator*(const Vec2& rhs) const { 
+			//Vec2 r;
+			//std::linalg::matrix_vector_product(View, rhs.View, r.View);
+			//return r;
+
+			return { Rows[0].Dot(rhs), Rows[1].Dot(rhs) };
+		}
 		inline Mat2 operator*(const Mat2& rhs) const {
+			//Mat2 r;
+			//std::linalg::matrix_product(View, rhs.View, r.View);
+			//return r;
+			
 			//!< ŒŸŽZ—p : glm ‚Ìê‡‚ÍŠ|‚¯‚é‡˜‚ª‹t‚È‚Ì‚Å’ˆÓ
 			// glm::make_mat2(static_cast<const float*>(rhs)) * glm::make_mat2(static_cast<const float*>(*this));
 			const auto c0 = Vec2({ rhs.Rows[0][0], rhs.Rows[1][0] });
@@ -50,7 +61,10 @@ namespace LinAlg
 			};
 		}
 		inline Mat2 operator/(const float rhs) const { 
-			Mat2 r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs)); return r;
+			Mat2 r;
+			//r.View = std::linalg::scale(1.0f / rhs, View);
+			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs));
+			return r;
 		}
 		inline Mat2 operator-() const {
 			Mat2 r; std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); return r;
@@ -60,7 +74,8 @@ namespace LinAlg
 		inline operator const float* () const { return static_cast<const float*>(Rows[0]); }
 
 		inline Mat2 Transpose() const {
-			return { 
+			//View = std::linalg::transposed(View);
+			return {
 				{ Rows[0].X(), Rows[1].X() }, 
 				{ Rows[0].Y(), Rows[1].Y() } 
 			};
@@ -78,10 +93,12 @@ namespace LinAlg
 		inline Mat2 Inverse() const { Inverse(1.0f / Determinant()); }
 
 		inline Mat2& operator=(const Mat2& rhs) { 
+			//std::linalg::copy(rhs.View, View);
 			std::ranges::copy(rhs.Rows, std::begin(Rows));
-			return *this; 
+			return *this;
 		}
 		inline const Mat2& operator+=(const Mat2& rhs) {
+			//std::linalg::add(View, rhs.View, View);
 			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::plus());
 			return *this;
 		}
@@ -90,10 +107,12 @@ namespace LinAlg
 			return *this;
 		}
 		inline const Mat2& operator*=(const float rhs) {
+			//std::linalg::scale(rhs, View);
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs));
 			return *this;
 		}
 		inline const Mat2& operator/=(const float rhs) {
+			//std::linalg::scale(1.0f / rhs, View);
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::divides(), std::placeholders::_1, rhs));
 			return *this;
 		}
@@ -108,6 +127,12 @@ namespace LinAlg
 
 	private:
 		std::array<Vec2, 2> Rows = { Vec2::AxisX(), Vec2::AxisY() };
+
+		Float4 Data = {
+			1.0f, 0.0f,
+			0.0f, 1.0f
+		};
+		View2x2 View{ std::data(Data) };
 	};
 
 	class Mat3 
@@ -131,16 +156,34 @@ namespace LinAlg
 			return std::ranges::equal(Rows, rhs.Rows);
 		}
 		inline Mat3 operator+(const Mat3& rhs) const { 
-			Mat3 r; std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus()); return r;
+			Mat3 r;
+			//std::linalg::add(View, rhs.View, r.View);
+			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus());
+			return r;
 		}
 		inline Mat3 operator-(const Mat3& rhs) const { 
-			Mat3 r; std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::minus()); return r;
+			Mat3 r; 
+			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::minus()); 
+			return r;
 		}
 		inline Mat3 operator*(const float rhs) const {
-			Mat3 r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs)); return r;
+			Mat3 r;
+			//r.View = std::linalg::scale(rhs, View);
+			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+			return r;
 		}
-		inline Vec3 operator*(const Vec3& rhs) const { return { Rows[0].Dot(rhs), Rows[1].Dot(rhs), Rows[2].Dot(rhs) }; }
+		inline Vec3 operator*(const Vec3& rhs) const { 
+			//Vec3 r;
+			//std::linalg::matrix_vector_product(View, rhs.View, r.View);
+			//return r;
+
+			return { Rows[0].Dot(rhs), Rows[1].Dot(rhs), Rows[2].Dot(rhs) };
+		}
 		inline Mat3 operator*(const Mat3& rhs) const {
+			//Mat3 r;
+			//std::linalg::matrix_product(View, rhs.View, r.View);
+			//return r;
+
 			//!< ŒŸŽZ—p : glm ‚Ìê‡‚ÍŠ|‚¯‚é‡˜‚ª‹t‚È‚Ì‚Å’ˆÓ
 			// glm::make_mat3(static_cast<const float*>(rhs)) * glm::make_mat3(static_cast<const float*>(*this));
 			const auto c0 = Vec3({ rhs.Rows[0][0],rhs.Rows[1][0], rhs.Rows[2][0] });
@@ -153,7 +196,10 @@ namespace LinAlg
 			};
 		}
 		inline Mat3 operator/(const float rhs) const { 
-			Mat3 r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs)); return r;
+			Mat3 r;
+			//r.View = std::linalg::scale(1.0f / rhs, View);
+			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs));
+			return r;
 		}
 		inline Mat3 operator-() const {
 			Mat3 r; std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); return r;
@@ -163,6 +209,7 @@ namespace LinAlg
 		inline operator const float* () const { return static_cast<const float*>(Rows[0]); }
 
 		inline Mat3 Transpose() const {
+			//View = std::linalg::transposed(View);
 			return {
 				{ Rows[0].X(), Rows[1].X(), Rows[2].X() },
 				{ Rows[0].Y(), Rows[1].Y(), Rows[2].Y() },
@@ -212,14 +259,17 @@ namespace LinAlg
 		}
 
 		inline Mat3& operator=(const Mat2& rhs) {
-			Rows[0] = rhs[0]; Rows[1] = rhs[1];
+			Rows[0] = { rhs.Data[0], rhs.Data[1], 0 }; Rows[1] = { rhs.Data[2], rhs.Data[3], 0 };
+			//Rows[0] = rhs[0]; Rows[1] = rhs[1];
 			return *this;
 		}
 		inline Mat3& operator=(const Mat3& rhs) { 
+			//std::linalg::copy(rhs.View, View);
 			std::ranges::copy(rhs.Rows, std::begin(Rows));
 			return *this; 
 		}
 		inline const Mat3& operator+=(const Mat3& rhs) { 
+			//std::linalg::add(View, rhs.View, View);
 			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::plus());
 			return *this; 
 		}
@@ -228,10 +278,12 @@ namespace LinAlg
 			return *this; 
 		}
 		inline const Mat3& operator*=(const float rhs) { 
+			//std::linalg::scale(rhs, View);
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs));
 			return *this; 
 		}
-		inline const Mat3& operator/=(const float rhs) { 
+		inline const Mat3& operator/=(const float rhs) {
+			//std::linalg::scale(1.0f / rhs, View);
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::divides(), std::placeholders::_1, rhs));
 			return *this;
 		}
@@ -246,6 +298,13 @@ namespace LinAlg
 
 	private:
 		std::array<Vec3, 3> Rows = { Vec3::AxisX(), Vec3::AxisY(), Vec3::AxisZ() };
+
+		Float9 Data = {
+			1.0f, 0.0f, 0.0f,
+			0.0f, 1.0f, 0.0f,
+			0.0f, 0.0f, 1.0f
+		};
+		View3x3 View{ std::data(Data) };
 	};
 
 	class Mat4
@@ -269,16 +328,34 @@ namespace LinAlg
 			return std::ranges::equal(Rows, rhs.Rows);
 		}
 		inline Mat4 operator+(const Mat4& rhs) const { 
-			Mat4 r; std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus()); return r;
+			Mat4 r; 
+			//std::linalg::add(View, rhs.View, r.View);
+			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus()); 
+			return r;
 		}
 		inline Mat4 operator-(const Mat4& rhs) const {
-			Mat4 r; std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::minus()); return r;
+			Mat4 r; 
+			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::minus()); 
+			return r;
 		}
 		inline Mat4 operator*(const float rhs) const { 
-			Mat4 r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs)); return r;
+			Mat4 r; 
+			//r.View = std::linalg::scale(rhs, View);
+			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs)); 
+			return r;
 		}
-		inline Vec4 operator*(const Vec4& rhs) const { return { Rows[0].Dot(rhs), Rows[1].Dot(rhs), Rows[2].Dot(rhs), Rows[3].Dot(rhs) }; }
+		inline Vec4 operator*(const Vec4& rhs) const {
+			//Vec4 r;
+			//std::linalg::matrix_vector_product(View, rhs.View, r.View);
+			//return r;
+
+			return { Rows[0].Dot(rhs), Rows[1].Dot(rhs), Rows[2].Dot(rhs), Rows[3].Dot(rhs) };
+		}
 		inline Mat4 operator*(const Mat4& rhs) const {
+			//Mat4 r;
+			//std::linalg::matrix_product(View, rhs.View, r.View);
+			//return r;
+			
 			//!< ŒŸŽZ—p : glm ‚Ìê‡‚ÍŠ|‚¯‚é‡˜‚ª‹t‚È‚Ì‚Å’ˆÓ
 			// glm::make_mat4(static_cast<const float*>(rhs)) * glm::make_mat4(static_cast<const float*>(*this));
 			const auto c0 = Vec4({ rhs.Rows[0][0],rhs.Rows[1][0], rhs.Rows[2][0], rhs.Rows[3][0] });
@@ -293,16 +370,22 @@ namespace LinAlg
 			};
 		}
 		inline Mat4 operator/(const float rhs) const { 
-			Mat4 r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs)); return r;
+			Mat4 r; 
+			//r.View = std::linalg::scale(1.0f / rhs, View);
+			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs)); 
+			return r;
 		}
 		inline Mat4 operator-() const {
-			Mat4 r; std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); return r;
+			Mat4 r;
+			std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); 
+			return r;
 		}
 
 		inline const Vec4& operator[](const int i) const { return Rows[i]; }
 		inline operator const float* () const { return static_cast<const float*>(Rows[0]); }
 
 		inline Mat4 Transpose() const {
+			//View = std::linalg::transposed(View);
 			return { 
 				{ Rows[0].X(), Rows[1].X(), Rows[2].X(), Rows[3].X() }, 
 				{ Rows[0].Y(), Rows[1].Y(), Rows[2].Y(), Rows[3].Y() }, 
@@ -356,19 +439,21 @@ namespace LinAlg
 			return std::powf(-1.0f, static_cast<float>(Column + 1 + Row + 1)) * Minor(Column, Row).Determinant();
 		}
 
-		inline Mat4& operator=(const Mat2& rhs) {
-			Rows[0] = rhs[0]; Rows[1] = rhs[1];
-			return *this;
-		}
-		inline Mat4& operator=(const Mat3& rhs) {
-			Rows[0] = rhs[0]; Rows[1] = rhs[1]; Rows[2] = rhs[2];
-			return *this;
-		}
+		//inline Mat4& operator=(const Mat2& rhs) {
+		//	Rows[0] = rhs[0]; Rows[1] = rhs[1];
+		//	return *this;
+		//}
+		//inline Mat4& operator=(const Mat3& rhs) {
+		//	Rows[0] = rhs[0]; Rows[1] = rhs[1]; Rows[2] = rhs[2];
+		//	return *this;
+		//}
 		inline Mat4& operator=(const Mat4& rhs) { 
+			//std::linalg::copy(rhs.View, View);
 			std::ranges::copy(rhs.Rows, std::begin(Rows));
 			return *this; 
 		}
 		inline const Mat4& operator+=(const Mat4& rhs) { 
+			//std::linalg::add(View, rhs.View, View);
 			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::plus());
 			return *this; 
 		}
@@ -377,10 +462,12 @@ namespace LinAlg
 			return *this; 
 		}
 		inline const Mat4& operator*=(const float rhs) {
+			//std::linalg::scale(rhs, View);
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs));
 			return *this; 
 		}
-		inline const Mat4& operator/=(const float rhs) { 
+		inline const Mat4& operator/=(const float rhs) {
+			//std::linalg::scale(1.0f / rhs, View);
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::divides(), std::placeholders::_1, rhs));
 			return *this; 
 		}
@@ -396,6 +483,14 @@ namespace LinAlg
 
 	private:
 		std::array<Vec4, 4> Rows = { Vec4::AxisX() , Vec4::AxisY(), Vec4::AxisZ(), Vec4::AxisW() };
+
+		Float16 Data = {
+			1.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, 1.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f, 0.0f,
+			0.0f, 0.0f, 0.0f, 1.0f
+		};
+		View4x4 View{ std::data(Data) };
 	};
 
 	template<size_t M, size_t N>
@@ -505,6 +600,9 @@ namespace LinAlg
 
 	private:
 		std::array<Vec<N>, M> Rows;
+
+		std::array<float, N * M> Data;
+		std::mdspan<float, std::extents<std::size_t, N, M>> View{ std::data(Data) };
 	};
 
 	static void MdspanTest() {

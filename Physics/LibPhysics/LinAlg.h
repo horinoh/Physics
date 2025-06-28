@@ -1,13 +1,31 @@
 #pragma once
 
 #include <iostream>
+#include <limits>
+#include <numeric>
+#include <array>
+#include <mdspan>
+#include <algorithm>
+#include <functional>
+#include <format>
 #include <numbers>
+//!< C++26
+//#include <linalg>
 
 namespace LinAlg 
 {
-	using Comp2 = std::array<float, 2>;
-	using Comp3 = std::array<float, 3>;
-	using Comp4 = std::array<float, 4>;
+	using Float2 = std::array<float, 2>;
+	using Float3 = std::array<float, 3>;
+	using Float4 = std::array<float, 4>;
+	using Float9 = std::array<float, 9>;
+	using Float16 = std::array<float, 16>;
+
+	using View2 = std::mdspan<float, std::extents<std::size_t, 2>>;
+	using View3 = std::mdspan<float, std::extents<std::size_t, 3>>;
+	using View4 = std::mdspan<float, std::extents<std::size_t, 4>>;
+	using View2x2 = std::mdspan<float, std::extents<std::size_t, 2, 2>>;
+	using View3x3 = std::mdspan<float, std::extents<std::size_t, 3, 3>>;
+	using View4x4 = std::mdspan<float, std::extents<std::size_t, 4, 4>>;
 
 	static constexpr float ToRadian(const float Degree) { return Degree * std::numbers::pi_v<float> / 180.0f; }
 	static constexpr float ToDegree(const float Radian) { return Radian * 180.0f / std::numbers::pi_v<float>; }

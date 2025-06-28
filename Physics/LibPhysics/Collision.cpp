@@ -55,7 +55,7 @@ bool Collision::Intersection::AABBAABB(const AABB& AbA, const AABB& AbB,
 	T = 0.0f;
 	auto T1 = 1.0f;
 	for (auto i = 0; i < 3; ++i) {
-		if (std::abs(V[i]) > std::numeric_limits<float>::epsilon()) {
+		if (std::abs(V[i]) > (std::numeric_limits<float>::epsilon)()) {
 			if (V[i] < 0.0f) {
 				if (AbB.Max[i] < AbA.Min[i]) { return false; }
 				if (AbA.Max[i] < AbB.Min[i]) T = (std::max)((AbA.Max[i] - AbB.Min[i]) / V[i], T);
@@ -79,7 +79,7 @@ bool Collision::Intersection::AABBRay(const AABB& Ab,
 	auto TMax = std::numeric_limits<float>::max();
 
 	for (auto i = 0; i < 3; ++i) {
-		if (std::abs(RayDir[i]) < std::numeric_limits<float>::epsilon()) {
+		if (std::abs(RayDir[i]) < (std::numeric_limits<float>::epsilon)()) {
 			if (RayPos[i] < Ab.Min[i] || RayPos[i] > Ab.Max[i]) { return false; }
 		}
 		else {
@@ -216,7 +216,7 @@ void Collision::Closest::SegmentSegment(const LinAlg::Vec3& SegA, const LinAlg::
 	const auto E = CD.LengthSq();
 
 	//< ‚Q‚Â‚Ìü•ª‚Æ‚à‚ª“_‚Ék‘Þ‚µ‚Ä‚¢‚é
-	if (A <= std::numeric_limits<float>::epsilon() && E <= std::numeric_limits<float>::epsilon()) { 
+	if (A <= std::numeric_limits<float>::epsilon() && E <= (std::numeric_limits<float>::epsilon)()) { 
 		T0 = 0.0f; 
 		T1 = 0.0f;
 		if (nullptr != OnAB) {
@@ -233,20 +233,20 @@ void Collision::Closest::SegmentSegment(const LinAlg::Vec3& SegA, const LinAlg::
 
 	float S, T;
 	//< ü•ªA‚ª“_‚Ék‘Þ‚µ‚Ä‚¢‚é
-	if (A <= std::numeric_limits<float>::epsilon()) {
+	if (A <= (std::numeric_limits<float>::epsilon)()) {
 		S = 0.0f; T = std::clamp(F / E, 0.0f, 1.0f);
 	}
 	else {
 		const auto C = AB.Dot(CA);
 		//< ü•ªB‚ª“_‚Ék‘Þ‚µ‚Ä‚¢‚é
-		if (E <= std::numeric_limits<float>::epsilon()) { 
+		if (E <= (std::numeric_limits<float>::epsilon)()) { 
 			S = std::clamp(-C / A, 0.0f, 1.0f); T = 0.0f; 
 		}
 		else {
 			const auto b = AB.Dot(CD);
 			const auto Denom(A * E - std::pow(b, 2.0f));
 			//< •½s‚Èê‡
-			if (std::abs(Denom) <= std::numeric_limits<float>::epsilon()) { S = 0.0f; }
+			if (std::abs(Denom) <= (std::numeric_limits<float>::epsilon)()) { S = 0.0f; }
 			else { S = std::clamp((b * F - C * E) / Denom, 0.0f, 1.0f); }
 
 			const auto Tnom(b * S + F);

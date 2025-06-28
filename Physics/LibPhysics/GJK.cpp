@@ -15,7 +15,7 @@ LinAlg::Vec2 Collision::SignedVolume(const LinAlg::Vec3& A, const LinAlg::Vec3& 
 
 	//!< 線分 AB を X, Y, Z 軸 へ射影したそれぞれの線分
 	std::vector<float> Segs;
-	std::ranges::transform(static_cast<const LinAlg::Comp3&>(AB), std::back_inserter(Segs),
+	std::ranges::transform(static_cast<const LinAlg::Float3&>(AB), std::back_inserter(Segs),
 		[](const auto& rhs) { 
 			return std::abs(rhs); 
 		});
@@ -80,7 +80,7 @@ LinAlg::Vec4 Collision::SignedVolume(const LinAlg::Vec3& A, const LinAlg::Vec3& 
 	//!< 四面体を座標系と考える、その逆(転置)行列の四因子
 	const auto M = LinAlg::Mat4(LinAlg::Vec4(A, 1.0f), LinAlg::Vec4(B, 1.0f), LinAlg::Vec4(C, 1.0f), LinAlg::Vec4(D, 1.0f)).Transpose();
 	const auto Cofactors = LinAlg::Vec4(M.Cofactor(3, 0), M.Cofactor(3, 1), M.Cofactor(3, 2), M.Cofactor(3, 3));
-	const auto& CofCmps = static_cast<const LinAlg::Comp4&>(Cofactors);
+	const auto& CofCmps = static_cast<const LinAlg::Float4&>(Cofactors);
 	const auto Det = std::accumulate(std::cbegin(CofCmps), std::cend(CofCmps), 0.0f);
 	//!< 原点が四面体内部にあれば、重心座標を返す
 	if (std::ranges::all_of(CofCmps,
@@ -302,7 +302,7 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const LinAlg::Vec3&
 		Sps.erase(std::ranges::cbegin(SpsRange), std::ranges::cend(SpsRange));
 
 		//!< Lambda の有効な (非 0.0) 要素を前へ集める (ケツにはゴミが残るが、Sps 個数分しかアクセスしない)
-		[[maybe_unused]] const auto Dmy = std::ranges::remove(static_cast<LinAlg::Comp4&>(Lambda), 0.0f);
+		[[maybe_unused]] const auto Dmy = std::ranges::remove(static_cast<LinAlg::Float4&>(Lambda), 0.0f);
 
 		//!< 3-シンプレックス (四面体) でここまで来たら原点を含む
 		HasIntersection = (4 == std::size(Sps));
