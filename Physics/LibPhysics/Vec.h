@@ -11,6 +11,7 @@ namespace LinAlg
 		Vec2() {}
 		Vec2(const float x, const float y) : Data({ x, y }) {}
 		Vec2(const float rhs) : Data({ rhs, rhs }) {}
+		Vec2(View2 rhs) : View(rhs) {}
 
 		inline static Vec2 Zero() { return Vec2(0.0f); }
 		inline static Vec2 One() { return Vec2(1.0f); }
@@ -35,32 +36,63 @@ namespace LinAlg
 		}
 		inline bool operator!=(const Vec2& rhs) const { return !(*this == rhs); }
 		inline Vec2 operator+(const Vec2& rhs) const {
+#ifdef USE_STD_LINALG
 			Vec2 r;
-			//std::linalg::add(View, rhs.View, r.View);
+			std::linalg::add(View, rhs.View, r.View);
+			return r;
+#else
+#ifdef USE_OWN_IMPL
+			return Vec2(Data[0] + rhs.Data[0], Data[1] + rhs.Data[1]);
+#else
+			Vec2 r;
 			std::ranges::transform(Data, rhs.Data, std::begin(r.Data), std::plus());
 			return r;
+#endif
+#endif
 		}
 		inline Vec2 operator-(const Vec2& rhs) const {
+#ifdef USE_OWN_IMPL
+			return Vec2(Data[0] - rhs.Data[0], Data[1] - rhs.Data[1]);
+#else
 			Vec2 r;
 			std::ranges::transform(Data, rhs.Data, std::begin(r.Data), std::minus()); 
 			return r;
+#endif
 		}
 		inline Vec2 operator*(const float rhs) const {
+#ifdef USE_STD_LINALG
+			return Vec2(std::linalg::scale(rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Vec2(Data[0] * rhs, Data[1] * rhs);
+#else
 			Vec2 r;
-			//r.View = std::linalg::scale(rhs, View);
 			std::ranges::transform(Data, std::begin(r.Data), std::bind(std::multiplies(), std::placeholders::_1, rhs));
 			return r;
+#endif
+#endif
 		}
 		inline Vec2 operator/(const float rhs) const {
+#ifdef USE_STD_LINALG
+			return Vec2(std::linalg::scale(1.0f / rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Vec2(Data[0] / rhs, Data[1] / rhs);
+#else
 			Vec2 r;
-			//r.View = std::linalg::scale(1.0f / rhs, View);
 			std::ranges::transform(Data, std::begin(r.Data), std::bind(std::divides(), std::placeholders::_1, rhs));
 			return r;
+#endif
+#endif
 		}
 		inline Vec2 operator-() const {
+#ifdef USE_OWN_IMPL
+			return Vec2(-Data[0], -Data[1]);
+#else
 			Vec2 r;
 			std::ranges::transform(Data, std::begin(r.Data), std::negate());
 			return r;
+#endif
 		}
 
 		inline float X() const { return Data[0]; }
@@ -69,51 +101,95 @@ namespace LinAlg
 		inline operator const float* () const { return std::data(Data); }
 
 		inline float Dot(const Vec2& rhs) const {
-			//return std::linalg::dot(View, rhs.View)
+#ifdef USE_STD_LINALG
+			return std::linalg::dot(View, rhs.View)
+#else
 			return std::inner_product(std::cbegin(Data), std::cend(Data), std::cbegin(rhs.Data), 0.0f);
+#endif
 		}
 		inline float LengthSq() const { 
-			//return std::linalg::vector_sum_of_squares(View);
+#ifdef USE_STD_LINALG
+			return std::linalg::vector_sum_of_squares(View);
+#else
 			return Dot(*this);
+#endif
 		}
 		inline float Length() const {
-			//return std::linalg::vector_two_norm(View);
+#ifdef USE_STD_LINALG
+			return std::linalg::vector_two_norm(View);
+#else
 			return std::sqrtf(LengthSq());
+#endif
 		}
-		inline Vec2 Normalize([[maybe_unused]] const bool AssertZero = false) const {
-			//View = std::linalg::scale(1.0f / std::linalg::vector_two_norm(View), View);
+		inline Vec2 Normalize() const {
+#ifdef USE_STD_LINALG
+			return Vec2(std::linalg::scale(1.0f / std::linalg::vector_two_norm(View), View));
+#else
 			const auto Sq = LengthSq();
 			if (Sq > (std::numeric_limits<float>::epsilon)()) {
 				return *this / std::sqrtf(Sq);
 			}
 #ifdef _DEBUG
-			if (AssertZero) { __debugbreak(); }
+			//__debugbreak();
 #endif
-			return *this;
+			return Vec2(*this);
+#endif
 		}
 
 		inline Vec2& operator=(const Vec2& rhs) {
-			//std::linalg::copy(rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::copy(rhs.View, View);
+#else
 			std::ranges::copy(rhs.Data, std::begin(Data));
+#endif
 			return *this;
 		}
 		inline const Vec2& operator+=(const Vec2& rhs) {
-			//std::linalg::add(View, rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::add(View, rhs.View, View);
+#else
+#ifdef USE_OWN_IMPL
+			Data[0] += rhs.Data[0];
+			Data[1] += rhs.Data[1];
+#else
 			std::ranges::transform(Data, rhs.Data, std::begin(Data), std::plus());
+#endif
+#endif
 			return *this;
 		}
 		inline const Vec2& operator-=(const Vec2& rhs) {
+#ifdef USE_OWN_IMPL
+			Data[0] -= rhs.Data[0];
+			Data[1] -= rhs.Data[1];
+#else
 			std::ranges::transform(Data, rhs.Data, std::begin(Data), std::minus());
+#endif
 			return *this;
 		}
 		inline const Vec2& operator*=(const float rhs) {
-			//std::linalg::scale(rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Data[0] *= rhs;
+			Data[1] *= rhs;
+#else
 			std::ranges::transform(Data, std::begin(Data), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this;
 		}
 		inline const Vec2& operator/=(const float rhs) {
-			//std::linalg::scale(1.0f / rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(1.0f / rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Data[0] /= rhs;
+			Data[1] /= rhs;
+#else
 			std::ranges::transform(Data, std::begin(Data), std::bind(std::divides(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this;
 		}
 		inline float& operator[](const int i) { return Data[i]; }
@@ -142,6 +218,7 @@ namespace LinAlg
 		Vec3(const float x, const float y, const float z) : Data({x, y, z}) {}
 		Vec3(const float rhs) : Data({rhs, rhs, rhs}) {}
 		Vec3(const Vec2& rhs, const float z = 0.0f) : Data({ rhs.X(), rhs.Y(), z }) {}
+		Vec3(View3 rhs) : View(rhs) {}
 
 		inline static Vec3 Zero() { return Vec3(0.0f); }
 		inline static Vec3 One() { return Vec3(1.0f); }
@@ -169,32 +246,63 @@ namespace LinAlg
 		}
 		inline bool operator!=(const Vec3& rhs) const { return !(*this == rhs); }
 		inline Vec3 operator+(const Vec3& rhs) const { 
-			Vec3 r; 
-			//std::linalg::add(View, rhs.View, r.View);
+#ifdef USE_STD_LINALG
+			Vec3 r;
+			std::linalg::add(View, rhs.View, r.View);
+			return r;
+#else
+#ifdef USE_OWN_IMPL
+			return Vec3(Data[0] + rhs.Data[0], Data[1] + rhs.Data[1], Data[2] + rhs.Data[2]);
+#else
+			Vec3 r;
 			std::ranges::transform(Data, rhs.Data, std::begin(r.Data), std::plus());
 			return r;
+#endif
+#endif
 		}
 		inline Vec3 operator-(const Vec3& rhs) const {
+#ifdef USE_OWN_IMPL
+			return Vec3(Data[0] - rhs.Data[0], Data[1] - rhs.Data[1], Data[2] - rhs.Data[2]);
+#else	
 			Vec3 r; 
 			std::ranges::transform(Data, rhs.Data, std::begin(r.Data), std::minus());
 			return r;
+#endif
 		}
 		inline Vec3 operator*(const float rhs) const {
-			Vec3 r; 
-			//r.View = std::linalg::scale(rhs, View);
+#ifdef USE_STD_LINALG
+			return Vec3(std::linalg::scale(rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Vec3(Data[0] * rhs, Data[1] * rhs, Data[2] * rhs);
+#else
+			Vec3 r;
 			std::ranges::transform(Data, std::begin(r.Data), std::bind(std::multiplies(), std::placeholders::_1, rhs));
 			return r;
+#endif
+#endif
 		}
 		inline Vec3 operator/(const float rhs) const { 
-			Vec3 r; 
-			//r.View = std::linalg::scale(1.0f / rhs, View);
+#ifdef USE_STD_LINALG
+			return Vec3(std::linalg::scale(1.0f / rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Vec3(Data[0] / rhs, Data[1] / rhs, Data[2] / rhs);
+#else
+			Vec3 r;
 			std::ranges::transform(Data, std::begin(r.Data), std::bind(std::divides(), std::placeholders::_1, rhs)); 
 			return r;
+#endif
+#endif
 		}
 		inline Vec3 operator-() const { 
+#ifdef USE_OWN_IMPL
+			return Vec3(-Data[0], -Data[1], -Data[2]);
+#else
 			Vec3 r; 
 			std::ranges::transform(Data, std::begin(r.Data), std::negate()); 
 			return r;
+#endif
 		}
 
 		inline float X() const { return Data[0]; }
@@ -204,27 +312,39 @@ namespace LinAlg
 		inline operator const float* () const { return std::data(Data); }
 
 		inline float Dot(const Vec3& rhs) const { 
-			//return std::linalg::dot(View, rhs.View)
+#ifdef USE_STD_LINALG
+			return std::linalg::dot(View, rhs.View)
+#else
 			return std::inner_product(std::cbegin(Data), std::cend(Data), std::cbegin(rhs.Data), 0.0f);
+#endif
 		}
 		inline float LengthSq() const { 
-			//return std::linalg::vector_sum_of_squares(View);
+#ifdef USE_STD_LINALG
+			return std::linalg::vector_sum_of_squares(View);
+#else
 			return Dot(*this);
+#endif
 		}
 		inline float Length() const {
-			//return std::linalg::vector_two_norm(View);
+#ifdef USE_STD_LINALG
+			return std::linalg::vector_two_norm(View);
+#else
 			return std::sqrtf(LengthSq());
+#endif
 		}
-		inline Vec3 Normalize([[maybe_unused]] const bool AssertZero = false) const {
-			//View = std::linalg::scale(1.0f / std::linalg::vector_two_norm(View), View);
+		inline Vec3 Normalize() const {
+#ifdef USE_STD_LINALG
+			return Vec3(std::linalg::scale(1.0f / std::linalg::vector_two_norm(View), View));
+#else
 			const auto Sq = LengthSq();
 			if (Sq > (std::numeric_limits<float>::epsilon)()) { 
 				return *this / std::sqrtf(Sq); 
 			}
 #ifdef _DEBUG
-			if (AssertZero) { __debugbreak(); }
+			//__debugbreak();
 #endif
-			return *this;
+			return Vec3(*this);
+#endif
 		}
 		inline Vec3 Cross(const Vec3& rhs) const {
 			return Vec3(Y() * rhs.Z() - rhs.Y() * Z(), rhs.X() * Z() - X() * rhs.Z(), X() * rhs.Y() - rhs.X() * Y()); 
@@ -242,27 +362,63 @@ namespace LinAlg
 			return *this; 
 		}
 		inline Vec3& operator=(const Vec3& rhs) {
-			//std::linalg::copy(rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::copy(rhs.View, View);
+#else
 			std::ranges::copy(rhs.Data, std::begin(Data));
+#endif
 			return *this; 
 		}
 		inline const Vec3& operator+=(const Vec3& rhs) { 
-			//std::linalg::add(View, rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::add(View, rhs.View, View);
+#else
+#ifdef USE_OWN_IMPL
+			Data[0] += rhs.Data[0];
+			Data[1] += rhs.Data[1];
+			Data[2] += rhs.Data[2];
+#else
 			std::ranges::transform(Data, rhs.Data, std::begin(Data), std::plus());
+#endif
+#endif
 			return *this; 
 		}
 		inline const Vec3& operator-=(const Vec3& rhs) {
+#ifdef USE_OWN_IMPL
+			Data[0] -= rhs.Data[0];
+			Data[1] -= rhs.Data[1];
+			Data[2] -= rhs.Data[2];
+#else
 			std::ranges::transform(Data, rhs.Data, std::begin(Data), std::minus());
+#endif
 			return *this; 
 		}
 		inline const Vec3& operator*=(const float rhs) { 
-			//std::linalg::scale(rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Data[0] *= rhs;
+			Data[1] *= rhs;
+			Data[2] *= rhs;
+#else
 			std::ranges::transform(Data, std::begin(Data), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this;
 		}
 		inline const Vec3& operator/=(const float rhs) {
-			//std::linalg::scale(1.0f / rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(1.0f / rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Data[0] /= rhs;
+			Data[1] /= rhs;
+			Data[2] /= rhs;
+#else
 			std::ranges::transform(Data, std::begin(Data), std::bind(std::divides(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this;
 		}
 		inline float& operator[](const int i) { return Data[i]; }
@@ -290,6 +446,7 @@ namespace LinAlg
 		Vec4(const float x, const float y, const float z, const float w) : Data({x, y, z, w}) {}
 		Vec4(const float rhs) : Data({ rhs, rhs, rhs, rhs }) {}
 		Vec4(const Vec3& rhs, const float w = 0.0f) : Data({ rhs.X(), rhs.Y(), rhs.Z(), w }) {}
+		Vec4(View4 rhs) : View(rhs) {}
 
 		inline static Vec4 Zero() { return Vec4(0.0f); }
 		inline static Vec4 One() { return Vec4(1.0f); }
@@ -316,32 +473,63 @@ namespace LinAlg
 		}
 		inline bool operator!=(const Vec4& rhs) const { return !(*this == rhs); }
 		inline Vec4 operator+(const Vec4& rhs) const { 
-			Vec4 r; 
-			//std::linalg::add(View, rhs.View, r.View);
+#ifdef USE_STD_LINALG
+			Vec4 r;
+			std::linalg::add(View, rhs.View, r.View);
+			return r;
+#else
+#ifdef USE_OWN_IMPL
+			return Vec4(Data[0] + rhs.Data[0], Data[1] + rhs.Data[1], Data[2] + rhs.Data[2], Data[3] + rhs.Data[3]);
+#else
+			Vec4 r;
 			std::ranges::transform(Data, rhs.Data, std::begin(r.Data), std::plus());
 			return r;
+#endif
+#endif
 		}
 		inline Vec4 operator-(const Vec4& rhs) const {
+#ifdef USE_OWN_IMPL
+			return Vec4(Data[0] - rhs.Data[0], Data[1] - rhs.Data[1], Data[2] - rhs.Data[2], Data[3] - rhs.Data[3]);
+#else
 			Vec4 r; 
 			std::ranges::transform(Data, rhs.Data, std::begin(r.Data), std::minus()); 
 			return r;
+#endif
 		}
 		inline Vec4 operator*(const float rhs) const {
-			Vec4 r; 
-			//r.View = std::linalg::scale(rhs, View);
+#ifdef USE_STD_LINALG
+			return Vec4(std::linalg::scale(rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Vec4(Data[0] * rhs, Data[1] * rhs, Data[2] * rhs, Data[3] * rhs);
+#else
+			Vec4 r;
 			std::ranges::transform(Data, std::begin(r.Data), std::bind(std::multiplies(), std::placeholders::_1, rhs));
 			return r;
+#endif
+#endif
 		}
 		inline Vec4 operator/(const float rhs) const {
+#ifdef USE_STD_LINALG
+			return Vec4(std::linalg::scale(1.0f / rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Vec4(Data[0] / rhs, Data[1] / rhs, Data[2] / rhs, Data[3] / rhs);
+#else
 			Vec4 r;
-			//r.View = std::linalg::scale(1.0f / rhs, View);
 			std::ranges::transform(Data, std::begin(r.Data), std::bind(std::divides(), std::placeholders::_1, rhs));
 			return r;
+#endif
+#endif
 		}
-		inline Vec4 operator-() const { 
+		inline Vec4 operator-() const {
+#ifdef USE_OWN_IMPL
+			return Vec4(-Data[0], -Data[1], -Data[2], -Data[3]);
+#else
 			Vec4 r; 
 			std::ranges::transform(Data, std::begin(r.Data), std::negate());
 			return r;
+#endif
 		}
 
 		inline float X() const { return Data[0]; }
@@ -352,27 +540,39 @@ namespace LinAlg
 		inline operator const float* () const { return std::data(Data); }
 
 		inline float Dot(const Vec4& rhs) const { 
-			//return std::linalg::dot(View, rhs.View)
+#ifdef USE_STD_LINALG
+			return std::linalg::dot(View, rhs.View);
+#else
 			return std::inner_product(std::cbegin(Data), std::cend(Data), std::cbegin(rhs.Data), 0.0f);
+#endif
 		}
 		inline float LengthSq() const { 
-			//return std::linalg::vector_sum_of_squares(View);
+#ifdef USE_STD_LINALG
+			return std::linalg::vector_sum_of_squares(View);
+#else
 			return Dot(*this);
+#endif
 		}
 		inline float Length() const {
-			//return std::linalg::vector_two_norm(View);
+#ifdef USE_STD_LINALG
+			return std::linalg::vector_two_norm(View);
+#else
 			return std::sqrtf(LengthSq());
+#endif
 		}
-		inline Vec4 Normalize([[maybe_unused]] const bool AssertZero = false) const {
-			//View = std::linalg::scale(1.0f / std::linalg::vector_two_norm(View), View);
+		inline Vec4 Normalize() const {
+#ifdef USE_STD_LINALG
+			return Vec4(std::linalg::scale(1.0f / std::linalg::vector_two_norm(View), View));
+#else
 			const auto Sq = LengthSq();
 			if (Sq > (std::numeric_limits<float>::epsilon)()) {
 				return *this / std::sqrtf(Sq);
 			}
 #ifdef _DEBUG
-			if (AssertZero) { __debugbreak(); }
+			//__debugbreak();
 #endif
-			return *this;
+			return Vec4(*this);
+#endif
 		}
 		inline Vec4& operator=(const Vec2& rhs) { 
 			Data[0] = rhs.X(); Data[1] = rhs.Y(); 
@@ -383,27 +583,67 @@ namespace LinAlg
 			return *this; 
 		}
 		inline Vec4& operator=(const Vec4& rhs) {
-			//std::linalg::copy(rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::copy(rhs.View, View);
+#else
 			std::ranges::copy(rhs.Data, std::begin(Data));
+#endif
 			return *this;
 		}
 		inline const Vec4& operator+=(const Vec4& rhs) { 
-			//std::linalg::add(View, rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::add(View, rhs.View, View);
+#else
+#ifdef USE_OWN_IMPL
+			Data[0] += rhs.Data[0];
+			Data[1] += rhs.Data[1];
+			Data[2] += rhs.Data[2];
+			Data[3] += rhs.Data[3];
+#else
 			std::ranges::transform(Data, rhs.Data, std::begin(Data), std::plus());
+#endif
+#endif
 			return *this;
 		}
 		inline const Vec4& operator-=(const Vec4& rhs) { 
+#ifdef USE_OWN_IMPL
+			Data[0] -= rhs.Data[0];
+			Data[1] -= rhs.Data[1];
+			Data[2] -= rhs.Data[2];
+			Data[3] -= rhs.Data[3];
+#else
 			std::ranges::transform(Data, rhs.Data, std::begin(Data), std::minus());
+#endif
 			return *this;
 		}
 		inline const Vec4& operator*=(const float rhs) {
-			//std::linalg::scale(rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Data[0] *= rhs;
+			Data[1] *= rhs;
+			Data[2] *= rhs;
+			Data[3] *= rhs;
+#else
 			std::ranges::transform(Data, std::begin(Data), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this; 
 		}
 		inline const Vec4& operator/=(const float rhs) { 
-			//std::linalg::scale(1.0f / rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(1.0f / rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Data[0] /= rhs;
+			Data[1] /= rhs;
+			Data[2] /= rhs;
+			Data[3] /= rhs;
+#else
 			std::ranges::transform(Data, std::begin(Data), std::bind(std::divides(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this; 
 		}
 		inline float& operator[](const int i) { return Data[i]; }
@@ -438,6 +678,7 @@ namespace LinAlg
 				Data[i++] = f;
 			}
 		}
+		Vec(std::mdspan<float, std::extents<std::size_t, N>> rhs) : View(rhs) {}
 
 		inline static Vec Zero() { return Vec(); }
 		inline static Vec One() { return Vec(1.0f); }
@@ -458,31 +699,70 @@ namespace LinAlg
 		inline bool operator==(const Vec& rhs) const { return std::ranges::equal(Data, rhs.Data); }
 		inline bool operator!=(const Vec& rhs) const { return !(*this == rhs); }
 		inline Vec operator+(const Vec& rhs) const { 
-			Vec r; 
-			//std::linalg::add(View, rhs.View, r.View);
+			Vec r;
+#ifdef USE_STD_LINALG
+			std::linalg::add(View, rhs.View, r.View);
+#else
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < N; ++i) {
+				r.Data[i] = Data[i] + rhs.Data[i];
+			}
+#else
 			std::ranges::transform(Data, rhs.Data, std::begin(r.Data), std::plus());
+#endif
+#endif
 			return r;
 		}
 		inline Vec operator-(const Vec& rhs) const {
-			Vec r; 
+			Vec r;
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < N; ++i) {
+				r.Data[i] = Data[i] - rhs.Data[i];
+			}
+#else
 			std::ranges::transform(Data, rhs.Data, std::begin(r.Data), std::minus());
+#endif
 			return r;
 		}
 		inline Vec operator*(const float rhs) const {
+#ifdef USE_STD_LINALG
+			return Vec(std::linalg::scale(rhs, View));
+#else
 			Vec r;
-			//r.View = std::linalg::scale(rhs, View);
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < N; ++i) {
+				r.Data[i] = Data[i] * rhs;
+			}
+#else
 			std::ranges::transform(Data, rhs, std::begin(r.Data), std::multiplies());
+#endif
 			return r;
+#endif
 		}
 		inline Vec operator/(const float rhs) const {
-			Vec r; 
-			//r.View = std::linalg::scale(1.0f / rhs, View);
+#ifdef USE_STD_LINALG
+			return Vec(std::linalg::scale(1.0f / rhs, View));
+#else
+			Vec r;
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < N; ++i) {
+				r.Data[i] = Data[i] / rhs;
+			}
+#else
 			std::ranges::transform(Data, rhs, std::begin(r.Data), std::divides());
+#endif
 			return r;
+#endif
 		}
 		inline Vec operator-() const { 
 			Vec r; 
-			std::ranges::transform(Data, std::begin(r.Data), std::negate()); 
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < N; ++i) {
+				r.Data[i] = -Data[i];
+			}
+#else
+			std::ranges::transform(Data, std::begin(r.Data), std::negate());
+#endif
 			return r;
 		}
 
@@ -490,48 +770,99 @@ namespace LinAlg
 		inline operator const float* () const { return std::data(Data); }
 
 		inline float Dot(const Vec& rhs) const { 
-			//return std::linalg::dot(View, rhs.View);
+#ifdef USE_STD_LINALG
+			return std::linalg::dot(View, rhs.View);
+#else
 			return std::inner_product(std::cbegin(Data), std::cend(Data), std::cbegin(rhs.Data), 0.0f);
+#endif
 		}
 		inline float LengthSq() const {
-			//return std::linalg::vector_sum_of_squares(View);
+#ifdef USE_STD_LINALG
+			return std::linalg::vector_sum_of_squares(View);
+#else
 			return Dot(*this);
+#endif
 		}
 		inline float Length() const { 
-			//return std::linalg::vector_two_norm(View);
+#ifdef USE_STD_LINALG
+			return std::linalg::vector_two_norm(View);
+#else
 			return std::sqrtf(LengthSq());
+#endif
 		}
 		inline Vec Normalize() const {
-			//View = std::linalg::scale(1.0f / std::linalg::vector_two_norm(View), View);
+#ifdef USE_STD_LINALG
+			return Vec(std::linalg::scale(1.0f / std::linalg::vector_two_norm(View), View));
+#else
 			const auto Sq = LengthSq();
 			if (Sq > (std::numeric_limits<float>::epsilon)()) {
 				return *this / std::sqrtf(Sq);
 			}
-			return *this;
+#ifdef _DEBUG
+			//__debugbreak();
+#endif
+			return Vec(*this);
+#endif
 		}
 
 		inline Vec& operator=(const Vec& rhs) {
-			//std::linalg::copy(rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::copy(rhs.View, View);
+#else
 			std::ranges::copy(rhs.Data, std::begin(Data));
+#endif
 			return *this;
 		}
 		inline const Vec& operator+=(const Vec& rhs) { 
-			//std::linalg::add(View, rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::add(View, rhs.View, View);
+#else
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < N; ++i) {
+				Data[i] += rhs.Data[i];
+			}
+#else
 			std::ranges::transform(Data, rhs.Data, std::begin(Data), std::plus());
+#endif
+#endif
 			return *this;
 		}
 		inline const Vec& operator-=(const Vec& rhs) {
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < N; ++i) {
+				Data[i] -= rhs.Data[i];
+			}
+#else
 			std::ranges::transform(Data, rhs.Data, std::begin(Data), std::divides());
+#endif
 			return *this;
 		}
 		inline const Vec& operator*=(const float rhs) { 
-			//std::linalg::scale(rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < N; ++i) {
+				Data[i] *= rhs;
+			}
+#else
 			std::ranges::transform(Data, std::begin(Data), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this; 
 		}
 		inline const Vec& operator/=(const float rhs) {
-			//std::linalg::scale(1.0f / rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(1.0f / rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < N; ++i) {
+				Data[i] /= rhs;
+			}
+#else
 			std::ranges::transform(Data, std::begin(Data), std::bind(std::divides(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this; 
 		}
 		inline float& operator[](const int i) { return Data[i]; }

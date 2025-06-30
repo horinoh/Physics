@@ -13,12 +13,14 @@
 #endif
 #endif
 
+#ifndef PERFORMANCE_COUNTER
 #ifdef _DEBUG
 #define PERFORMANCE_COUNTER(x) PerformanceCounter __PC(x)
-#define PERFORMANCE_COUNTER_FUNC() PerformanceCounter __PC(std::source_location::current().function_name())
+#define PERFORMANCE_COUNTER_FUNC() PERFORMANCE_COUNTER(std::source_location::current().function_name())
 #else
 #define PERFORMANCE_COUNTER(x)
 #define PERFORMANCE_COUNTER_FUNC()
+#endif
 #endif
 
 class PerformanceCounter

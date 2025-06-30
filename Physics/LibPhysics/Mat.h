@@ -10,6 +10,7 @@ namespace LinAlg
 		Mat2() {}
 		Mat2(const Vec2& Row0, const Vec2& Row1) : Rows{ Row0, Row1 } {}
 		Mat2(const Mat2& rhs) : Rows{ rhs.Rows[0], rhs.Rows[1] } {}
+		Mat2(View2x2 rhs) : View(rhs) {}
 
 		inline static Mat2 Identity() { return Mat2(); }
 		inline static Mat2 Zero() { return { Vec2::Zero(), Vec2::Zero() }; }
@@ -25,32 +26,57 @@ namespace LinAlg
 			return std::ranges::equal(Rows, rhs.Rows);
 		}
 		inline Mat2 operator+(const Mat2& rhs) const {
-			Mat2 r; 
-			//std::linalg::add(View, rhs.View, r.View);
+#ifdef USE_STD_LINALG
+			Mat2 r;
+			std::linalg::add(View, rhs.View, r.View);
+			return r;
+#else
+#ifdef USE_OWN_IMPL
+			return Mat2(Rows[0] + rhs.Rows[0], Rows[1] + rhs.Rows[1]);
+#else
+			Mat2 r;
 			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus());
 			return r;
+#endif
+#endif
 		}
 		inline Mat2 operator-(const Mat2& rhs) const { 
-			Mat2 r; std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::minus()); return r;
+#ifdef USE_OWN_IMPL
+			return Mat2(Rows[0] - rhs.Rows[0], Rows[1] - rhs.Rows[1]);
+#else
+			Mat2 r;
+			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::minus()); 
+			return r;
+#endif		
 		}
 		inline Mat2 operator*(const float rhs) const { 
+#ifdef USE_STD_LINALG
+			return Mat2(std::linalg::scale(rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Mat2(Rows[0] * rhs, Rows[1] * rhs);
+#else
 			Mat2 r;
-			//r.View = std::linalg::scale(rhs, View);
 			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs));
 			return r;
+#endif
+#endif
 		}
 		inline Vec2 operator*(const Vec2& rhs) const { 
-			//Vec2 r;
-			//std::linalg::matrix_vector_product(View, rhs.View, r.View);
-			//return r;
-
+#ifdef USE_STD_LINALG
+			Vec2 r;
+			std::linalg::matrix_vector_product(View, rhs.View, r.View);
+			return r;
+#else
 			return { Rows[0].Dot(rhs), Rows[1].Dot(rhs) };
+#endif
 		}
 		inline Mat2 operator*(const Mat2& rhs) const {
-			//Mat2 r;
-			//std::linalg::matrix_product(View, rhs.View, r.View);
-			//return r;
-			
+#ifdef USE_STD_LINALG
+			Mat2 r;
+			std::linalg::matrix_product(View, rhs.View, r.View);
+			return r;
+#else
 			//!< ŒŸŽZ—p : glm ‚Ìê‡‚ÍŠ|‚¯‚é‡˜‚ª‹t‚È‚Ì‚Å’ˆÓ
 			// glm::make_mat2(static_cast<const float*>(rhs)) * glm::make_mat2(static_cast<const float*>(*this));
 			const auto c0 = Vec2({ rhs.Rows[0][0], rhs.Rows[1][0] });
@@ -59,26 +85,43 @@ namespace LinAlg
 				{ Rows[0].Dot(c0), Rows[0].Dot(c1) }, 
 				{ Rows[1].Dot(c0), Rows[1].Dot(c1) } 
 			};
+#endif
 		}
 		inline Mat2 operator/(const float rhs) const { 
+#ifdef USE_STD_LINALG
+			return Mat2(std::linalg::scale(1.0f / rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Mat2(Rows[0] / rhs, Rows[1] / rhs);
+#else
 			Mat2 r;
-			//r.View = std::linalg::scale(1.0f / rhs, View);
 			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs));
 			return r;
+#endif
+#endif
 		}
 		inline Mat2 operator-() const {
-			Mat2 r; std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); return r;
+#ifdef USE_OWN_IMPL
+			return Mat2(-Rows[0], -Rows[1]);
+#else
+			Mat2 r; 
+			std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); 
+			return r;
+#endif
 		}
 
 		inline const Vec2& operator[](const int i) const { return Rows[i]; }
 		inline operator const float* () const { return static_cast<const float*>(Rows[0]); }
 
 		inline Mat2 Transpose() const {
-			//View = std::linalg::transposed(View);
+#ifdef USE_STD_LINALG
+			return Mat2(std::linalg::transposed(View));
+#else
 			return {
 				{ Rows[0].X(), Rows[1].X() }, 
 				{ Rows[0].Y(), Rows[1].Y() } 
 			};
+#endif
 		}
 		inline float Determinant() const {
 			//!< ŒŸŽZ—p
@@ -93,27 +136,59 @@ namespace LinAlg
 		inline Mat2 Inverse() const { Inverse(1.0f / Determinant()); }
 
 		inline Mat2& operator=(const Mat2& rhs) { 
-			//std::linalg::copy(rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::copy(rhs.View, View);
+#else
 			std::ranges::copy(rhs.Rows, std::begin(Rows));
+#endif
 			return *this;
 		}
 		inline const Mat2& operator+=(const Mat2& rhs) {
-			//std::linalg::add(View, rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::add(View, rhs.View, View);
+#else
+#ifdef USE_OWN_IMPL
+			Rows[0] += rhs.Rows[0];
+			Rows[1] += rhs.Rows[1];
+#else
 			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::plus());
+#endif
+#endif
 			return *this;
 		}
 		inline const Mat2& operator-=(const Mat2& rhs) {
+#ifdef USE_OWN_IMPL
+			Rows[0] -= rhs.Rows[0];
+			Rows[1] -= rhs.Rows[1];
+#else
 			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::minus());
+#endif
 			return *this;
 		}
 		inline const Mat2& operator*=(const float rhs) {
-			//std::linalg::scale(rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Rows[0] *= rhs;
+			Rows[1] *= rhs;
+#else
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this;
 		}
 		inline const Mat2& operator/=(const float rhs) {
-			//std::linalg::scale(1.0f / rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(1.0f / rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Rows[0] /= rhs;
+			Rows[1] /= rhs;
+#else
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::divides(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this;
 		}
 		inline Vec2& operator[](const int i) { return Rows[i]; }
@@ -138,9 +213,12 @@ namespace LinAlg
 	class Mat3 
 	{
 	public:
+		friend class Mat4;
+
 		Mat3() {}
 		Mat3(const Vec3& Row0, const Vec3& Row1, const Vec3& Row2) : Rows{ Row0, Row1, Row2 } {}
 		Mat3(const Mat3& rhs) : Rows{ rhs.Rows[0], rhs.Rows[1], rhs.Rows[2] } {}
+		Mat3(View3x3 rhs) : View(rhs) {}
 
 		inline static Mat3 Identity() { return Mat3(); }
 		inline static Mat3 Zero() { return { Vec3::Zero(), Vec3::Zero(), Vec3::Zero() }; }
@@ -156,34 +234,57 @@ namespace LinAlg
 			return std::ranges::equal(Rows, rhs.Rows);
 		}
 		inline Mat3 operator+(const Mat3& rhs) const { 
+#ifdef USE_STD_LINALG
 			Mat3 r;
-			//std::linalg::add(View, rhs.View, r.View);
+			std::linalg::add(View, rhs.View, r.View);
+			return r;
+#else
+#ifdef USE_OWN_IMPL
+			return Mat3(Rows[0] + rhs.Rows[0], Rows[1] + rhs.Rows[1], Rows[2] + rhs.Rows[2]);
+#else
+			Mat3 r;
 			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus());
 			return r;
+#endif
+#endif
 		}
 		inline Mat3 operator-(const Mat3& rhs) const { 
+#ifdef USE_OWN_IMPL
+			return Mat3(Rows[0] - rhs.Rows[0], Rows[1] - rhs.Rows[1], Rows[2] - rhs.Rows[2]);
+#else
 			Mat3 r; 
 			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::minus()); 
 			return r;
+#endif
 		}
 		inline Mat3 operator*(const float rhs) const {
+#ifdef USE_STD_LINALG
+			return Mat3(std::linalg::scale(rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Mat3(Rows[0] * rhs, Rows[1] * rhs, Rows[2] * rhs);
+#else
 			Mat3 r;
-			//r.View = std::linalg::scale(rhs, View);
 			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs));
 			return r;
+#endif
+#endif
 		}
 		inline Vec3 operator*(const Vec3& rhs) const { 
-			//Vec3 r;
-			//std::linalg::matrix_vector_product(View, rhs.View, r.View);
-			//return r;
-
+#ifdef USE_STD_LINALG
+			Vec3 r;
+			std::linalg::matrix_vector_product(View, rhs.View, r.View);
+			return r;
+#else
 			return { Rows[0].Dot(rhs), Rows[1].Dot(rhs), Rows[2].Dot(rhs) };
+#endif
 		}
 		inline Mat3 operator*(const Mat3& rhs) const {
-			//Mat3 r;
-			//std::linalg::matrix_product(View, rhs.View, r.View);
-			//return r;
-
+#ifdef USE_STD_LINALG
+			Mat3 r;
+			std::linalg::matrix_product(View, rhs.View, r.View);
+			return r;
+#else
 			//!< ŒŸŽZ—p : glm ‚Ìê‡‚ÍŠ|‚¯‚é‡˜‚ª‹t‚È‚Ì‚Å’ˆÓ
 			// glm::make_mat3(static_cast<const float*>(rhs)) * glm::make_mat3(static_cast<const float*>(*this));
 			const auto c0 = Vec3({ rhs.Rows[0][0],rhs.Rows[1][0], rhs.Rows[2][0] });
@@ -194,27 +295,44 @@ namespace LinAlg
 				{ Rows[1].Dot(c0), Rows[1].Dot(c1), Rows[1].Dot(c2) }, 
 				{ Rows[2].Dot(c0), Rows[2].Dot(c1), Rows[2].Dot(c2) } 
 			};
+#endif
 		}
 		inline Mat3 operator/(const float rhs) const { 
+#ifdef USE_STD_LINALG
+			return Mat3(std::linalg::scale(1.0f / rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Mat3(Rows[0] / rhs, Rows[1] / rhs, Rows[2] / rhs);
+#else
 			Mat3 r;
-			//r.View = std::linalg::scale(1.0f / rhs, View);
 			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs));
 			return r;
+#endif
+#endif
 		}
 		inline Mat3 operator-() const {
-			Mat3 r; std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); return r;
+#ifdef USE_OWN_IMPL
+			return Mat3(-Rows[0], -Rows[1], -Rows[2]);
+#else
+			Mat3 r; 
+			std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); 
+			return r;
+#endif
 		}
 
 		inline const Vec3& operator[](const int i) const { return Rows[i]; }
 		inline operator const float* () const { return static_cast<const float*>(Rows[0]); }
 
 		inline Mat3 Transpose() const {
-			//View = std::linalg::transposed(View);
+#ifdef USE_STD_LINALG
+			return Mat3(std::linalg::transposed(View));
+#else
 			return {
 				{ Rows[0].X(), Rows[1].X(), Rows[2].X() },
 				{ Rows[0].Y(), Rows[1].Y(), Rows[2].Y() },
 				{ Rows[0].Z(), Rows[1].Z(), Rows[2].Z() }
 			};
+#endif
 		}
 		inline float Determinant() const {
 			//!< ŒŸŽZ—p
@@ -259,32 +377,67 @@ namespace LinAlg
 		}
 
 		inline Mat3& operator=(const Mat2& rhs) {
-			Rows[0] = { rhs.Data[0], rhs.Data[1], 0 }; Rows[1] = { rhs.Data[2], rhs.Data[3], 0 };
-			//Rows[0] = rhs[0]; Rows[1] = rhs[1];
+			Rows[0] = rhs[0]; Rows[1] = rhs[1];
 			return *this;
 		}
 		inline Mat3& operator=(const Mat3& rhs) { 
-			//std::linalg::copy(rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::copy(rhs.View, View);
+#else
 			std::ranges::copy(rhs.Rows, std::begin(Rows));
+#endif
 			return *this; 
 		}
 		inline const Mat3& operator+=(const Mat3& rhs) { 
-			//std::linalg::add(View, rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::add(View, rhs.View, View);
+#else
+#ifdef USE_OWN_IMPL
+			Rows[0] += rhs.Rows[0];
+			Rows[1] += rhs.Rows[1];
+			Rows[2] += rhs.Rows[2];
+#else
 			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::plus());
+#endif
+#endif
 			return *this; 
 		}
 		inline const Mat3& operator-=(const Mat3& rhs) {
+#ifdef USE_OWN_IMPL
+			Rows[0] -= rhs.Rows[0];
+			Rows[1] -= rhs.Rows[1];
+			Rows[2] -= rhs.Rows[2];
+#else
 			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::minus());
+#endif
 			return *this; 
 		}
 		inline const Mat3& operator*=(const float rhs) { 
-			//std::linalg::scale(rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Rows[0] *= rhs;
+			Rows[1] *= rhs;
+			Rows[2] *= rhs;
+#else
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this; 
 		}
 		inline const Mat3& operator/=(const float rhs) {
-			//std::linalg::scale(1.0f / rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(1.0f / rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Rows[0] /= rhs;
+			Rows[1] /= rhs;
+			Rows[2] /= rhs;
+#else
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::divides(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this;
 		}
 		inline Vec3& operator[](const int i) { return Rows[i]; }
@@ -313,6 +466,7 @@ namespace LinAlg
 		Mat4() {}
 		Mat4(const Vec4& Row0, const Vec4& Row1, const Vec4& Row2, const Vec4& Row3) : Rows{ Row0, Row1, Row2, Row3 } {}
 		Mat4(const Mat4& rhs) : Rows{ rhs.Rows[0], rhs.Rows[1], rhs.Rows[2], rhs.Rows[3] } {}
+		Mat4(View4x4 rhs) : View(rhs) {}
 
 		inline static Mat4 Identity() { return Mat4(); }
 		inline static Mat4 Zero() { return { Vec4::Zero(), Vec4::Zero(), Vec4::Zero(), Vec4::Zero() }; }
@@ -328,34 +482,57 @@ namespace LinAlg
 			return std::ranges::equal(Rows, rhs.Rows);
 		}
 		inline Mat4 operator+(const Mat4& rhs) const { 
-			Mat4 r; 
-			//std::linalg::add(View, rhs.View, r.View);
-			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus()); 
+#ifdef USE_STD_LINALG
+			Mat4 r;
+			std::linalg::add(View, rhs.View, r.View);
 			return r;
+#else
+#ifdef USE_OWN_IMPL
+			return Mat4(Rows[0] + rhs.Rows[0], Rows[1] + rhs.Rows[1], Rows[2] + rhs.Rows[2], Rows[3] + rhs.Rows[3]);
+#else
+			Mat4 r;
+			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus());
+			return r;
+#endif
+#endif
 		}
 		inline Mat4 operator-(const Mat4& rhs) const {
+#ifdef USE_OWN_IMPL
+			return Mat4(Rows[0] - rhs.Rows[0], Rows[1] - rhs.Rows[1], Rows[2] - rhs.Rows[2], Rows[3] - rhs.Rows[3]);
+#else
 			Mat4 r; 
 			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::minus()); 
 			return r;
+#endif
 		}
 		inline Mat4 operator*(const float rhs) const { 
-			Mat4 r; 
-			//r.View = std::linalg::scale(rhs, View);
+#ifdef USE_STD_LINALG
+			return Mat4(std::linalg::scale(rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Mat4(Rows[0] * rhs, Rows[1] * rhs, Rows[2] * rhs, Rows[3] * rhs);
+#else
+			Mat4 r;
 			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs)); 
 			return r;
+#endif
+#endif
 		}
 		inline Vec4 operator*(const Vec4& rhs) const {
-			//Vec4 r;
-			//std::linalg::matrix_vector_product(View, rhs.View, r.View);
-			//return r;
-
+#ifdef USE_STD_LINALG
+			Vec4 r;
+			std::linalg::matrix_vector_product(View, rhs.View, r.View);
+			return r;
+#else
 			return { Rows[0].Dot(rhs), Rows[1].Dot(rhs), Rows[2].Dot(rhs), Rows[3].Dot(rhs) };
+#endif
 		}
 		inline Mat4 operator*(const Mat4& rhs) const {
-			//Mat4 r;
-			//std::linalg::matrix_product(View, rhs.View, r.View);
-			//return r;
-			
+#ifdef USE_STD_LINALG
+			Mat4 r;
+			std::linalg::matrix_product(View, rhs.View, r.View);
+			return r;
+#else
 			//!< ŒŸŽZ—p : glm ‚Ìê‡‚ÍŠ|‚¯‚é‡˜‚ª‹t‚È‚Ì‚Å’ˆÓ
 			// glm::make_mat4(static_cast<const float*>(rhs)) * glm::make_mat4(static_cast<const float*>(*this));
 			const auto c0 = Vec4({ rhs.Rows[0][0],rhs.Rows[1][0], rhs.Rows[2][0], rhs.Rows[3][0] });
@@ -368,30 +545,45 @@ namespace LinAlg
 				{ Rows[2].Dot(c0), Rows[2].Dot(c1), Rows[2].Dot(c2), Rows[2].Dot(c3) }, 
 				{ Rows[3].Dot(c0), Rows[3].Dot(c1), Rows[3].Dot(c2), Rows[3].Dot(c3) } 
 			};
+#endif
 		}
 		inline Mat4 operator/(const float rhs) const { 
-			Mat4 r; 
-			//r.View = std::linalg::scale(1.0f / rhs, View);
+#ifdef USE_STD_LINALG
+			return Mat4(std::linalg::scale(1.0f / rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Mat4(Rows[0] / rhs, Rows[1] / rhs, Rows[2] / rhs, Rows[3] / rhs);
+#else
+			Mat4 r;
 			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs)); 
 			return r;
+#endif
+#endif
 		}
 		inline Mat4 operator-() const {
+#ifdef USE_OWN_IMPL
+			return Mat4(-Rows[0], -Rows[1], -Rows[2], -Rows[3]);
+#else
 			Mat4 r;
 			std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); 
 			return r;
+#endif
 		}
 
 		inline const Vec4& operator[](const int i) const { return Rows[i]; }
 		inline operator const float* () const { return static_cast<const float*>(Rows[0]); }
 
 		inline Mat4 Transpose() const {
-			//View = std::linalg::transposed(View);
+#ifdef USE_STD_LINALG
+			return Mat4(std::linalg::transposed(View));
+#else
 			return { 
 				{ Rows[0].X(), Rows[1].X(), Rows[2].X(), Rows[3].X() }, 
 				{ Rows[0].Y(), Rows[1].Y(), Rows[2].Y(), Rows[3].Y() }, 
 				{ Rows[0].Z(), Rows[1].Z(), Rows[2].Z(), Rows[3].Z() }, 
 				{ Rows[0].W(), Rows[1].W(), Rows[2].W(), Rows[3].W() } 
 			};
+#endif
 		}
 		inline float Determinant() const {
 			//!< ŒŸŽZ—p
@@ -439,36 +631,76 @@ namespace LinAlg
 			return std::powf(-1.0f, static_cast<float>(Column + 1 + Row + 1)) * Minor(Column, Row).Determinant();
 		}
 
-		//inline Mat4& operator=(const Mat2& rhs) {
-		//	Rows[0] = rhs[0]; Rows[1] = rhs[1];
-		//	return *this;
-		//}
-		//inline Mat4& operator=(const Mat3& rhs) {
-		//	Rows[0] = rhs[0]; Rows[1] = rhs[1]; Rows[2] = rhs[2];
-		//	return *this;
-		//}
+		inline Mat4& operator=(const Mat2& rhs) {
+			Rows[0] = rhs[0]; Rows[1] = rhs[1];
+			return *this;
+		}
+		inline Mat4& operator=(const Mat3& rhs) {
+			Rows[0] = rhs[0]; Rows[1] = rhs[1]; Rows[2] = rhs[2];
+			return *this;
+		}
 		inline Mat4& operator=(const Mat4& rhs) { 
-			//std::linalg::copy(rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::copy(rhs.View, View);
+#else
 			std::ranges::copy(rhs.Rows, std::begin(Rows));
+#endif
 			return *this; 
 		}
 		inline const Mat4& operator+=(const Mat4& rhs) { 
-			//std::linalg::add(View, rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::add(View, rhs.View, View);
+#else
+#ifdef USE_OWN_IMPL
+			Rows[0] += rhs.Rows[0];
+			Rows[1] += rhs.Rows[1];
+			Rows[2] += rhs.Rows[2];
+			Rows[3] += rhs.Rows[3];
+#else
 			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::plus());
+#endif
+#endif
 			return *this; 
 		}
 		inline const Mat4& operator-=(const Mat4& rhs) { 
+#ifdef USE_OWN_IMPL
+			Rows[0] -= rhs.Rows[0];
+			Rows[1] -= rhs.Rows[1];
+			Rows[2] -= rhs.Rows[2];
+			Rows[3] -= rhs.Rows[3];
+#else
 			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::minus());
+#endif
 			return *this; 
 		}
 		inline const Mat4& operator*=(const float rhs) {
-			//std::linalg::scale(rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Rows[0] *= rhs;
+			Rows[1] *= rhs;
+			Rows[2] *= rhs;
+			Rows[3] *= rhs;
+#else
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this; 
 		}
 		inline const Mat4& operator/=(const float rhs) {
-			//std::linalg::scale(1.0f / rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(1.0f / rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Rows[0] /= rhs;
+			Rows[1] /= rhs;
+			Rows[2] /= rhs;
+			Rows[3] /= rhs;
+#else
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::divides(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this; 
 		}
 		inline Vec4& operator[](const int i) { return Rows[i]; }
@@ -506,6 +738,7 @@ namespace LinAlg
 				Rows[i++] = v;
 			}
 		}
+		Mat(std::mdspan<float, std::extents<std::size_t, N, M>> rhs) : View(rhs) {}
 
 		inline static Mat Identity() {
 			Mat r;
@@ -527,24 +760,67 @@ namespace LinAlg
 			return std::ranges::equal(Rows, rhs.Rows);
 		}
 		inline Mat operator+(const Mat& rhs) const {
-			Mat r; std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus()); return r;
+			Mat r;
+#ifdef USE_STD_LINALG
+			std::linalg::add(View, rhs.View, r.View);
+#else
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < M; ++i) {
+				r.Rows[i] = Rows[i] + rhs.Rows[i];
+			}
+#else
+			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::plus()); 
+#endif
+#endif
+			return r;
 		}
 		inline Mat operator-(const Mat& rhs) const {
-			Mat r; std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::minus()); return r;
+			Mat r; 
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < M; ++i) {
+				r.Rows[i] = Rows[i] - rhs.Rows[i];
+			}
+#else
+			std::ranges::transform(Rows, rhs.Rows, std::begin(r.Rows), std::minus()); 
+#endif
+			return r;
 		}
 		inline Mat operator*(const float rhs) const {
-			Mat r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs)); return r;
+#ifdef USE_STD_LINALG
+			return Mat(std::linalg::scale(rhs, View));
+#else
+			Mat r; 
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < M; ++i) {
+				r.Rows[i] = Rows[i] * rhs;
+			}
+#else
+			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs)); 
+#endif
+			return r;
+#endif
 		}
 		template<uint32_t N>
 		inline Vec<M> operator*(const Vec<N>& rhs) const {
+#ifdef USE_STD_LINALG
+			Vec<M> r;
+			std::linalg::matrix_vector_product(View, rhs.View, r.View);
+			return r;
+#else
 			Vec<M> r;
 			for (auto i = 0; i < M; ++i) {
 				r[i] = rhs.Dot(Rows[i]);
 			}
 			return r;
+#endif
 		}
 		template<uint32_t O>
 		inline Mat<M, O> operator*(const Mat<N, O>& rhs) const {
+#ifdef USE_STD_LINALG
+			Mat<M, O> r;
+			std::linalg::matrix_product(View, rhs.View, r.View);
+			return r;
+#else
 			Mat<M, O> r;
 			const auto Trs = rhs.Transpose();
 			for (auto i = 0; i < M; ++i) {
@@ -553,18 +829,42 @@ namespace LinAlg
 				}
 			}
 			return r;
+#endif
 		}
 		inline Mat operator/(const float rhs) const {
-			Mat r; std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs)); return r;
+#ifdef USE_STD_LINALG
+			return Mat(std::linalg::scale(1.0f / rhs, View));
+#else
+			Mat r; 
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < M; ++i) {
+				r.Rows[i] = Rows[i] / rhs;
+			}
+#else
+			std::ranges::transform(Rows, std::begin(r.Rows), std::bind(std::divides(), std::placeholders::_1, rhs)); 
+#endif
+			return r;
+#endif
 		}
 		inline Mat operator-() const {
-			Mat r; std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); return r;
+			Mat r; 
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < M; ++i) {
+				r.Rows[i] = -Rows[i];
+			}
+#else
+			std::ranges::transform(Rows, std::begin(r.Rows), std::negate()); 
+#endif
+			return r;
 		}
 
 		inline const Vec<N>& operator[](const int i) const { return Rows[i]; }
 		inline operator const float* () const { return static_cast<const float*>(Rows[0]); }
 
 		inline Mat<N, M> Transpose() const {
+#ifdef USE_STD_LINALG
+			return Mat(std::linalg::transposed(View));
+#else
 			Mat<N, M> r;
 			for (auto i = 0; i < M; ++i) {
 				for (auto j = 0; j < N; ++j) {
@@ -572,22 +872,59 @@ namespace LinAlg
 				}
 			}
 			return r;
+#endif
 		}
 
 		inline const Mat& operator+=(const Mat& rhs) {
+#ifdef USE_STD_LINALG
+			std::linalg::add(View, rhs.View, View);
+#else
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < M; ++i) {
+				Rows[i] += rhs.Rows[i];
+			}
+#else
 			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::plus());
+#endif
+#endif
 			return *this;
 		}
 		inline const Mat& operator-=(const Mat& rhs) {
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < M; ++i) {
+				Rows[i] -= rhs.Rows[i];
+			}
+#else
 			std::ranges::transform(Rows, rhs.Rows, std::begin(Rows), std::minus());
+#endif
 			return *this;
 		}
 		inline const Mat& operator*=(const float rhs) {
+#ifdef USE_STD_LINALG
+			std::linalg::scale(rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < M; ++i) {
+				Rows[i] *= rhs;
+			}
+#else
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this;
 		}
 		inline const Mat& operator/=(const float rhs) {
+#ifdef USE_STD_LINALG
+			std::linalg::scale(1.0f / rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			for (auto i = 0; i < M; ++i) {
+				Rows[i] /= rhs;
+			}
+#else
 			std::ranges::transform(Rows, std::begin(Rows), std::bind(std::divides(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this;
 		}
 		inline Vec<N>& operator[](const int i) { return Rows[i]; }

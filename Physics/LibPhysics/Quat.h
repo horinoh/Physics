@@ -13,6 +13,7 @@ namespace LinAlg
 			const auto Ax = Axis.Normalize() * sinf(HalfRadian);
 			Data = { Ax.X(),Ax.Y(),Ax.Z(), cosf(HalfRadian) };
 		}
+		Quat(View4 rhs) : View(rhs) {}
 
 		inline static Quat Identity() { return { 0.0f, 0.0f, 0.0f, 1.0f }; }
 		inline static Mat4 ToLeftMat4(const Quat& rhs) {
@@ -44,10 +45,17 @@ namespace LinAlg
 		}
 		inline bool operator!=(const Quat& rhs) const { return !(*this == rhs); }
 		inline Quat operator*(const float rhs) const {
-			Quat r; 
-			//r.View = std::linalg::scale(rhs, View);
-			std::ranges::transform(Data, std::begin(r.Data), std::bind(std::multiplies(), std::placeholders::_1, rhs)); 
+#ifdef USE_STD_LINALG
+			return Quat(std::linalg::scale(rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Quat(Data[0] * rhs, Data[1] * rhs, Data[2] * rhs, Data[3] * rhs);
+#else
+			Quat r;
+			std::ranges::transform(Data, std::begin(r.Data), std::bind(std::multiplies(), std::placeholders::_1, rhs));
 			return r;
+#endif
+#endif
 		}
 		inline Quat operator*(const Quat& rhs) const {
 			return Quat(X() * rhs.W() + W() * rhs.X() + Y() * rhs.Z() - Z() * rhs.Y(),
@@ -56,10 +64,17 @@ namespace LinAlg
 				W() * rhs.W() - X() * rhs.X() - Y() * rhs.Y() - Z() * rhs.Z());
 		}
 		inline Quat operator/(const float rhs) const { 
+#ifdef USE_STD_LINALG
+			return Quat(std::linalg::scale(1.0f / rhs, View));
+#else
+#ifdef USE_OWN_IMPL
+			return Quat(Data[0] / rhs, Data[1] / rhs, Data[2] / rhs, Data[3] / rhs);
+#else
 			Quat r;
-			//r.View = std::linalg::scale(1.0f / rhs, View);
-			std::ranges::transform(Data, std::begin(r.Data), std::bind(std::divides(), std::placeholders::_1, rhs)); 
+			std::ranges::transform(Data, std::begin(r.Data), std::bind(std::divides(), std::placeholders::_1, rhs));
 			return r;
+#endif
+#endif
 		}
 
 		inline float X() const { return Data[0]; }
@@ -85,18 +100,27 @@ namespace LinAlg
 		inline Mat4 ToRightMat4() const { return ToRightMat4(*this); }
 
 		inline float Dot(const Quat& rhs) const {
-			//return std::linalg::dot(View, rhs.View)
+#ifdef USE_STD_LINALG
+			return std::linalg::dot(View, rhs.View)
+#else
 			return std::inner_product(std::cbegin(Data), std::cend(Data), std::cbegin(rhs.Data), 0.0f);
+#endif
 		}
 		inline float LengthSq() const { return Dot(*this); }
 		inline float Length() const { return std::sqrtf(LengthSq()); }
 		inline Quat Normalize() const {
-			//View = std::linalg::scale(1.0f / std::linalg::vector_two_norm(View), View);
+#ifdef USE_STD_LINALG
+			return Quat(std::linalg::scale(1.0f / std::linalg::vector_two_norm(View), View));
+#else
 			const auto Sq = LengthSq();
 			if (Sq > (std::numeric_limits<float>::epsilon)()) {
 				return *this / std::sqrtf(Sq);
 			}
-			return *this;
+#ifdef _DEBUG
+			//__debugbreak();
+#endif
+			return Quat(*this);
+#endif
 		}
 		inline Quat Conjugate() const { return Quat(-X(), -Y(), -Z(), W()); }
 		inline Quat Inverse() const { return Conjugate() / LengthSq(); }
@@ -112,18 +136,41 @@ namespace LinAlg
 		}
 
 		inline Quat& operator=(const Quat& rhs) { 
-			//std::linalg::copy(rhs.View, View);
+#ifdef USE_STD_LINALG
+			std::linalg::copy(rhs.View, View);
+#else
 			std::ranges::copy(rhs.Data, std::begin(Data));
+#endif
 			return *this;
 		}
 		inline const Quat& operator*=(const float rhs) {
-			//std::linalg::scale(rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Data[0] *= rhs;
+			Data[1] *= rhs;
+			Data[2] *= rhs;
+			Data[3] *= rhs;
+#else
 			std::ranges::transform(Data, std::begin(Data), std::bind(std::multiplies(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this; 
 		}
 		inline const Quat& operator/=(const float rhs) {
-			//std::linalg::scale(1.0f / rhs, View);
+#ifdef USE_STD_LINALG
+			std::linalg::scale(1.0f / rhs, View);
+#else
+#ifdef USE_OWN_IMPL
+			Data[0] /= rhs;
+			Data[1] /= rhs;
+			Data[2] /= rhs;
+			Data[3] /= rhs;
+#else
 			std::ranges::transform(Data, std::begin(Data), std::bind(std::divides(), std::placeholders::_1, rhs));
+#endif
+#endif
 			return *this; 
 		}
 		inline float& operator[](const int i) { return Data[i]; }

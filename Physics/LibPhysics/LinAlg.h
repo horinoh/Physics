@@ -9,8 +9,14 @@
 #include <functional>
 #include <format>
 #include <numbers>
+
 //!< C++26
-//#include <linalg>
+//#define USE_STD_LINALG
+#ifdef USE_STD_LINALG
+#include <linalg>
+#else
+#define USE_OWN_IMPL
+#endif
 
 namespace LinAlg 
 {
