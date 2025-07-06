@@ -81,7 +81,10 @@ namespace LinAlg
 		inline float Y() const { return Data[1]; }
 		inline float Z() const { return Data[2]; }
 		inline float W() const { return Data[3]; }
-		inline Vec3 XYZ() const { return { X(), Y(), Z() }; }
+		inline Vec3 Imag() const { return { X(), Y(), Z() }; }
+		inline float Real() const { return W(); }
+		inline Vec3 Axis() const { return Imag(); }
+		inline float Radian() const { return std::acos(std::clamp(Real(), 0.0f, 1.0f)) * 2.0f; }
 		inline float operator[](const int i) const { return Data[i]; }
 		inline operator const float* () const { return std::data(Data); }
 		inline operator Vec3() const { return { X(), Y(), Z() }; }
@@ -106,8 +109,20 @@ namespace LinAlg
 			return std::inner_product(std::cbegin(Data), std::cend(Data), std::cbegin(rhs.Data), 0.0f);
 #endif
 		}
-		inline float LengthSq() const { return Dot(*this); }
-		inline float Length() const { return std::sqrtf(LengthSq()); }
+		inline float LengthSq() const { 
+#ifdef USE_STD_LINALG
+			return std::linalg::vector_sum_of_squares(View);
+#else
+			return Dot(*this); 
+#endif
+		}
+		inline float Length() const {
+#ifdef USE_STD_LINALG
+			return std::linalg::vector_two_norm(View);
+#else
+			return std::sqrtf(LengthSq());
+#endif
+		}
 		inline Quat Normalize() const {
 #ifdef USE_STD_LINALG
 			return Quat(std::linalg::scale(1.0f / std::linalg::vector_two_norm(View), View));
@@ -122,7 +137,7 @@ namespace LinAlg
 			return Quat(*this);
 #endif
 		}
-		inline Quat Conjugate() const { return Quat(-X(), -Y(), -Z(), W()); }
+		inline Quat Conjugate() const { return Quat(-X(), -Y(), -Z(), Real()); }
 		inline Quat Inverse() const { return Conjugate() / LengthSq(); }
 		inline Vec3 Rotate(const Vec3& rhs) const {
 			return *this * Quat(rhs) * Inverse();

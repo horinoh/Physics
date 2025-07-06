@@ -669,7 +669,7 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 			//!< A ƒ[ƒJƒ‹‚Å‚Ì‘Š‘Î‰ñ“]
 			const auto RelRot = InvQA * QBInvInitRot;
 			//!< ƒ[ƒ‹ƒh‚Å‚Ì‘Š‘Î‰ñ“]Ž²
-			const auto WRelAxis = RigidBodyA->ToWorldDir(RelRot.XYZ());
+			const auto WRelAxis = RigidBodyA->ToWorldDir(RelRot.Imag());
 			const auto C = AB.Dot(AB);
 			constexpr auto Beta = 0.05f;
 			Baumgarte = { C, U.Dot(WRelAxis), V.Dot(WRelAxis) } * Beta / DeltaSec;
