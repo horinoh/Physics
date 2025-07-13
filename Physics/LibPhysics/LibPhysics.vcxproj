@@ -165,6 +165,12 @@
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Shape.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="RigidBody.py" />
+    <None Include="Scene.py" />
+    <None Include="Shape.py" />
+    <None Include="__init__.py" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -31,8 +31,8 @@ void Physics::RigidBody::Update(const float DeltaSec)
 	//!< (角速度による) 位置、回転の更新
 	{
 		//!< ワールド空間の (逆) 慣性テンソル
-		const auto InvWIT = GetWorldSpaceInverseInertiaTensor();
-		const auto WIT = GetWorldSpaceInertiaTensor();
+		const auto InvWIT = GetWorldInverseInertiaTensor();
+		const auto WIT = GetWorldInertiaTensor();
 
 		//!< 角加速度 AngAccel = InvWIT * (w x (WIT * w))
 		const auto AngAccel = InvWIT * (AngularVelocity.Cross(WIT * AngularVelocity));
@@ -48,7 +48,7 @@ void Physics::RigidBody::Update(const float DeltaSec)
 		Rotation = (DeltaQuat * Rotation).Normalize();
 
 		//!< (角変化による) 位置の更新
-		const auto WorldCenter = GetWorldSpaceCenterOfMass();
+		const auto WorldCenter = GetWorldCenterOfMass();
 		Position = WorldCenter + DeltaQuat.Rotate(Position - WorldCenter);
 	}
 }

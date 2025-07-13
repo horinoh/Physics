@@ -11,14 +11,20 @@ namespace Physics
 	public:
 		RigidBody(const Shape* Sh, const float InvMass);
 
+		//!< ローカル (モデル) 空間での重心
+		[[nodiscard]] LinAlg::Vec3 GetCenterOfMass() const;
+		//!< ワールド空間での重心
+		[[nodiscard]] LinAlg::Vec3 GetWorldCenterOfMass() const { return Position + Rotation.Rotate(GetCenterOfMass()); }
+
 		[[nodiscard]] LinAlg::Vec3 ToLocal(const LinAlg::Vec3& rhs, const LinAlg::Vec3& Center) const {
 			return Rotation.Inverse().Rotate(rhs - Center);
 		}
+		[[nodiscard]] LinAlg::Vec3 ToLocalPos(const LinAlg::Vec3& rhs) const { return ToLocal(rhs, GetWorldCenterOfMass()); }
+		[[nodiscard]] LinAlg::Vec3 ToWorldPos(const LinAlg::Vec3& rhs) const { return ToWorld(rhs, GetWorldCenterOfMass()); } 
+		
 		[[nodiscard]] LinAlg::Vec3 ToWorld(const LinAlg::Vec3& rhs, const LinAlg::Vec3& Center) const {
 			return Center + Rotation.Rotate(rhs);
 		}
-		[[nodiscard]] LinAlg::Vec3 ToLocalPos(const LinAlg::Vec3& rhs) const { return ToLocal(rhs, GetWorldSpaceCenterOfMass()); }
-		[[nodiscard]] LinAlg::Vec3 ToWorldPos(const LinAlg::Vec3& rhs) const { return ToWorld(rhs, GetWorldSpaceCenterOfMass()); }
 		[[nodiscard]] LinAlg::Vec3 ToLocalDir(const LinAlg::Vec3& rhs) const { return ToLocal(rhs, LinAlg::Vec3::Zero()); }
 		[[nodiscard]] LinAlg::Vec3 ToWorldDir(const LinAlg::Vec3& rhs) const { return ToWorld(rhs, LinAlg::Vec3::Zero()); }
 
@@ -27,14 +33,8 @@ namespace Physics
 			//!< 本来は Rot3 * rhs * Rot3.Inverse() だが、スケーリングが無いので Rot3 * rhs * Rot3.Transpose() で良い
 			return Rot3 * rhs * Rot3.Transpose();
 		}
-
-		//!< ローカル (モデル) 空間での重心
-		[[nodiscard]] LinAlg::Vec3 GetCenterOfMass() const;
-		//!< ワールド空間での重心
-		[[nodiscard]] LinAlg::Vec3 GetWorldSpaceCenterOfMass() const { return Position + Rotation.Rotate(GetCenterOfMass()); }
-
-		[[nodiscard]] LinAlg::Mat3 GetWorldSpaceInertiaTensor() const { return ToWorld(InertiaTensor); }
-		[[nodiscard]] LinAlg::Mat3 GetWorldSpaceInverseInertiaTensor() const { return ToWorld(InvInertiaTensor); }
+		[[nodiscard]] LinAlg::Mat3 GetWorldInertiaTensor() const { return ToWorld(InertiaTensor); }
+		[[nodiscard]] LinAlg::Mat3 GetWorldInverseInertiaTensor() const { return ToWorld(InvInertiaTensor); }
 
 		void ApplyGravity(const float DeltaSec) {
 			if (0.0f != InvMass) {
@@ -49,7 +49,7 @@ namespace Physics
 		void ApplyAngularImpulse(const LinAlg::Vec3& Impulse) {
 			if (0.0f != InvMass) {
 				//!< w = Inv(I) * AngularJ 
-				AngularVelocity += GetWorldSpaceInverseInertiaTensor() * Impulse;
+				AngularVelocity += GetWorldInverseInertiaTensor() * Impulse;
 
 				//!< 角速度に限界値を設ける (通常パフォーマンス的理由による)
 				constexpr auto Limit = 30.0f;
@@ -63,7 +63,7 @@ namespace Physics
 			if (0.0f != InvMass) {
 				ApplyLinearImpulse(Impulse);
 				//!< AngularJ = Radius x LinearJ
-				const auto Radius = ImpactPoint - GetWorldSpaceCenterOfMass();
+				const auto Radius = ImpactPoint - GetWorldCenterOfMass();
 				ApplyAngularImpulse(Radius.Cross(Impulse));
 			}
 		}

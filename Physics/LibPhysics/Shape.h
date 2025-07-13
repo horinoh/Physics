@@ -46,13 +46,13 @@ namespace Physics
 		}
 
 		//!< (‰ñ“]‚É‚æ‚è) Žw’è‚Ì•ûŒü‚ÉÅ‚à‘¬‚­“®‚¢‚Ä‚¢‚é’¸“_‚Ì‘¬“x‚ð•Ô‚·
-		[[nodiscard]] virtual float GetFastestPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& Dir) const { return 0.0f; }
-		[[nodiscard]] inline float GetFastestPointSpeed(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& AngVel, const LinAlg::Vec3& Dir) const {
+		[[nodiscard]] virtual float GetFastestPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const { return 0.0f; }
+		[[nodiscard]] inline float GetFastestPointSpeed(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const {
 			std::vector<float> Speeds;
 			Speeds.reserve(std::size(Vertices));
 			std::ranges::transform(Vertices, std::back_inserter(Speeds),
 				[&](const auto& rhs) {
-					return Dir.Dot(AngVel.Cross(rhs - GetCenterOfMass()));
+					return UDir.Dot(AngVel.Cross(rhs - GetCenterOfMass()));
 				});
 			return std::ranges::max(Speeds);
 		}
@@ -184,8 +184,8 @@ namespace Physics
 		virtual LinAlg::Vec3 GetSupportPoint(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot, const LinAlg::Vec3& UDir, const float Bias) const override {
 			return Super::GetSupportPoint(Vertices, Pos, Rot, UDir, Bias);
 		}
-		virtual float GetFastestPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& Dir) const override {
-			return Super::GetFastestPointSpeed(Vertices, AngVel, Dir);
+		virtual float GetFastestPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const override {
+			return Super::GetFastestPointSpeed(Vertices, AngVel, UDir);
 		}
 
 	public:
@@ -216,8 +216,8 @@ namespace Physics
 		virtual LinAlg::Vec3 GetSupportPoint(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot, const LinAlg::Vec3& UDir, const float Bias) const override {
 			return Super::GetSupportPoint(Vertices, Pos, Rot, UDir, Bias);
 		}
-		virtual float GetFastestPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& Dir) const override {
-			return Super::GetFastestPointSpeed(Vertices, AngVel, Dir);
+		virtual float GetFastestPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const override {
+			return Super::GetFastestPointSpeed(Vertices, AngVel, UDir);
 		}
 
 	public:

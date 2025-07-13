@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Python Files">
+      <UniqueIdentifier>{815a4a14-c8be-4a7c-aa2c-aaf2aa1b5833}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -80,5 +83,19 @@
     <ClCompile Include="Constraint.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="__init__.py">
+      <Filter>Python Files</Filter>
+    </None>
+    <None Include="Scene.py">
+      <Filter>Python Files</Filter>
+    </None>
+    <None Include="Shape.py">
+      <Filter>Python Files</Filter>
+    </None>
+    <None Include="RigidBody.py">
+      <Filter>Python Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

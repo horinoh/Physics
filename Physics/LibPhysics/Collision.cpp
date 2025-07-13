@@ -401,12 +401,12 @@ void Collision::ResolveContact(const Contact& Ct)
 	const auto TotalInvMass = Ct.RigidBodyA->InvMass + Ct.RigidBodyB->InvMass;
 	{
 		//!< 半径 (重心 -> 衝突点)
-		const auto RA = WPointA - Ct.RigidBodyA->GetWorldSpaceCenterOfMass();
-		const auto RB = WPointB - Ct.RigidBodyB->GetWorldSpaceCenterOfMass();
+		const auto RA = WPointA - Ct.RigidBodyA->GetWorldCenterOfMass();
+		const auto RB = WPointB - Ct.RigidBodyB->GetWorldCenterOfMass();
 		{
 			//!< 逆慣性テンソル (ワールドスペース)
-			const auto InvWITA = Ct.RigidBodyA->GetWorldSpaceInverseInertiaTensor();
-			const auto InvWITB = Ct.RigidBodyB->GetWorldSpaceInverseInertiaTensor();
+			const auto InvWITA = Ct.RigidBodyA->GetWorldInverseInertiaTensor();
+			const auto InvWITB = Ct.RigidBodyB->GetWorldInverseInertiaTensor();
 
 			//!< (A 視点の) 相対速度
 			const auto VelA = Ct.RigidBodyA->LinearVelocity + Ct.RigidBodyA->AngularVelocity.Cross(RA);

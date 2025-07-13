@@ -16,7 +16,7 @@ Physics::Constraint::MassMatrix Physics::ConstraintAnchor::CreateInverseMassMatr
 	InvM[0][0] = InvM[1][1] = InvM[2][2] = RbA->InvMass;
 
 	//!< I_A
-	const auto InvTensorA = RbA->GetWorldSpaceInverseInertiaTensor();
+	const auto InvTensorA = RbA->GetWorldInverseInertiaTensor();
 	for (auto i = 0; i < 3; ++i) {
 		InvM[3 + i][3 + 0] = InvTensorA[i][0];
 		InvM[3 + i][3 + 1] = InvTensorA[i][1];
@@ -27,7 +27,7 @@ Physics::Constraint::MassMatrix Physics::ConstraintAnchor::CreateInverseMassMatr
 	InvM[6][6] = InvM[7][7] = InvM[8][8] = RbB->InvMass;
 
 	//!< I_B
-	const auto InvTensorB = RbB->GetWorldSpaceInverseInertiaTensor();
+	const auto InvTensorB = RbB->GetWorldInverseInertiaTensor();
 	for (auto i = 0; i < 3; ++i) {
 		InvM[9 + i][9 + 0] = InvTensorB[i][0];
 		InvM[9 + i][9 + 1] = InvTensorB[i][1];
@@ -96,8 +96,8 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	const auto AB = WAnchorB - WAnchorA;
 	{
 		//!< それぞれの剛体における、重心からアンカー位置 (ワールド) へのベクトル
-		const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-		const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
+		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
 
 		//!< 距離コンストレイント ヤコビ行列を作成
 		//!< J = (2 * (WAnchorA - WAnchorB), 2 * RA.Cross(WAnchorA - WAnchorB), 2 * (WAnchorB - WAnchorA), 2 * RB.Cross(WAnchorB - WAnchorA))
@@ -168,8 +168,8 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 	const auto AB = WAnchorB - WAnchorA;
 	{
-		const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-		const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
+		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
 		//!< 距離コンストレイント ヤコビ行列
 		{
 			const auto J1 = -AB * 2.0f;
@@ -266,8 +266,8 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 	const auto AB = WAnchorB - WAnchorA;
 	{
-		const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-		const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
+		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
 		{
 			const auto J1 = -AB * 2.0f;
 			const auto J2 = RA.Cross(J1);
@@ -388,8 +388,8 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 	const auto AB = WAnchorB - WAnchorA;
 	{
-		const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-		const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
+		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
 
 		{
 			const auto J1 = -AB * 2.0f;
@@ -463,8 +463,8 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 	const auto AB = WAnchorB - WAnchorA;
 	{
-		const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-		const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
+		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
 
 		{
 			const auto J1 = -AB * 2.0f;
@@ -595,8 +595,8 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 	const auto AB = WAnchorB - WAnchorA;
 	{
-		const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-		const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass();
+		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
+		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
 
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
@@ -743,8 +743,8 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 	const auto AB = WAnchorB - WAnchorA;
 	//!< 法線をワールドスペースへ
 	const auto WNormal = RigidBodyA->ToWorldDir(LNormal);
-	const auto RA = WAnchorA - RigidBodyA->GetWorldSpaceCenterOfMass();
-	const auto RB = WAnchorB - RigidBodyB->GetWorldSpaceCenterOfMass(); 
+	const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
+	const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass(); 
 	{
 		//!< J = (-N, RA x N, N, RB x N)
 		const auto J1 = -WNormal;
