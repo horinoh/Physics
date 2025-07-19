@@ -97,5 +97,11 @@
     <None Include="RigidBody.py">
       <Filter>Python Files</Filter>
     </None>
+    <None Include="Contact.py">
+      <Filter>Python Files</Filter>
+    </None>
+    <None Include="Bound.py">
+      <Filter>Python Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

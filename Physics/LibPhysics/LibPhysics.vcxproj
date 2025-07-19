@@ -166,6 +166,8 @@
     <ClCompile Include="Shape.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Bound.py" />
+    <None Include="Contact.py" />
     <None Include="RigidBody.py" />
     <None Include="Scene.py" />
     <None Include="Shape.py" />

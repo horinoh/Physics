@@ -36,6 +36,10 @@ namespace Physics
 
 		virtual void SolveConstraint(const float DeltaSec, const uint32_t ItCount);
 
+		virtual void ResolveContact(const Collision::Contact& Ct);
+
+		virtual void ConservativeAdvance(const float DeltaSec, const std::vector<Collision::Contact>& Contacts);
+
 		virtual void Update(const float DeltaSec);
 
 		static const LinAlg::Vec3 BroadPhaseAxis;

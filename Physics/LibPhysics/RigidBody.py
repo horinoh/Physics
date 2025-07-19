@@ -1,6 +1,7 @@
-from token import EQUAL
+#from token import EQUAL
 import numpy as np
 import quaternion
+import math
 
 from LibPhysics import Shape
 
@@ -30,6 +31,9 @@ class RigidBody:
 
     def __del__(self):
         pass
+
+    def GetAABB(self):
+        return self.Shape.GetAABB(self.Position, self.Rotation)
 
     def GetWorldCenterOfMass(self):
         return self.Position + quaternion.rotate_vectors(self.Rotation, self.Shape.CenterOfMass)
@@ -68,7 +72,7 @@ class RigidBody:
             Limit = 30.0
             LenSq = self.AngularVelocity @ self.AngularVelocity
             if LenSq > Limit * Limit:
-                self.AngularVelocity = self.AngularVelocity / np.sqrt(LenSq) * Limit
+                self.AngularVelocity = self.AngularVelocity / math.sqrt(LenSq) * Limit
     def ApplyImpulse(self, ImpactPoint, Impulse):
         if 0.0 != self.InvMass:
             self.ApplyLinearImpulse(Impulse)

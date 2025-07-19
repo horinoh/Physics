@@ -52,11 +52,13 @@ void Physics::Scene::BroadPhase(const float DeltaSec, std::vector<CollidablePair
 			Aabb.Expand(Aabb.Min + DVel);
 			Aabb.Expand(Aabb.Max + DVel);
 
+#if false
 			//!< さらに少し拡張 (取りこぼし防止？)
 			const auto Epsilon = 0.01f;
 			const auto DEp = LinAlg::Vec3::One() * Epsilon;
 			Aabb.Expand(Aabb.Min - DEp);
 			Aabb.Expand(Aabb.Max + DEp);
+#endif
 
 			//!< 境界端 (上限、下限) を覚えておく
 			BoundEdges.emplace_back(Collision::BoundEdge({ i, BroadPhaseAxis.Dot(Aabb.Min), true })); //!< 下限
@@ -161,6 +163,94 @@ void Physics::Scene::SolveConstraint(const float DeltaSec, const uint32_t ItCoun
 	Manifolds.PostSolve();
 }
 
+void Physics::Scene::ResolveContact(const Collision::Contact& Ct)
+{
+	const auto& WPointA = Ct.WPointA;
+	const auto& WPointB = Ct.WPointB;
+
+	const auto TotalInvMass = Ct.RigidBodyA->InvMass + Ct.RigidBodyB->InvMass;
+	{
+		//!< 半径 (重心 -> 衝突点)
+		const auto RA = WPointA - Ct.RigidBodyA->GetWorldCenterOfMass();
+		const auto RB = WPointB - Ct.RigidBodyB->GetWorldCenterOfMass();
+		{
+			//!< 逆慣性テンソル (ワールドスペース)
+			const auto InvWITA = Ct.RigidBodyA->GetWorldInverseInertiaTensor();
+			const auto InvWITB = Ct.RigidBodyB->GetWorldInverseInertiaTensor();
+
+			//!< (A 視点の) 相対速度
+			const auto VelA = Ct.RigidBodyA->LinearVelocity + Ct.RigidBodyA->AngularVelocity.Cross(RA);
+			const auto VelB = Ct.RigidBodyB->LinearVelocity + Ct.RigidBodyB->AngularVelocity.Cross(RB);
+			const auto RelVelA = VelA - VelB;
+
+			//!< 法線、接線方向の力積 J を適用するの共通処理
+			auto Apply = [&](const auto& Axis, const auto& Vel, const float Coef) {
+				const auto AngJA = (InvWITA * RA.Cross(Axis)).Cross(RA);
+				const auto AngJB = (InvWITB * RB.Cross(Axis)).Cross(RB);
+				const auto AngFactor = (AngJA + AngJB).Dot(Axis);
+				const auto J = Vel * Coef / (TotalInvMass + AngFactor);
+				Ct.RigidBodyA->ApplyImpulse(WPointA, -J);
+				Ct.RigidBodyB->ApplyImpulse(WPointB, J);
+				};
+
+			//!< 法線方向 力積J (運動量変化)
+			const auto& Nrm = Ct.WNormal;
+			const auto VelN = Nrm * RelVelA.Dot(Nrm);
+			//!< ここでは両者の弾性係数を掛けただけの簡易な実装とする
+			const auto TotalElas = 1.0f + Ct.RigidBodyA->Elasticity * Ct.RigidBodyB->Elasticity;
+			Apply(Nrm, VelN, TotalElas);
+
+			//!< 接線方向 力積J (摩擦力)
+			const auto VelT = RelVelA - VelN;
+			const auto Tan = VelT.Normalize();
+			//!< ここでは両者の摩擦係数を掛けただけの簡易な実装とする
+			const auto TotalFric = Ct.RigidBodyA->Friction * Ct.RigidBodyB->Friction;
+			Apply(Tan, VelT, TotalFric);
+		}
+	}
+
+	//!< めり込みの追い出し (TOI == 0.0f の時点で衝突している場合)
+	//!< (GJK では Manifold で処理していて、Contact へは追加していないのでここには来ない)
+	if (0.0f == Ct.TimeOfImpact) {
+		//!< 質量により追い出し割合を考慮
+		const auto DistAB = WPointB - WPointA;
+		if (0.0f != Ct.RigidBodyA->InvMass) {
+			Ct.RigidBodyA->Position += DistAB * (Ct.RigidBodyA->InvMass / TotalInvMass);
+		}
+		if (0.0f != Ct.RigidBodyB->InvMass) {
+			Ct.RigidBodyB->Position -= DistAB * (Ct.RigidBodyB->InvMass / TotalInvMass);
+		}
+	}
+}
+
+void Physics::Scene::ConservativeAdvance(const float DeltaSec, const std::vector<Collision::Contact>& Contacts)
+{
+	//!< TOI 毎に時間をスライスして、シミュレーションを進める
+	auto AccumTime = 0.0f;
+	for (const auto& i : Contacts) {
+		//!< 次の衝突までの時間
+		const auto Delta = i.TimeOfImpact - AccumTime;
+
+		//!< 次の衝突までシミュレーションを進める
+		for (auto& j : RigidBodies) {
+			j->Update(Delta);
+		}
+
+		//!< 衝突の解決
+		ResolveContact(i);
+
+		AccumTime += Delta;
+	}
+
+	//!< 残りのシミュレーションを進める
+	const auto Delta = DeltaSec - AccumTime;
+	if (0.0f < Delta) {
+		for (auto& i : RigidBodies) {
+			i->Update(Delta);
+		}
+	}
+}
+
 void Physics::Scene::Update(const float DeltaSec)
 {
 	PERFORMANCE_COUNTER_FUNC();
@@ -196,31 +286,8 @@ void Physics::Scene::Update(const float DeltaSec)
 	//!< コンストレイントの解決
 	SolveConstraint(DeltaSec, 5);
 
-	//!< TOI 毎に時間をスライスして、シミュレーションを進める
-	auto AccumTime = 0.0f;
-	for (const auto& i : Contacts) {
-		//!< 次の衝突までの時間
-		const auto DeltaTime = i.TimeOfImpact - AccumTime;
-
-		//!< 次の衝突までシミュレーションを進める
-		for (auto& j : RigidBodies) {
-			j->Update(DeltaTime);
-		}
-
-		//!< 衝突の解決
-		ResolveContact(i);
-
-		AccumTime += DeltaTime;
-	}
-
-	//!< 残りのシミュレーションを進める
-	const auto DeltaTime = DeltaSec - AccumTime;
-	if (0.0f < DeltaTime) {
-		for (auto& i : RigidBodies) {
-			i->Update(DeltaTime);
-		}
-	}
-
+	ConservativeAdvance(DeltaSec, Contacts);
+	
 	//!< 無限落下防止
 #if 1
 	for (auto& i : RigidBodies) {

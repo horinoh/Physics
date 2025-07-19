@@ -367,7 +367,4 @@ namespace Collision
 			return std::fabsf((D - A).Dot((D - B).Cross(D - C)) / 6.0f);
 		}
 	}
-
-	//!< Õ“ËŽž‚Ì—ÍÏ‚Ì“K—p
-	void ResolveContact(const Contact& Ct);
 }
