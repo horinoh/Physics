@@ -117,7 +117,7 @@ public:
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f));
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f)).get()->Init();
 
 #ifdef _DEBUG
 			constexpr auto Stack = 1;
@@ -141,7 +141,7 @@ public:
 			constexpr auto Radius = 20.0f;
 			constexpr auto Y = -Radius;
 
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f));
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f)).get()->Init();
 
 			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
 			Rb->Position = LinAlg::Vec3::AxisY() * Y;

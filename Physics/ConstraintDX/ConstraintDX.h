@@ -118,8 +118,8 @@ public:
 			constexpr auto Radius = 0.5f;
 			constexpr auto Y = 10.0f;
 
-			const auto Box = Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f)).get();
-			const auto Sp = Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius)).get();
+			const auto Box = Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f)).get()->Init();
+			const auto Sp = Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius)).get()->Init();
 
 			//!< 距離コンストレイント (中央上)
 			{

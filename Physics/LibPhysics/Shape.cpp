@@ -3,46 +3,42 @@
 
 #include "Log.h"
 
-Physics::ShapeConvex& Physics::ShapeConvex::Init(const std::vector<LinAlg::Vec3>& Mesh)
+Physics::ShapeConvex::ShapeConvex(const std::vector<LinAlg::Vec3>& Mesh) 
 {
 	//!< メッシュ頂点から凸砲頂点を作る
 	Convex::BuildConvexHull(Mesh, Vertices, Indices);
-
-#if false
-	//!< 一様ランダムから、重心、慣性テンソルを作成
-	{
-		PERFORMANCE_COUNTER("InertiaTensor : Uniform");
-		const auto Ab = Collision::AABB(Vertices);
-		CenterOfMass = Convex::Uniform::CalcCenterOfMass(Ab, Vertices, Indices);
-		InertiaTensor = Convex::Uniform::CalcInertiaTensor(Ab, Vertices, Indices, CenterOfMass);
-	}
-#elif false
-	//!< モンテカルロから、重心、慣性テンソルを作成
-	{
-		PERFORMANCE_COUNTER("InertiaTensor : MonteCarlo");
-		const auto Ab = Collision::AABB(Vertices);
-		CenterOfMass = Convex::MonteCarlo::CalcCenterOfMass(Ab, Vertices, Indices);
-		InertiaTensor = Convex::MonteCarlo::CalcInertiaTensor(Ab, Vertices, Indices, CenterOfMass);
-	}
-#else
-	//!< 四面体から、重心、慣性テンソルを作成
-	{
-		PERFORMANCE_COUNTER("InertiaTensor : Tetrahedron");
-		CenterOfMass = Convex::Tetrahedron::CalcCenterOfMass(Vertices, Indices);
-		InertiaTensor = Convex::Tetrahedron::CalcInertiaTensor(Vertices, Indices, CenterOfMass);
-	}
-#endif
-
-	LOG(std::data(std::string("CenterOfMass = \n")));
-	LOG(std::data(CenterOfMass.ToString()));
-
-	LOG(std::data(std::string("InertiaTensor = \n")));
-	LOG(std::data(InertiaTensor.ToString()));
-
-	InvInertiaTensor = InertiaTensor.Inverse();
-
-	return *this;
 }
+
+LinAlg::Vec3 Physics::ShapeConvex::CalcCenterOfMass() const 
+{
+#if false
+	//!< 一様ランダムから重心を作成
+	return Convex::Uniform::CalcCenterOfMass(Collision::AABB(Vertices), Vertices, Indices);
+#elif false
+	//!< モンテカルロから重心を作成
+	return Convex::MonteCarlo::CalcCenterOfMass(Collision::AABB(Vertices), Vertices, Indices);
+#else
+	//!< 四面体から重心を作成
+	return Convex::Tetrahedron::CalcCenterOfMass(Vertices, Indices);
+#endif
+}
+LinAlg::Mat3 Physics::ShapeConvex::CalcInertiaTensor() const
+{
+#if false
+	//!< 一様ランダムから慣性テンソルを作成
+	PERFORMANCE_COUNTER("InertiaTensor : Uniform");
+	return Convex::Uniform::CalcInertiaTensor(Collision::AABB(Vertices), Vertices, Indices, GetCenterOfMass());
+#elif false
+	//!< モンテカルロから慣性テンソルを作成
+	PERFORMANCE_COUNTER("InertiaTensor : MonteCarlo");
+	return Convex::MonteCarlo::CalcInertiaTensor(Collision::AABB(Vertices), Vertices, Indices, GetCenterOfMass());
+#else
+	//!< 四面体から慣性テンソルを作成
+	PERFORMANCE_COUNTER("InertiaTensor : Tetrahedron");
+	return Convex::Tetrahedron::CalcInertiaTensor(Vertices, Indices, GetCenterOfMass());
+#endif
+}
+
 void Physics::CreateVertices_Diamond(std::vector<LinAlg::Vec3>& Dst)
 {
 	Dst.reserve(7 * 8);

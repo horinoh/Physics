@@ -13,6 +13,8 @@ namespace Physics
 	public:
 		virtual ~Shape() {}
 
+		virtual Shape* Init() { return this; }
+
 		enum class SHAPE_TYPE
 		{
 			SPHERE,
@@ -28,6 +30,29 @@ namespace Physics
 				Ab.Expand(Rot.Rotate(i) + Pos);
 			}
 			return Ab;
+		}
+
+		[[nodiscard]] virtual LinAlg::Vec3 CalcCenterOfMass() const {
+			return LinAlg::Vec3::Zero();
+		}
+		[[nodiscard]] virtual LinAlg::Mat3 CalcInertiaTensor() const {
+			return LinAlg::Mat3::Identity();
+		}
+		[[nodiscard]] inline LinAlg::Mat3 GetParallelAxisTheoremTensor() const {
+			//!< 重心がズレている場合の慣性テンソルの調整
+			const auto R = -GetCenterOfMass();
+			const auto R2 = R.LengthSq();
+			const auto XX = R.X() * R.X();
+			const auto XY = R.X() * R.Y();
+			const auto XZ = R.X() * R.Z();
+			const auto YY = R.Y() * R.Y();
+			const auto YZ = R.Y() * R.Z();
+			const auto ZZ = R.Z() * R.Z();
+			return {
+				{ R2 - XX,      XY,      XZ },
+				{      XY, R2 - YY,      YZ },
+				{      XZ,      YZ, R2 - ZZ }
+			};
 		}
 
 		//!< 指定の方向 (UDir : 正規化されていること) に一番遠い点を返す
@@ -61,7 +86,7 @@ namespace Physics
 		[[nodiscard]] const LinAlg::Mat3& GetInertiaTensor() const { return InertiaTensor; }
 		[[nodiscard]] const LinAlg::Mat3& GetInvInertiaTensor() const { return InvInertiaTensor; }
 
-	public:
+	protected:
 		LinAlg::Vec3 CenterOfMass = LinAlg::Vec3::Zero();
 		LinAlg::Mat3 InertiaTensor = LinAlg::Mat3::Identity();
 		LinAlg::Mat3 InvInertiaTensor = LinAlg::Mat3::Identity();
@@ -73,13 +98,13 @@ namespace Physics
 		using Super = Shape;
 	public:
 		ShapeSphere() {}
-		ShapeSphere(const float R) : Radius(R) { Init(); }
+		ShapeSphere(const float R) : Radius(R) {}
 		virtual ~ShapeSphere() {}
 
-		ShapeSphere& Init() {
+		virtual Shape* Init() override {
 			InertiaTensor = CalcInertiaTensor();
 			InvInertiaTensor = InertiaTensor.Inverse();
-			return *this;
+			return this;
 		}
 
 		virtual SHAPE_TYPE GetShapeType() const override { return SHAPE_TYPE::SPHERE; }
@@ -87,7 +112,7 @@ namespace Physics
 		//!< 球の慣性テンソル 2 / 5  * (R^2,   0,   0)
 		//!<						 (  0, R^2,   0)
 		//!<						 (  0,   0, R^2)
-		LinAlg::Mat3 CalcInertiaTensor() const {
+		virtual LinAlg::Mat3 CalcInertiaTensor() const override {
 			return Radius * Radius * 2.0f / 5.0f * LinAlg::Mat3::Identity();
 		}
 
@@ -121,7 +146,6 @@ namespace Physics
 				LinAlg::Vec3(-R, -R, R),
 				LinAlg::Vec3(-R)
 			};
-			Init();
 		}
 		ShapeBox(const LinAlg::Vec3& Ext) {
 			const auto WR = Ext.X() * 0.5f;
@@ -137,14 +161,13 @@ namespace Physics
 				LinAlg::Vec3(-WR, -HR, DR),
 				LinAlg::Vec3(-WR, -HR, -DR)
 			};
-			Init();
 		}
 		virtual ~ShapeBox() {}
 
-		ShapeBox& Init() {
-			InertiaTensor = CalcInertiaTensor();
+		virtual Shape* Init() override {
+			InertiaTensor = CalcInertiaTensor() + GetParallelAxisTheoremTensor();
 			InvInertiaTensor = InertiaTensor.Inverse();
-			return *this;
+			return this;
 		}
 
 		virtual SHAPE_TYPE GetShapeType() const override { return SHAPE_TYPE::BOX; }
@@ -164,7 +187,7 @@ namespace Physics
 		//!< ボックスの慣性テンソル 1 / 12 * (H^2+D^2,       0,       0)
 		//!<							  (      0, W^2+D^2,       0)
 		//!<							  (      0,       0, W^2+H^2)
-		LinAlg::Mat3 CalcInertiaTensor() const {
+		virtual LinAlg::Mat3 CalcInertiaTensor() const override {
 			const auto Ext = CalcExtent();
 			const auto W2 = Ext.X() * Ext.X();
 			const auto H2 = Ext.Y() * Ext.Y();
@@ -202,16 +225,24 @@ namespace Physics
 		using Super = Shape;
 	public:
 		ShapeConvex() {}
-		ShapeConvex(const std::vector<LinAlg::Vec3>& Mesh) { Init(Mesh); }
+		ShapeConvex(const std::vector<LinAlg::Vec3>& Mesh);
 		virtual ~ShapeConvex() {}
 
-		virtual ShapeConvex& Init(const std::vector<LinAlg::Vec3>& Mesh);
+		virtual Shape* Init() override {
+			CenterOfMass = CalcCenterOfMass();
+			InertiaTensor = CalcInertiaTensor();
+			InvInertiaTensor = InertiaTensor.Inverse();
+			return this;
+		}
 
 		virtual SHAPE_TYPE GetShapeType() const override { return SHAPE_TYPE::CONVEX; }
 
 		virtual Collision::AABB GetAABB(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot) const override {
 			return Super::GetAABB(Vertices, Pos, Rot);
 		}
+
+		virtual LinAlg::Vec3 CalcCenterOfMass() const override;
+		virtual LinAlg::Mat3 CalcInertiaTensor() const override;
 
 		virtual LinAlg::Vec3 GetSupportPoint(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot, const LinAlg::Vec3& UDir, const float Bias) const override {
 			return Super::GetSupportPoint(Vertices, Pos, Rot, UDir, Bias);

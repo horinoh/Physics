@@ -120,7 +120,7 @@ public:
 			constexpr auto Offset = Radius * 2.0f * 1.5f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius));
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius)).get()->Init();
 
 			const auto n = 6;
 #ifdef _DEBUG
@@ -144,7 +144,7 @@ public:
 			constexpr auto Radius = 80.0f;
 			constexpr auto Y = -Radius;
 
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius));
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius)).get()->Init();
 
 			const auto n = 3;
 			const auto n2 = n >> 1;

@@ -123,7 +123,7 @@ public:
 			constexpr auto Offset = 3.0f * 1.5f;
 			constexpr auto Y = 10.0f;
 
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>(Vertices));
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>(Vertices)).get()->Init();
 
 #ifdef _DEBUG
 			const auto n = 3;
@@ -147,7 +147,7 @@ public:
 			std::vector<LinAlg::Vec3> ExpandedVertices(std::size(Vertices));
 			std::ranges::transform(Vertices, std::back_inserter(ExpandedVertices), [&](const auto& i) { return i * FloorScale; });
 
-			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>(ExpandedVertices));
+			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>(ExpandedVertices)).get()->Init();
 
 			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
 			Rb->Position = LinAlg::Vec3::AxisY() * Y;
