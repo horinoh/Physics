@@ -49,7 +49,33 @@ class ShapeBase:
     def GetFastestPointSpeed(self, AngVel, UDir):
         return 0.0
 
-class ShapeBox(ShapeBase):
+class ShapeConvexBase(ShapeBase):
+    """ShapeConvexBase"""
+    
+    def __init__(self):
+        super(ShapeConvexBase, self).__init__()
+        self.Vertices = []
+        # ï`âÊÇµÇ»Ç¢èÍçáÇÕïsóv
+        self.Indices = []
+        self.InertiaTensor = np.identity(3)
+        self.InvInertiaTensor = np.identity(3)
+
+    def __del__(self):
+        super(ShapeConvexBase, self).__del__()
+
+    def GetAABB(self, Pos, Rot):
+        Ab = Bound.AABB()
+        for i in self.Vertices:
+            Ab.Expand(quaternion.rotate_vectors(Rot, i) + Pos)
+        return Ab
+
+    def GetSupportPoint(self, Pos, Rot, UDir, Bias):
+        return max(list(map(lambda rhs: (lambda Pt = quaternion.rotate_vectors(Rot, rhs) + Pos: [Pt, Pt @ UDir])(), self.Vertices)), key = lambda rhs: rhs[1])[0] + UDir * Bias
+    
+    def GetFastestPointSpeed(self, AngVel, UDir):
+        return max(map(lambda rhs: UDir @ np.cross(AngVel, rhs), self.Vertices))
+
+class ShapeBox(ShapeConvexBase):
     """ShapeBox"""
     
     def __init__(self, Ext):
@@ -58,16 +84,15 @@ class ShapeBox(ShapeBase):
         Y = Ext * 0.5
         Z = Ext * 0.5
 
-        self.Points = []
-        self.Points.append(np.array([-X, -Y, -Z]))
-        self.Points.append(np.array([ X, -Y, -Z]))
-        self.Points.append(np.array([-X,  Y, -Z]))
-        self.Points.append(np.array([-X, -Y,  Z]))
+        self.Vertices.append(np.array([-X, -Y, -Z]))
+        self.Vertices.append(np.array([ X, -Y, -Z]))
+        self.Vertices.append(np.array([-X,  Y, -Z]))
+        self.Vertices.append(np.array([-X, -Y,  Z]))
 
-        self.Points.append(np.array([ X,  Y,  Z]))
-        self.Points.append(np.array([-X,  Y,  Z]))
-        self.Points.append(np.array([ X, -Y,  Z]))
-        self.Points.append(np.array([ X,  Y, -Z]))
+        self.Vertices.append(np.array([ X,  Y,  Z]))
+        self.Vertices.append(np.array([-X,  Y,  Z]))
+        self.Vertices.append(np.array([ X, -Y,  Z]))
+        self.Vertices.append(np.array([ X,  Y, -Z]))
 
         self.InertiaTensor = self.CalcInertiaTensor() + self.GetParallelAxisTheoremTensor()
         self.InvInertiaTensor = np.linalg.inv(self.InertiaTensor)
@@ -78,14 +103,9 @@ class ShapeBox(ShapeBase):
     def GetType(self):
         return ShapeType.BOX
 
-    def GetAABB(self, Pos, Rot):
-        Ab = Bound.AABB()
-        for i in self.Points:
-            Ab.Expand(quaternion.rotate_vectors(Rot, i) + Pos)
-        return Ab
-
     def CalcInertiaTensor(self):
-        Ext = np.array([self.Points[1][0] - self.Points[0][0], self.Points[2][1] - self.Points[1][1], self.Points[3][2] - self.Points[2][2]])
+        # TODO CalcExtent
+        Ext = np.array([self.Vertices[1][0] - self.Vertices[0][0], self.Vertices[2][1] - self.Vertices[1][1], self.Vertices[3][2] - self.Vertices[2][2]])
         X = Ext[0] * 0.5
         Y = Ext[1] * 0.5
         Z = Ext[2] * 0.5
@@ -93,11 +113,5 @@ class ShapeBox(ShapeBase):
         H2 = Y * Y
         D2 = Z * Z
         return np.array([[(H2 + D2), 0.0, 0.0], [0.0, (W2 + D2), 0.0], [0.0, 0.0, (W2 + H2) ]]) / 12.0
-
-    def GetSupportPoint(self, Pos, Rot, UDir, Bias):
-        return max(list(map(lambda rhs: (lambda Pt = quaternion.rotate_vectors(Rot, rhs) + Pos: [Pt, Pt @ UDir])(), self.Points)), key = lambda rhs: rhs[1])[0] + UDir * Bias
-    
-    def GetFastestPointSpeed(self, AngVel, UDir):
-        return max(map(lambda rhs: UDir @ np.cross(AngVel, rhs), self.Points))
 
 

@@ -128,10 +128,30 @@ namespace Physics
 		float Radius = 1.0f;
 	};
 
-	class ShapeBox : public Shape
+	class ShapeConvexBase : public Shape
 	{
 	private:
 		using Super = Shape;
+
+		virtual Collision::AABB GetAABB(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot) const override {
+			return Super::GetAABB(Vertices, Pos, Rot);
+		}
+		virtual LinAlg::Vec3 GetSupportPoint(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot, const LinAlg::Vec3& UDir, const float Bias) const override {
+			return Super::GetSupportPoint(Vertices, Pos, Rot, UDir, Bias);
+		}
+		virtual float GetFastestPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const override {
+			return Super::GetFastestPointSpeed(Vertices, AngVel, UDir);
+		}
+	//protected:
+	public:
+		std::vector<LinAlg::Vec3> Vertices;
+		//!< 描画しない場合は不要、ここでは一応持たせておく
+		std::vector<Collision::TriInds> Indices;
+	};
+	class ShapeBox : public ShapeConvexBase
+	{
+	private:
+		using Super = ShapeConvexBase;
 	public:
 		ShapeBox() {}
 		ShapeBox(const float Ext) {
@@ -199,30 +219,15 @@ namespace Physics
 				{ 0.0f, 0.0f, (W2 + H2) * Div }
 			};
 		}
-
-		virtual Collision::AABB GetAABB(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot) const override {
-			return Super::GetAABB(Vertices, Pos, Rot);
-		}
-
-		virtual LinAlg::Vec3 GetSupportPoint(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot, const LinAlg::Vec3& UDir, const float Bias) const override {
-			return Super::GetSupportPoint(Vertices, Pos, Rot, UDir, Bias);
-		}
-		virtual float GetFastestPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const override {
-			return Super::GetFastestPointSpeed(Vertices, AngVel, UDir);
-		}
-
-	public:
-		std::array<LinAlg::Vec3, 8> Vertices;
 	};
 
 	//!< シリンダーの慣性テンソル (1/12 (3R^2 + H^2),                 0,       0)
 	//!<                       (                0, 1/12 (3R^2 + H^2),       0)
 	//!<					   (                0,                 0, 1/2 R^2)
-		
-	class ShapeConvex : public Shape
+	class ShapeConvex : public ShapeConvexBase
 	{
 	private:
-		using Super = Shape;
+		using Super = ShapeConvexBase;
 	public:
 		ShapeConvex() {}
 		ShapeConvex(const std::vector<LinAlg::Vec3>& Mesh);
@@ -237,25 +242,8 @@ namespace Physics
 
 		virtual SHAPE_TYPE GetShapeType() const override { return SHAPE_TYPE::CONVEX; }
 
-		virtual Collision::AABB GetAABB(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot) const override {
-			return Super::GetAABB(Vertices, Pos, Rot);
-		}
-
 		virtual LinAlg::Vec3 CalcCenterOfMass() const override;
 		virtual LinAlg::Mat3 CalcInertiaTensor() const override;
-
-		virtual LinAlg::Vec3 GetSupportPoint(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot, const LinAlg::Vec3& UDir, const float Bias) const override {
-			return Super::GetSupportPoint(Vertices, Pos, Rot, UDir, Bias);
-		}
-		virtual float GetFastestPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const override {
-			return Super::GetFastestPointSpeed(Vertices, AngVel, UDir);
-		}
-
-	public:
-		std::vector<LinAlg::Vec3> Vertices;
-
-		//!< 描画しない場合は不要、ここでは一応持たせておく
-		std::vector<Collision::TriInds> Indices;
 	};
 	void CreateVertices_Diamond(std::vector<LinAlg::Vec3>& Dst);
 }
