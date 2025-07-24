@@ -103,5 +103,11 @@
     <None Include="Bound.py">
       <Filter>Python Files</Filter>
     </None>
+    <None Include="GJK.py">
+      <Filter>Python Files</Filter>
+    </None>
+    <None Include="Distance.py">
+      <Filter>Python Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

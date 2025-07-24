@@ -168,6 +168,8 @@
   <ItemGroup>
     <None Include="Bound.py" />
     <None Include="Contact.py" />
+    <None Include="Distance.py" />
+    <None Include="GJK.py" />
     <None Include="RigidBody.py" />
     <None Include="Scene.py" />
     <None Include="Shape.py" />

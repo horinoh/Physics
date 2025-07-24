@@ -5,7 +5,7 @@
 # VisutalStudio の場合
 #   ソリューション - Python Environments右クリック - View All Python Environments - Packages (PyPl) タブ - 検索欄で検索 - install
 
-from math import e
+#from math import e
 import vpython as vp
 
 import numpy as np
@@ -15,6 +15,7 @@ import quaternion
 from LibPhysics import Scene
 from LibPhysics import Shape
 from LibPhysics import RigidBody
+from LibPhysics import GJK
 
 Radius = 0.5
 Ext = Radius * 2.0
@@ -40,6 +41,8 @@ Rb = RigidBody.RigidBody(Scene.Shapes[1], 0.0)
 Rb.Position = np.array([0.0, Y, 0.0]);
 Scene.RigidBodies.append(Rb)
 Rb.Vis = vp.box(pos = vp.vector(Rb.Position[0], Rb.Position[1], Rb.Position[2]), size = vp.vector(Ext, Ext, Ext), color = vp.color.green)
+
+#GJK.TestSignedVolume()
 
 FPS = 60.0
 Pause = True
