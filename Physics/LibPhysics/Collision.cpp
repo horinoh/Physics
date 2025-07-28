@@ -321,18 +321,14 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 	//!< TOI が直接求まらないので、シミュレーションを進めることで求める (Conservative Advance)
 	auto DT = DeltaSec;
 	auto TOI = 0.0f;
-	//!< 上限
+	//!< イテレーション数 (ループから抜け出さない対策)
 	auto ItCount = 0;
 	constexpr auto Bias = 0.001f;
-	//!< 最近接点の求め方 (一緒に求めるか、衝突の無い場合に別途求めるか)
-	constexpr auto WithClosestPoint = true;
 	while (DT > 0.0f) {
 		//!< 衝突点、最近接点
 		LinAlg::Vec3 OnA, OnB;
-		if (Intersection::GJK_EPA(&WRbA,
-				&WRbB,
+		if (Intersection::GJK_EPA(&WRbA, &WRbB,
 				Bias,
-				WithClosestPoint,
 				OnA, OnB)) {
 			//!< 衝突剛体を覚えておく
 			Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
@@ -352,11 +348,6 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 
 			return true;
 		}
-		else if (!WithClosestPoint) {
-			//!< 最近接点を求める
-			Closest::GJK(&WRbA, &WRbB, OnA, OnB);
-		}
-
 		//!< 移動せずその場で回転しているような場合、ループから抜け出さない事があるのでループに上限回数を設ける
 		++ItCount;
 		if (ItCount > 10) {

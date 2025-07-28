@@ -112,50 +112,47 @@ namespace Collision
 
 	namespace Intersection 
 	{
-		//!< 衝突点算出用 (EPA 等)
+		//!< 衝突点を求める関数 (EPA 等)
 		using OnIntersectGJK = std::function<void(const Physics::Shape*, const LinAlg::Vec3&, const LinAlg::Quat&, 
 			const Physics::Shape*, const LinAlg::Vec3&, const LinAlg::Quat&, 
-			const std::vector<SupportPoint::Points>&, 
-			const float, LinAlg::Vec3&, LinAlg::Vec3&)>;
-		static void OnIntersectDummy([[maybe_unused]] const Physics::Shape* ShA, [[maybe_unused]] const LinAlg::Vec3& PosA, [[maybe_unused]] const LinAlg::Quat& RotA,
-			[[maybe_unused]] const Physics::Shape* ShB, [[maybe_unused]] const LinAlg::Vec3& PosB, [[maybe_unused]] const LinAlg::Quat& RotB,
-			[[maybe_unused]] const std::vector<SupportPoint::Points>& SupportPoints, [[maybe_unused]] const float Bias,
-			[[maybe_unused]] LinAlg::Vec3& OnA, [[maybe_unused]] LinAlg::Vec3& OnB) {
-		}
+			const std::vector<SupportPoint::Points>&, const float,
+			LinAlg::Vec3&, LinAlg::Vec3&)>;
 
 		//!< GJK 本体
 		bool GJK(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA,
 			const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB,
-			OnIntersectGJK OnIntersect, const float Bias,
-			const bool WithClosestPoint,
+			OnIntersectGJK OnIntersect, const float Bias, const bool zWithClosestPoint,
 			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB);
-		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA,
-			const Physics::RigidBody* RbB,
+		//!< 引数簡易版
+		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB,
 			OnIntersectGJK OnIntersect, const float Bias,
 			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB);
+		//!< 衝突検出のみ (衝突点を求めない)
+		[[nodiscard]] static bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB,
+			const float Bias,
+			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB) {
+			return GJK(RbA, RbB, nullptr, Bias, OnA, OnB);
+		}
 
-		//!< EPA (Expanding Polytope Algorithm)
+		//!< EPA (Expanding Polytope Algorithm) 衝突点検出
 		void EPA(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA, 
 			const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB, 
 			const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, 
 			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB);
+		
 		//!< 衝突点を EPA を用いて求める
-		//!< 衝突が無い場合は最近接点を求める
 		[[nodiscard]] static bool GJK_EPA(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA, 
 			const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB, 
-			const float Bias, 
-			const bool WidthClosestPoint,
+			const float Bias, const bool WidthClosestPoint,
 			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB) {
 			return GJK(ShA, PosA, RotA, 
 				ShB, PosB, RotB, 
-				EPA, Bias,
-				WidthClosestPoint,
+				EPA, Bias, WidthClosestPoint,
 				OnA, OnB);
 		}
-		[[nodiscard]] bool GJK_EPA(const Physics::RigidBody* RbA,
-			const Physics::RigidBody* RbB,
-			const float Bias, 
-			bool WidthClosestPoint,
+		//!< 引数簡易版、EPA で衝突点を求める、無い場合は最近接点を求める
+		[[nodiscard]] bool GJK_EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB,
+			const float Bias,
 			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB);
 
 		//!< 判定のみ (衝突点、最近接点が不要な場合)
@@ -165,12 +162,11 @@ namespace Collision
 			LinAlg::Vec3 OnA, OnB;
 			return GJK(ShA, PosA, RotA, 
 				ShB, PosB, RotB, 
-				OnIntersectDummy, 0.0f,
+				nullptr, 0.0f,
 				false,
 				OnA, OnB);
 		}
-		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA, 
-			const Physics::RigidBody* RbB);
+		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB);
 	}
 
 	//!< 最近接点 (衝突していないことが前提)
@@ -179,8 +175,7 @@ namespace Collision
 		void GJK(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA, 
 			const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB, 
 			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB);
-		void GJK(const Physics::RigidBody* RbA, 
-			const Physics::RigidBody* RbB, 
+		void GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, 
 			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB);
 	}
 	

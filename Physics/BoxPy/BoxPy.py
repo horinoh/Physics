@@ -42,7 +42,7 @@ Rb.Position = np.array([0.0, Y, 0.0]);
 Scene.RigidBodies.append(Rb)
 Rb.Vis = vp.box(pos = vp.vector(Rb.Position[0], Rb.Position[1], Rb.Position[2]), size = vp.vector(Ext, Ext, Ext), color = vp.color.green)
 
-#GJK.TestSignedVolume()
+GJK.TestSignedVolume()
 
 FPS = 60.0
 Pause = True

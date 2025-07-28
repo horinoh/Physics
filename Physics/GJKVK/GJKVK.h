@@ -611,14 +611,10 @@ public:
 			}
 			const auto RbA = Scene->RigidBodies[0].get();
 			const auto RbB = Scene->RigidBodies[1].get();
-			constexpr auto WithClosestPoint = true;
 			LinAlg::Vec3 OnA, OnB;
-			if (Collision::Intersection::GJK_EPA(RbA, RbB, 0.01f, WithClosestPoint, OnA, OnB)) {
+			if (Collision::Intersection::GJK_EPA(RbA, RbB, 0.01f, OnA, OnB)) {
 				WorldBuffer.Instances[0].Color = { 1.0f, 1.0f, 0.0f };
 				WorldBuffer.Instances[1].Color = { 1.0f, 1.0f, 0.0f };
-			}
-			else if(!WithClosestPoint){
-				Collision::Closest::GJK(RbA, RbB, OnA, OnB);
 			}
 			WorldBuffer.Instances[0].ClosestPoint = glm::vec3(OnA.X(), OnA.Y(), OnA.Z());
 			WorldBuffer.Instances[1].ClosestPoint = glm::vec3(OnB.X(), OnB.Y(), OnB.Z());

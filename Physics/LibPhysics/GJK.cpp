@@ -242,8 +242,7 @@ void Collision::SupportPoint::Expand(const float Bias, std::vector<Collision::Su
 
 bool Collision::Intersection::GJK(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA,
 	const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB,
-	OnIntersectGJK OnIntersect, const float Bias,
-	const bool WithClosestPoint,
+	OnIntersectGJK OnIntersect, const float Bias, const bool WithClosestPoint,
 	LinAlg::Vec3& OnA, LinAlg::Vec3& OnB)
 {
 	std::vector<Collision::SupportPoint::Points> Sps;
@@ -257,7 +256,7 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const LinAlg::Vec3&
 	auto ClosestDistSq = (std::numeric_limits<float>::max)();
 	auto HasIntersection = false;
 	LinAlg::Vec4 Lambda;
-	do {
+	while (!HasIntersection) {
 		//!< Dir 方向のサポートポイントを求める
 		const auto Pt = Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, Dir.ToNormalized(), 0.0f);
 
@@ -269,7 +268,7 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const LinAlg::Vec3&
 			break;
 		}
 
-		//!< 最近接点を求めない場合は早期終了できる可能性がある
+		//!< 最近接点を求めない場合は早期終了可能
 		if (!WithClosestPoint) {
 			//!< 新しいサポートポイント Pt が原点を超えていない場合は原点を含まない、早期終了
 			if (Dir.Dot(Pt.GetC()) < 0.0f) {
@@ -286,14 +285,14 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const LinAlg::Vec3&
 		}
 
 		//!< 最短距離を更新、更新できなれば終了
-		//!< (2 つの三角形からなる四角形の対角線上に原点が位置するような場合、2 つの三角形間で切り替えループになるのを回避)
+		//!< (2 つの三角形からなる四角形の対角線上に原点が位置するような場合、2 つの三角形間で切り替わり続けるループになるのを回避する為にこうしている)
 		const auto DistSq = Dir.LengthSq();
 		if (DistSq >= ClosestDistSq) {
 			break;
 		}
 		ClosestDistSq = DistSq;
 
-		//!< 有効なサポートポイント (対応する Lambda が非 0.0 のコンポーネント) だけを残す
+		//!< 有効なサポートポイント (Lambda が非 0.0) のみを残す
 		auto Index = 0;
 		const auto SpsRange = std::ranges::remove_if(Sps,
 			[&](const auto& i) {
@@ -306,14 +305,17 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const LinAlg::Vec3&
 
 		//!< 3-シンプレックス (四面体) でここまで来たら原点を含む
 		HasIntersection = (4 == std::size(Sps));
-	} while (!HasIntersection); //!< 原点を含まずここまで来たらループ
+	}
 
-	//!< (EPA 等で) 衝突点を求める
-	if (HasIntersection && nullptr != OnIntersect) {
-		OnIntersect(ShA, PosA, RotA,
-			ShB, PosB, RotB,
-			Sps,
-			Bias, OnA, OnB);
+	//!< 交差あり
+	if (HasIntersection) {
+		//!< (EPA 等で) 衝突点を求める
+		if (nullptr != OnIntersect) {
+			OnIntersect(ShA, PosA, RotA,
+				ShB, PosB, RotB,
+				Sps,
+				Bias, OnA, OnB);
+		}
 		return true;
 	}
 
@@ -333,8 +335,7 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const LinAlg::Vec3&
 
 	return false;
 }
-bool Collision::Intersection::GJK(const Physics::RigidBody* RbA,
-	const Physics::RigidBody* RbB,
+bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB,
 	OnIntersectGJK OnIntersect, const float Bias,
 	LinAlg::Vec3& OnA, LinAlg::Vec3& OnB) {
 	return GJK(RbA->Shape, RbA->Position, RbA->Rotation,
@@ -489,23 +490,21 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const LinAlg::Vec3&
 //!<	1, 2, 3, 4 がなす四面体が原点を含めば衝突、終了
 //!<	一番近い三角形 (例えば 1, 2, 4) から、原点を向く法線方向の次のサポートポイント 5 を見つける
 //!<	四面体 (1, 2, 4, 5) が原点を含むか、サポートポイントが無くなるまで続ける
-bool Collision::Intersection::GJK_EPA(const Physics::RigidBody* RbA, 
-	const Physics::RigidBody* RbB, 
-	const float Bias, 
-	bool WithClosestPoint,
+bool Collision::Intersection::GJK_EPA(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, 
+	const float Bias,
 	LinAlg::Vec3& OnA, LinAlg::Vec3& OnB)
 {
-	return GJK_EPA(RbA->Shape, RbA->Position, RbA->Rotation,
+	return GJK(RbA->Shape, RbA->Position, RbA->Rotation,
 		RbB->Shape, RbB->Position, RbB->Rotation,
-		Bias,
-		WithClosestPoint,
+		EPA, Bias, true,
 		OnA, OnB);
 }
-bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB) 
-{
-	return GJK(RbA->Shape, RbA->Position, RbA->Rotation,
-		RbB->Shape, RbB->Position, RbB->Rotation);
-}
+//bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB) 
+//{
+//
+//	return GJK(RbA->Shape, RbA->Position, RbA->Rotation,
+//		RbB->Shape, RbB->Position, RbB->Rotation);
+//}
 
 void Collision::Closest::GJK(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA, 
 	const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB, 
@@ -513,7 +512,7 @@ void Collision::Closest::GJK(const Physics::Shape* ShA, const LinAlg::Vec3& PosA
 {
 	Intersection::GJK(ShA, PosA, RotA,
 		ShB, PosB, RotB,
-		Intersection::OnIntersectDummy, 0.0f,
+		nullptr, 0.0f,
 		true,
 		OnA, OnB);
 }
