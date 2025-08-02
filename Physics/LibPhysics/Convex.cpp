@@ -16,7 +16,7 @@ void Convex::BuildTetrahedron(const std::vector<LinAlg::Vec3>& Mesh, std::vector
 	Pts[3] = *Collision::Distance::Farthest(Mesh, Pts[0], Pts[1], Pts[2]);
 
 	//!< CCW になるように調整
-	if (Collision::Distance::IsFront(Pts[0], Pts[1], Pts[2], Pts[3])) {
+	if (Collision::Distance::IsFrontTriangle(Pts[0], Pts[1], Pts[2], Pts[3])) {
 		std::swap(Pts[0], Pts[1]);
 	}
 
@@ -121,7 +121,7 @@ void Convex::BuildConvexHull(const std::vector<LinAlg::Vec3>& Mesh, std::vector<
 			//!<	B ラムダ式が false	: [begin(Range), end(Range)]
 			const auto Range = std::ranges::partition(Indices, 
 				[&](const auto& i) {
-					return !Collision::Distance::IsFront(*FarIt, Vertices[i[0]], Vertices[i[1]], Vertices[i[2]]);
+					return !Collision::Distance::IsFrontTriangle(*FarIt, Vertices[i[0]], Vertices[i[1]], Vertices[i[2]]);
 				});
 
 			//!< A, B の境界となるような辺を収集する (B の中から他の三角形と辺を共有しないユニークな辺を収集)

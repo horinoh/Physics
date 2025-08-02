@@ -220,14 +220,8 @@ void Collision::SupportPoint::ToTetrahedron(const Physics::Shape* ShA, const Lin
 		Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, AB.Cross(AC).Normalize(), 0.0f));
 	}
 }
-void Collision::SupportPoint::ToTetrahedron(const Physics::RigidBody* RbA,
-	const Physics::RigidBody* RbB, 
-	std::vector<Collision::SupportPoint::Points>& Sps)
-{
-	ToTetrahedron(RbA->Shape, RbA->Position, RbA->Rotation, RbB->Shape, RbB->Position, RbB->Rotation, Sps);
-}
 
-void Collision::SupportPoint::Expand(const float Bias, std::vector<Collision::SupportPoint::Points>& Sps)
+LinAlg::Vec3 Collision::SupportPoint::Expand(const float Bias, std::vector<Collision::SupportPoint::Points>& Sps)
 {
 	const auto Center = std::accumulate(std::cbegin(Sps), std::cend(Sps), LinAlg::Vec3::Zero(), 
 		[](const auto& Acc, const auto& i) { 
@@ -238,6 +232,7 @@ void Collision::SupportPoint::Expand(const float Bias, std::vector<Collision::Su
 			const auto Dir = (i.GetC() - Center).Normalize() * Bias;
 			return Collision::SupportPoint::Points(i.GetA() + Dir, i.GetB() - Dir);
 		});
+	return Center;
 }
 
 bool Collision::Intersection::GJK(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA,
@@ -347,23 +342,17 @@ bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::
 
 void Collision::Intersection::EPA(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA,
 	const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB, 
-	const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, 
+	std::vector<SupportPoint::Points>& Sps, const float Bias, 
 	LinAlg::Vec3& OnA, LinAlg::Vec3& OnB)
 {
-	//!< 作業用サポートポイント
-	std::vector<SupportPoint::Points> Sps;
-	Sps.assign(std::cbegin(SupportPoints), std::cend(SupportPoints));
-
 	//!< EPA の前準備
-	{
-		//!< EPA では四面体を必要とするので、(四面体でない場合は) 四面体へ拡張する
-		SupportPoint::ToTetrahedron(ShA, PosA, RotA, ShB, PosB, RotB, Sps);
+	//!< EPA では四面体を必要とするので、(四面体でない場合は) 四面体へ拡張する
+	SupportPoint::ToTetrahedron(ShA, PosA, RotA, ShB, PosB, RotB, Sps);
 
-		//!< シンプレックスを拡張する (A, B の衝突点がほぼ同一の場合に法線が上手く求められない場合があるため、バイアス分拡張する)
-		SupportPoint::Expand(Bias, Sps);
-	}
-
-	//!< 外側に法線が向くようにインデックスを生成する
+	//!< シンプレックスを拡張する (A, B の衝突点がほぼ同一の場合に法線が上手く求められない場合があるため、バイアス分拡張する)
+	const auto Center = SupportPoint::Expand(Bias, Sps);
+	
+	//!< 外側に法線が向くようにインデックスを生成
 	constexpr std::array XYZW = { 0, 1, 2, 3 };
 	constexpr auto XYZWSize = static_cast<uint32_t>(std::size(XYZW));
 	std::vector<Collision::TriInds> Tris;
@@ -373,36 +362,28 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const LinAlg::Vec3&
 			const auto j = (rhs + 1) % XYZWSize;
 			const auto k = (rhs + 2) % XYZWSize;
 			const auto l = (rhs + 3) % XYZWSize; //!< 三角形 i, j, k を底辺とする四面体の頂点
-			return Collision::Distance::IsFront(Sps[l].GetC(), Sps[i].GetC(), Sps[j].GetC(), Sps[k].GetC()) ? 
+			return Collision::Distance::IsFrontTriangle(Sps[l].GetC(), Sps[i].GetC(), Sps[j].GetC(), Sps[k].GetC()) ? 
 				Collision::TriInds({ j, i, k }) : Collision::TriInds({ i, j, k });
 		});
-
-	//!< 四面体の中心を求める
-	const auto Center = std::accumulate(std::cbegin(Sps), std::cend(Sps), LinAlg::Vec3::Zero(),
-		[](const auto& Acc, const auto& i) {
-			return Acc + i.GetC(); 
-		}) / static_cast<float>(std::size(Sps));
 
 	//!< 原点に最も近い面を見つける為にシンプレックスを拡張する (原点の向きに限定して凸包を形成していく感じ)
 	while (true) {
 		//!< 原点に最も近い三角形 ABC を取得
 		const auto& CTri = *SupportPoint::Distance::Closest(LinAlg::Vec3::Zero(), Sps, Tris);
 		const auto& A = Sps[CTri[0]].GetC(), B = Sps[CTri[1]].GetC(), C = Sps[CTri[2]].GetC();
+
 		//!< 三角形の法線
 		const auto N = LinAlg::Vec3::UnitNormal(A, B, C);
 
 		//!< 法線方向のサポートポイントを取得
 		const auto Pt = Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, N, Bias);
 
-		//!< これ以上拡張できない (Pt が ABC 法線の反対側) なら終了 
-		//if (Distance::PointTriangle(Pt.GetC(), A, B, C) <= 0.0f) {
-		//	break;
-		//}
+		//!< Pt が ABC 法線の反対側ならこれ以上拡張できない
 		if ((Pt.GetC() - A).Dot(N) <= 0.0f) {
 			break;
 		}
 
-		//!< サポートポイントが既出の場合は、これ以上拡張できないことを意味するので終了
+		//!< 既存の場合これ以上拡張できない
 		if (std::ranges::any_of(Tris, 
 			[&](const auto& i) {
 				//!< 三角形群
@@ -418,11 +399,11 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const LinAlg::Vec3&
 
 		Sps.emplace_back(Pt);
 
-		//!< サポートポイント側を向いている三角形を削除
+		//!< Pt を向く三角形を削除、削除できない場合は終了
 		{
 			const auto Range = std::ranges::remove_if(Tris,
 				[&](const auto& i) {
-					return Distance::IsFront(Pt.GetC(), Sps[i[0]].GetC(), Sps[i[1]].GetC(), Sps[i[2]].GetC());
+					return Distance::IsFrontTriangle(Pt.GetC(), Sps[i[0]].GetC(), Sps[i[1]].GetC(), Sps[i[2]].GetC());
 				});
 			Tris.erase(std::ranges::cbegin(Range), std::ranges::cend(Range));
 			//!< 削除できない場合は終了
@@ -441,13 +422,13 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const LinAlg::Vec3&
 				break;
 			}
 
-			//!< サポートポイント A と境界辺 BC からなる三角形群を追加
+			//!< Pt(A) とぶら下がり辺(BC)との新しい三角形を追加
 			const auto A = static_cast<uint32_t>(std::size(Sps)) - 1;
 			std::ranges::transform(DanglingEdges, std::back_inserter(Tris),
 				[&](const auto& i) {
 					const auto B = i.first[0], C = i.first[1];
 					//!< 法線が外側を向くようにインデックスを生成する
-					if (Distance::IsFront(Center, Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC())) {
+					if (Distance::IsFrontTriangle(Center, Sps[A].GetC(), Sps[B].GetC(), Sps[C].GetC())) {
 						return Collision::TriInds({ A, C, B });
 					}
 					else {
@@ -478,7 +459,6 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const LinAlg::Vec3&
 	}
 }
 
-//!< #TODO 要検証			
 //!< ミンコフスキー差の凸包を生成する代わりに原点を含むようなシンプレックス (単体) を生成する事で代用する
 //!< A, B のミンコフスキー差 C が原点を含めば衝突となる
 //!< A, B のサポートポイントの差が C のサポートポイントとなる
@@ -499,23 +479,7 @@ bool Collision::Intersection::GJK_EPA(const Physics::RigidBody* RbA, const Physi
 		EPA, Bias, true,
 		OnA, OnB);
 }
-//bool Collision::Intersection::GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB) 
-//{
-//
-//	return GJK(RbA->Shape, RbA->Position, RbA->Rotation,
-//		RbB->Shape, RbB->Position, RbB->Rotation);
-//}
 
-void Collision::Closest::GJK(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA, 
-	const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB, 
-	LinAlg::Vec3& OnA, LinAlg::Vec3& OnB)
-{
-	Intersection::GJK(ShA, PosA, RotA,
-		ShB, PosB, RotB,
-		nullptr, 0.0f,
-		true,
-		OnA, OnB);
-}
 void Collision::Closest::GJK(const Physics::RigidBody* RbA, 
 	const Physics::RigidBody* RbB, 
 	LinAlg::Vec3& OnA, LinAlg::Vec3& OnB)

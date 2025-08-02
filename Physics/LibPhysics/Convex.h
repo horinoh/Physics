@@ -17,7 +17,7 @@ namespace Convex
 		//!< 全ての三角形に対し、負の側にあれば内部点
 		return std::ranges::all_of(Indices,
 			[&](const auto rhs) {
-				return !Collision::Distance::IsFront(Pt, Vertices[rhs[0]], Vertices[rhs[1]], Vertices[rhs[2]]);
+				return !Collision::Distance::IsFrontTriangle(Pt, Vertices[rhs[0]], Vertices[rhs[1]], Vertices[rhs[2]]);
 			});
 	}
 

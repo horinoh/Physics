@@ -305,9 +305,8 @@ def EPA(ShA, PosA, RotA,
                                    ShB, PosB, RotB, 
                                    Dir, 0.0))
 
+    # バイアス分拡張する (A, B の衝突点がほぼ同一の場合に法線が上手く求められない場合があるため)
     Center = sum(map(lambda rhs: rhs.C, Sps)) * 0.25
-
-    # バイアス分拡張する
     Sps = list(map(lambda rhs: 
                    (lambda Dir = rhs.C - Center:
                     (lambda Dir = Dir / np.linalg.norm(Dir) * Bias:
@@ -315,19 +314,20 @@ def EPA(ShA, PosA, RotA,
                      )()
                     )(), Sps))
     
-    # 三角形のインデックスを作成
+    # 外側に法線が向くように三角形のインデックスを生成
     Tris = []
     for i in range(4):
         j = (i + 1) % 4
         k = (i + 2) % 4
         l = (i + 3) % 4
-
         Tris.append([j, i, k] if IsFrontTriangle(Sps[l].C, 
                                                  Sps[i].C, Sps[j].C, Sps[k].C) else [i, j, k])
-        
+    
     while True:
         # 原点に最も近い三角形を見つける
-        Tri = Tris[np.argmin(map(lambda rhs: np.abs(PointTriangle(np.zeros(3), Sps[rhs[0]].C, Sps[rhs[1]].C, Sps[rhs[2]].C)), Tris))]
+        Tri = Tris[np.argmin(map(lambda rhs:
+                                np.abs(PointTriangle(np.zeros(3), 
+                                                     Sps[rhs[0]].C, Sps[rhs[1]].C, Sps[rhs[2]].C)), Tris))]
         A = Sps[Tri[0]].C
         B = Sps[Tri[1]].C
         C = Sps[Tri[2]].C
@@ -341,27 +341,27 @@ def EPA(ShA, PosA, RotA,
                              ShB, PosB, RotB, 
                              N, Bias)
 
+        # Pt が ABC 法線の反対側ならこれ以上拡張できない
+        if (Pt.C - A) @ N <= 0.0:
+            break;
+
         # 既存の場合これ以上拡張できない
         if list(filter(lambda rhs: np.isclose(rhs.C, Pt.C).all(), Sps)):
             break
 
-        # これ以上拡張できない
-        if PointTriangle(Pt.C, A, B, C) <= 0.0:
-            break
-
-        PtIdx = len(Sps)
         Sps.append(Pt)
+        PtIdx = len(Sps)
 
-        # Pt を向く三角形を削除、削除できない場合は終了
-        Len = len(Tris)
+        # Pt を向く三角形を削除、削除できない場合 (Lenが変わらない) は終了
+        PrevLen = len(Tris)
         Tris = list(filter(lambda rhs: False == IsFrontTriangle(Pt.C, 
                                                                 Sps[rhs[0]].C, Sps[rhs[1]].C, Sps[rhs[2]].C), Tris))
-        if Len == len(Tris):
+        Len = len(Tris)
+        if PrevLen == Len:
             break
 
         # ぶら下がった辺を収集、見つからなければ終了
         DanglingEdges = []
-        Len = len(Tris)
         for i in range(Len):
             TriA = Tris[i]
             EdgesA = [
@@ -369,7 +369,7 @@ def EPA(ShA, PosA, RotA,
                 [ TriA[1], TriA[2] ], 
                 [ TriA[2], TriA[0] ], 
             ]
-            # 出現回数
+            # (3辺の) 出現回数
             Count = [ 0, 0, 0 ]
 
             for j in range(Len):
@@ -391,26 +391,27 @@ def EPA(ShA, PosA, RotA,
                         if (EdgesA[k][0] == EdgesB[l][0] and EdgesA[k][1] == EdgesB[l][1]) or (EdgesA[k][1] == EdgesB[l][0] and EdgesA[k][0] == EdgesB[l][1]):
                             Count[k] += 1
                 
-                # ユニークな辺 (ぶら下がり) を収集
+                # ユニークな辺 (ぶら下がり) のみを収集
                 for k in range(3):
-                    if Count[k] == 9:
+                    if Count[k] == 0:
                         DanglingEdges.append(EdgesA[k])
+        # そのような辺が無ければ終了
         if len(DanglingEdges) == 0:
             break
 
-        # Pt とぶら下がり辺との新しい三角形を追加
+        # Pt とぶら下がり辺との新しい三角形を (法線が外側を向くように) 追加
         for i in DanglingEdges:
             Tri = [PtIdx, i[1], i[0]]
             Tris.append(Tri if PointTriangle(Center, Sps[Tri[0]].C, Sps[Tri[1]].C, Sps[Tri[2]].C) <= 0.0 else [PtIdx, i[0], i[1]])
     
-    # 原点に最も近い三角形を見つける
+    # 原点に最も近い三角形(ABC)を見つける
     CTri = Tris[np.argmin(map(lambda rhs: np.abs(PointTriangle(np.zeros(3), Sps[rhs[0]].C, Sps[rhs[1]].C,Sps[rhs[2]].C)), Tris))]
     IA = CTri[0]
     IB = CTri[1]
     IC = CTri[2]
+    # ABC 上での原点の重心座標を取得
     b, Lmd = BaryCentric(Sps[IA].C, Sps[IB].C, Sps[IC].C)
     return [Sps[IA].A * Lmd[0] + Sps[IB].A * Lmd[1] + Sps[IC].A * Lmd[2], Sps[IA].B * Lmd[0] + Sps[IB].B * Lmd[1] + Sps[IC].B * Lmd[2]]
-
 
 # 形状 A, B のミンコフスキー差を、形状 C とした場合
 # C のサポートポイントは A, B のサポートポイントの差に等しい

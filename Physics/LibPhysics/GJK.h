@@ -78,14 +78,11 @@ namespace Collision
 		}
 
 		//!< サポートポイントが四面体をなしていない場合、四面体を形成する
-		void ToTetrahedron(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA, 
+		static void ToTetrahedron(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA, 
 			const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB,
 			std::vector<SupportPoint::Points>& Sps);
-		void ToTetrahedron(const Physics::RigidBody* RbA, 
-			const Physics::RigidBody* RbB, 
-			std::vector<SupportPoint::Points>& Sps);
 		//!< バイアスの分だけ拡張する
-		void Expand(const float Bias, std::vector<SupportPoint::Points>& Sps);
+		static LinAlg::Vec3 Expand(const float Bias, std::vector<SupportPoint::Points>& Sps);
 
 		namespace Distance
 		{
@@ -115,7 +112,7 @@ namespace Collision
 		//!< 衝突点を求める関数 (EPA 等)
 		using OnIntersectGJK = std::function<void(const Physics::Shape*, const LinAlg::Vec3&, const LinAlg::Quat&, 
 			const Physics::Shape*, const LinAlg::Vec3&, const LinAlg::Quat&, 
-			const std::vector<SupportPoint::Points>&, const float,
+			std::vector<SupportPoint::Points>&, const float,
 			LinAlg::Vec3&, LinAlg::Vec3&)>;
 
 		//!< GJK 本体
@@ -137,7 +134,7 @@ namespace Collision
 		//!< EPA (Expanding Polytope Algorithm) 衝突点検出
 		void EPA(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA, 
 			const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB, 
-			const std::vector<SupportPoint::Points>& SupportPoints, const float Bias, 
+			std::vector<SupportPoint::Points>& Sps, const float Bias, 
 			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB);
 		
 		//!< 衝突点を EPA を用いて求める
@@ -157,8 +154,7 @@ namespace Collision
 
 		//!< 判定のみ (衝突点、最近接点が不要な場合)
 		[[nodiscard]] static bool GJK(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA,
-			const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB)
-		{
+			const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB) {
 			LinAlg::Vec3 OnA, OnB;
 			return GJK(ShA, PosA, RotA, 
 				ShB, PosB, RotB, 
@@ -172,9 +168,15 @@ namespace Collision
 	//!< 最近接点 (衝突していないことが前提)
 	namespace Closest
 	{
-		void GJK(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA, 
-			const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB, 
-			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB);
+		static void GJK(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA,
+			const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB,
+			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB) {
+			Intersection::GJK(ShA, PosA, RotA,
+				ShB, PosB, RotB,
+				nullptr, 0.0f,
+				true,
+				OnA, OnB);
+		}
 		void GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB, 
 			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB);
 	}

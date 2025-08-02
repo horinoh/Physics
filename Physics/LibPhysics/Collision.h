@@ -164,7 +164,7 @@ namespace Collision
 		[[nodiscard]] static float PointTriangle(const LinAlg::Vec3& Pt, const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C) {
 			return (Pt - A).Dot(LinAlg::Vec3::UnitNormal(A, B, C));
 		}
-		[[nodiscard]] static bool IsFront(const LinAlg::Vec3& Pt, const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C) {
+		[[nodiscard]] static bool IsFrontTriangle(const LinAlg::Vec3& Pt, const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C) {
 			//!< ‘¤‚¾‚¯•ª‚©‚ê‚Î‚æ‚¢‚Ì‚Å³‹K‰»‚·‚é•K—v‚Í‚È‚¢
 			return (Pt - A).Dot(LinAlg::Vec3::Normal(A, B, C)) >= 0.0f;
 		}
