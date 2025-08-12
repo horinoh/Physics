@@ -123,14 +123,14 @@ public:
 			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius)).get()->Init();
 
 			const auto n = 6;
-#ifdef _DEBUG
+#if true//def _DEBUG
 			const auto ny = 1;
 #else
 			const auto ny = n;
 #endif
 			const auto n2 = n >> 1;
-			for (auto x = 0; x < ny; ++x) {
-				for (auto y = 0; y < n; ++y) {
+			for (auto x = 0; x < n; ++x) {
+				for (auto y = 0; y < ny; ++y) {
 					for (auto z = 0; z < n; ++z) {
 						auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 1.0f)).get();
 						Rb->Position = LinAlg::Vec3(static_cast<float>(x - n2) * Offset, Y + y * Offset, static_cast<float>(z - n2) * Offset);

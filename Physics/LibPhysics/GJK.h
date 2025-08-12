@@ -118,7 +118,7 @@ namespace Collision
 		//!< GJK –{‘Ì
 		bool GJK(const Physics::Shape* ShA, const LinAlg::Vec3& PosA, const LinAlg::Quat& RotA,
 			const Physics::Shape* ShB, const LinAlg::Vec3& PosB, const LinAlg::Quat& RotB,
-			OnIntersectGJK OnIntersect, const float Bias, const bool zWithClosestPoint,
+			OnIntersectGJK OnIntersect, const float Bias, const bool WithClosestPoint,
 			LinAlg::Vec3& OnA, LinAlg::Vec3& OnB);
 		//!< ˆø”ŠÈˆÕ”Å
 		[[nodiscard]] bool GJK(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB,

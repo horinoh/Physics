@@ -121,7 +121,7 @@ public:
 			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeSphere>(Radius)).get()->Init();
 
 			const auto n = 6;
-#ifdef _DEBUG
+#if true//def _DEBUG
 			const auto ny = 1;
 #else
 			const auto ny = n;

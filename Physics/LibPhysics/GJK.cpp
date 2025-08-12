@@ -345,23 +345,23 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const LinAlg::Vec3&
 	std::vector<SupportPoint::Points>& Sps, const float Bias, 
 	LinAlg::Vec3& OnA, LinAlg::Vec3& OnB)
 {
-	//!< EPA の前準備
 	//!< EPA では四面体を必要とするので、(四面体でない場合は) 四面体へ拡張する
 	SupportPoint::ToTetrahedron(ShA, PosA, RotA, ShB, PosB, RotB, Sps);
 
 	//!< シンプレックスを拡張する (A, B の衝突点がほぼ同一の場合に法線が上手く求められない場合があるため、バイアス分拡張する)
+	//!< この過程で中心が求まるので覚えておく
 	const auto Center = SupportPoint::Expand(Bias, Sps);
 	
-	//!< 外側に法線が向くようにインデックスを生成
-	constexpr std::array XYZW = { 0, 1, 2, 3 };
-	constexpr auto XYZWSize = static_cast<uint32_t>(std::size(XYZW));
+	//!< 3 シンプレクス (四面体) の 4 面 に対して法線が外側に向くように三角形のインデックスを生成する
+	constexpr std::array Faces = { 0, 1, 2, 3 };
+	constexpr auto FacesSize = static_cast<uint32_t>(std::size(Faces));
 	std::vector<Collision::TriInds> Tris;
-	std::ranges::transform(XYZW, std::back_inserter(Tris),
+	std::ranges::transform(Faces, std::back_inserter(Tris),
 		[&](const auto& rhs) {
-			const auto i = (rhs + 0) % XYZWSize;
-			const auto j = (rhs + 1) % XYZWSize;
-			const auto k = (rhs + 2) % XYZWSize;
-			const auto l = (rhs + 3) % XYZWSize; //!< 三角形 i, j, k を底辺とする四面体の頂点
+			const auto i = (rhs + 0) % FacesSize;
+			const auto j = (rhs + 1) % FacesSize;
+			const auto k = (rhs + 2) % FacesSize;
+			const auto l = (rhs + 3) % FacesSize; //!< 四面体の頂点
 			return Collision::Distance::IsFrontTriangle(Sps[l].GetC(), Sps[i].GetC(), Sps[j].GetC(), Sps[k].GetC()) ? 
 				Collision::TriInds({ j, i, k }) : Collision::TriInds({ i, j, k });
 		});
@@ -412,7 +412,7 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const LinAlg::Vec3&
 			}
 		}
 
-		//!< ぶら下がった辺 (削除した三角形と、残った三角形の境界となるような辺) を収集する
+		//!< ぶら下がった辺 (削除した三角形群と、残った三角形群の境界となるような辺) を収集、見つからなければ終了
 		{
 			//!< 複数の三角形から共有されていないようなユニークな辺を収集すればよい
 			std::vector<Collision::EdgeIndsWithCount> DanglingEdges;

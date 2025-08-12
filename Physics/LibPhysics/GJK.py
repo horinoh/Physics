@@ -1,4 +1,5 @@
 import sys
+from tkinter import ON
 import numpy as np
 
 from LibPhysics import RigidBody
@@ -202,7 +203,7 @@ def SignedVolume(Sps, Dir):
 #   最終的に四面体が原点を含む(衝突)か、サポートポイントが無くなる(非衝突)まで続ける
 def GJK(ShA, PosA, RotA,
         ShB, PosB, RotB,
-        WithClosetPt = False):
+        OnIntersection, Bias, WithClosetPt = True):
     # サポートポイント保持先
     Sps = []
 
@@ -263,8 +264,10 @@ def GJK(ShA, PosA, RotA,
 
     # 衝突確定
     if HasIntersection:
-        # 衝突時には、成否とサポートポイントを返す
-        return True, Sps
+        # 成否と衝突点を返す
+        return True, OnIntersection(ShA, PosA, RotA, 
+                                    ShB, PosB, RotB,
+                                    Sps, Bias)
     
     # 最近接点を求める場合
     if WithClosetPt:
@@ -274,12 +277,10 @@ def GJK(ShA, PosA, RotA,
         # 成否のみ返す
         return False, None
 
-# Expanding Polytope Algorithm
-def EPA(ShA, PosA, RotA,
-        ShB, PosB, RotB,
-        Sps, Bias):
-    
-    # 四面体にする (サポートポイント数が 4 になるまで増やす)
+# 四面体にする (サポートポイント数が 4 になるまで増やす)
+def ToTetrahedron(ShA, PosA, RotA,
+                  ShB, PosB, RotB,
+                  Sps):
     if len(Sps) == 1:
         Dir = -Sps[0].C
         Dir /= np.linalg.norm(Dir)
@@ -304,6 +305,16 @@ def EPA(ShA, PosA, RotA,
         Sps.append(GetSupportPoint(ShA, PosA, RotA,
                                    ShB, PosB, RotB, 
                                    Dir, 0.0))
+
+# Expanding Polytope Algorithm
+def EPA(ShA, PosA, RotA,
+        ShB, PosB, RotB,
+        Sps, Bias):
+    
+    # EPA ではサポートポイントが 3-シンプレクス (四面体) である必要がある
+    ToTetrahedron(ShA, PosA, RotA,
+                  ShB, PosB, RotB,
+                  Sps)
 
     # バイアス分拡張する (A, B の衝突点がほぼ同一の場合に法線が上手く求められない場合があるため)
     Center = sum(map(lambda rhs: rhs.C, Sps)) * 0.25
@@ -356,53 +367,59 @@ def EPA(ShA, PosA, RotA,
         PrevLen = len(Tris)
         Tris = list(filter(lambda rhs: False == IsFrontTriangle(Pt.C, 
                                                                 Sps[rhs[0]].C, Sps[rhs[1]].C, Sps[rhs[2]].C), Tris))
-        Len = len(Tris)
-        if PrevLen == Len:
+        TriLen = len(Tris)
+        if PrevLen == TriLen:
             break
 
-        # ぶら下がった辺を収集、見つからなければ終了
+        # ぶら下がった辺 (削除した三角形群と、残った三角形群の境界となるような辺) を収集、見つからなければ終了
         DanglingEdges = []
-        for i in range(Len):
+        for i in range(TriLen):
+            # 三角形 A
             TriA = Tris[i]
+            # 三角形 A の 3 辺 (インデックスのペア)
             EdgesA = [
                 [ TriA[0], TriA[1] ], 
                 [ TriA[1], TriA[2] ], 
                 [ TriA[2], TriA[0] ], 
             ]
-            # (3辺の) 出現回数
+            EdgeLenA = len(EdgesA)
+            # 三角形 A の 3 辺の出現回数
             Count = [ 0, 0, 0 ]
 
-            for j in range(Len):
-                # 自身以外と比較
+            for j in range(TriLen):
+                # 自身 (A) 以外と比較
                 if i == j:
                     continue
 
+                # 三角形 B
                 TriB = Tris[j]
+                # 三角形 B の 3 辺
                 EdgesB = [
                     [ TriB[0], TriB[1] ], 
                     [ TriB[1], TriB[2] ], 
                     [ TriB[2], TriB[0] ], 
                 ]
+                EdgeLenB = len(EdgesB)
 
                 # 出現回数をカウント
-                for k in range(3):
-                    for l in range(3):
+                for k in range(EdgeLenA):
+                    for l in range(EdgeLenB):
                         # 逆向きも同一とみなす
                         if (EdgesA[k][0] == EdgesB[l][0] and EdgesA[k][1] == EdgesB[l][1]) or (EdgesA[k][1] == EdgesB[l][0] and EdgesA[k][0] == EdgesB[l][1]):
                             Count[k] += 1
                 
                 # ユニークな辺 (ぶら下がり) のみを収集
-                for k in range(3):
+                for k in range(EdgeLenA):
                     if Count[k] == 0:
                         DanglingEdges.append(EdgesA[k])
         # そのような辺が無ければ終了
-        if len(DanglingEdges) == 0:
+        if DanglingEdges == []:
             break
 
-        # Pt とぶら下がり辺との新しい三角形を (法線が外側を向くように) 追加
+        # Pt とぶら下がり辺との新しい三角形群を (法線が外側を向くように) 追加していく
         for i in DanglingEdges:
             Tri = [PtIdx, i[1], i[0]]
-            Tris.append(Tri if PointTriangle(Center, Sps[Tri[0]].C, Sps[Tri[1]].C, Sps[Tri[2]].C) <= 0.0 else [PtIdx, i[0], i[1]])
+            Tris.append(Tri if IsFrontTriangle(Center, Sps[Tri[0]].C, Sps[Tri[1]].C, Sps[Tri[2]].C) else [PtIdx, i[0], i[1]])
     
     # 原点に最も近い三角形(ABC)を見つける
     CTri = Tris[np.argmin(map(lambda rhs: np.abs(PointTriangle(np.zeros(3), Sps[rhs[0]].C, Sps[rhs[1]].C,Sps[rhs[2]].C)), Tris))]

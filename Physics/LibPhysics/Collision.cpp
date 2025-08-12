@@ -355,11 +355,11 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 		}
 
 		const auto AB = OnB - OnA;
-		const auto SeparationDistance = AB.Length();
+		const auto SepDist = AB.Length();
 
 		//!< 回転を考慮した相対速度を求める
 		//!< A -> B 方向
-		const auto Dir = AB / SeparationDistance;
+		const auto Dir = AB / SepDist;
 		//!< A の相対速度、角速度
 		const auto LVel = (WRbA.LinearVelocity - WRbB.LinearVelocity).Dot(Dir);
 		const auto AVel = WRbA.Shape->GetFastestPointSpeed(WRbA.AngularVelocity, Dir) - WRbB.Shape->GetFastestPointSpeed(WRbB.AngularVelocity, Dir);
@@ -370,7 +370,7 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 		}
 
 		//!< 衝突するであろう直前までの時間を求める
-		const auto TimeToGo = SeparationDistance / OrthoSpeed;
+		const auto TimeToGo = SepDist / OrthoSpeed;
 		if (TimeToGo > DT) {
 			//!< DT 以内には存在しない
 			break;
