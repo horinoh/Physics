@@ -113,7 +113,7 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 		}
 		//!< 球以外は GJK で衝突判定
 		else {
-			if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
+			if (Collision::Intersection::ConservativeAdvance(RbA, RbB, DeltaSec, Ct)) {
 				if (0.0f == Ct.TimeOfImpact) {
 					//!< 静的衝突
 					Manifolds.Add(Ct);
@@ -141,7 +141,8 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 }
 #endif
 
-// 静的コンストレイント、動的コンストレイントを解決
+//!< コンストレイントを解決 
+//!< GJK 使用時の貫通解決は Manifolds コンストレイント解決に帰着
 void Physics::Scene::SolveConstraint(const float DeltaSec, const uint32_t ItCount)
 {
 	for (auto& i : Constraints) {
@@ -162,8 +163,26 @@ void Physics::Scene::SolveConstraint(const float DeltaSec, const uint32_t ItCoun
 	}
 	Manifolds.PostSolve();
 }
+//!< 貫通解決 (GJK 不使用時)
+//!< GJK 不使用時は TOI == 0 は Contacts へ追加されているので、ここで解決する
+void Physics::Scene::SolvePenetration(std::span<Collision::Contact> Contacts)
+{
+	for (const auto& i : Contacts) {
+		//!< 非 GJK の場合のみここで貫通解決を行う
+		if (0.0f == i.TimeOfImpact) {
+			const auto TotalInvMass = i.RigidBodyA->InvMass + i.RigidBodyB->InvMass;
+			const auto DistAB = i.WPointB - i.WPointA;
+			if (0.0f != i.RigidBodyA->InvMass) {
+				i.RigidBodyA->Position += DistAB * (i.RigidBodyA->InvMass / TotalInvMass);
+			}
+			if (0.0f != i.RigidBodyB->InvMass) {
+				i.RigidBodyB->Position -= DistAB * (i.RigidBodyB->InvMass / TotalInvMass);
+			}
+		}
+	}
+}
 
-void Physics::Scene::ResolveContact(const Collision::Contact& Ct)
+void Physics::Scene::ApplyImpulse(const Collision::Contact& Ct)
 {
 	const auto& WPointA = Ct.WPointA;
 	const auto& WPointB = Ct.WPointB;
@@ -208,47 +227,6 @@ void Physics::Scene::ResolveContact(const Collision::Contact& Ct)
 			Apply(Tan, VelT, TotalFric);
 		}
 	}
-
-	//!< めり込みの追い出し (TOI == 0.0f の時点で衝突している場合)
-	//!< (GJK では Manifold で処理していて、Contact へは追加していないのでここには来ない)
-	if (0.0f == Ct.TimeOfImpact) {
-		//!< 質量により追い出し割合を考慮
-		const auto DistAB = WPointB - WPointA;
-		if (0.0f != Ct.RigidBodyA->InvMass) {
-			Ct.RigidBodyA->Position += DistAB * (Ct.RigidBodyA->InvMass / TotalInvMass);
-		}
-		if (0.0f != Ct.RigidBodyB->InvMass) {
-			Ct.RigidBodyB->Position -= DistAB * (Ct.RigidBodyB->InvMass / TotalInvMass);
-		}
-	}
-}
-
-void Physics::Scene::ConservativeAdvance(const float DeltaSec, const std::vector<Collision::Contact>& Contacts)
-{
-	//!< TOI 毎に時間をスライスして、シミュレーションを進める
-	auto AccumTime = 0.0f;
-	for (const auto& i : Contacts) {
-		//!< 次の衝突までの時間
-		const auto Delta = i.TimeOfImpact - AccumTime;
-
-		//!< 次の衝突までシミュレーションを進める
-		for (auto& j : RigidBodies) {
-			j->Update(Delta);
-		}
-
-		//!< 衝突の解決
-		ResolveContact(i);
-
-		AccumTime += Delta;
-	}
-
-	//!< 残りのシミュレーションを進める
-	const auto Delta = DeltaSec - AccumTime;
-	if (0.0f < Delta) {
-		for (auto& i : RigidBodies) {
-			i->Update(Delta);
-		}
-	}
 }
 
 void Physics::Scene::Update(const float DeltaSec)
@@ -283,11 +261,35 @@ void Physics::Scene::Update(const float DeltaSec)
 #endif
 	}
 
-	//!< コンストレイントの解決
+	//!< コンストレイントの解決 (貫通解決を含む)
 	SolveConstraint(DeltaSec, 5);
-
-	ConservativeAdvance(DeltaSec, Contacts);
+	//!< GJK 不使用時の貫通解決
+	SolvePenetration(Contacts);
 	
+	//!< TOI 毎に時間をスライスして、シミュレーションを進める
+	auto AccumTime = 0.0f;
+	for (const auto& i : Contacts) {
+		//!< 次の衝突までの時間
+		const auto Delta = i.TimeOfImpact - AccumTime;
+
+		//!< 次の衝突までシミュレーションを進める
+		for (auto& j : RigidBodies) {
+			j->Update(Delta);
+		}
+
+		//!< 衝突による力積の適用
+		ApplyImpulse(i);
+
+		AccumTime += Delta;
+	}
+	//!< 残りのシミュレーションを進める
+	const auto Delta = DeltaSec - AccumTime;
+	if (0.0f < Delta) {
+		for (auto& i : RigidBodies) {
+			i->Update(Delta);
+		}
+	}
+
 	//!< 無限落下防止
 #if 1
 	for (auto& i : RigidBodies) {

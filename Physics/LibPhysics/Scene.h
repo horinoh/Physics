@@ -35,10 +35,9 @@ namespace Physics
 #endif
 
 		virtual void SolveConstraint(const float DeltaSec, const uint32_t ItCount);
+		virtual void SolvePenetration(std::span<Collision::Contact> Contacts);
 
-		virtual void ResolveContact(const Collision::Contact& Ct);
-
-		virtual void ConservativeAdvance(const float DeltaSec, const std::vector<Collision::Contact>& Contacts);
+		virtual void ApplyImpulse(const Collision::Contact& Ct);
 
 		virtual void Update(const float DeltaSec);
 

@@ -109,5 +109,8 @@
     <None Include="Distance.py">
       <Filter>Python Files</Filter>
     </None>
+    <None Include="Intersection.py">
+      <Filter>Python Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

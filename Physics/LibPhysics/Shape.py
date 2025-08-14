@@ -46,7 +46,8 @@ class ShapeBase:
     def GetSupportPoint(self, Pos, Rot, UDir, Bias):
         return None
     
-    def GetFastestPointSpeed(self, AngVel, UDir):
+    # ‰ñ“]‚É‚æ‚Á‚Ä UDir •ûŒü‚ÉÅ‚à‘¬‚­“®‚¢‚Ä‚¢‚é’¸“_‚Ì‘¬‚³‚ğ•Ô‚·
+    def GetFastestRotatingPointSpeed(self, AngVel, UDir):
         return 0.0
 
 class ShapeConvexBase(ShapeBase):
@@ -72,7 +73,7 @@ class ShapeConvexBase(ShapeBase):
     def GetSupportPoint(self, Pos, Rot, UDir, Bias):
         return max(list(map(lambda rhs: (lambda Pt = quaternion.rotate_vectors(Rot, rhs) + Pos: [Pt, Pt @ UDir])(), self.Vertices)), key = lambda rhs: rhs[1])[0] + UDir * Bias
     
-    def GetFastestPointSpeed(self, AngVel, UDir):
+    def GetFastestRotatingPointSpeed(self, AngVel, UDir):
         return max(map(lambda rhs: UDir @ np.cross(AngVel, rhs), self.Vertices))
 
 class ShapeBox(ShapeConvexBase):

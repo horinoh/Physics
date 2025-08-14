@@ -288,7 +288,7 @@ namespace Collision
 			const Physics::RigidBody* RbB,
 			const float DeltaSec, ContactBase& Ct);
 
-		[[nodiscard]] bool RigidBodyRigidBody(const Physics::RigidBody* RbA, 
+		[[nodiscard]] bool ConservativeAdvance(const Physics::RigidBody* RbA,
 			const Physics::RigidBody* RbB, 
 			const float DeltaSec, Contact& Ct);
 	}

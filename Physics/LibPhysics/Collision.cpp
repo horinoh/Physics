@@ -311,7 +311,7 @@ void Collision::Closest::SegmentSegment(const LinAlg::Vec3& SegA, const LinAlg::
 	return false;
 }
 
-bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
+bool Collision::Intersection::ConservativeAdvance(const Physics::RigidBody* RbA,
 	const Physics::RigidBody* RbB, 
 	const float DeltaSec, Contact& Ct)
 {
@@ -362,7 +362,7 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 		const auto Dir = AB / SepDist;
 		//!< A の相対速度、角速度
 		const auto LVel = (WRbA.LinearVelocity - WRbB.LinearVelocity).Dot(Dir);
-		const auto AVel = WRbA.Shape->GetFastestPointSpeed(WRbA.AngularVelocity, Dir) - WRbB.Shape->GetFastestPointSpeed(WRbB.AngularVelocity, Dir);
+		const auto AVel = WRbA.Shape->GetFastestRotatingPointSpeed(WRbA.AngularVelocity, Dir) - WRbB.Shape->GetFastestRotatingPointSpeed(WRbB.AngularVelocity, Dir);
 		const auto OrthoSpeed = LVel + AVel;
 		if (OrthoSpeed <= 0.0f) {
 			//!< 近づいていない
@@ -372,7 +372,7 @@ bool Collision::Intersection::RigidBodyRigidBody(const Physics::RigidBody* RbA,
 		//!< 衝突するであろう直前までの時間を求める
 		const auto TimeToGo = SepDist / OrthoSpeed;
 		if (TimeToGo > DT) {
-			//!< DT 以内には存在しない
+			//!< 今フレーム中 (DeltaSec) には衝突しない
 			break;
 		}
 

@@ -70,9 +70,9 @@ namespace Physics
 				}) + UDir * Bias;
 		}
 
-		//!< (‰ñ“]‚É‚æ‚è) Žw’è‚Ì•ûŒü‚ÉÅ‚à‘¬‚­“®‚¢‚Ä‚¢‚é’¸“_‚Ì‘¬“x‚ð•Ô‚·
-		[[nodiscard]] virtual float GetFastestPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const { return 0.0f; }
-		[[nodiscard]] inline float GetFastestPointSpeed(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const {
+		//!< ‰ñ“]‚É‚æ‚Á‚Ä UDir •ûŒü‚ÉÅ‚à‘¬‚­“®‚¢‚Ä‚¢‚é’¸“_‚Ì‘¬‚³‚ð•Ô‚·
+		[[nodiscard]] virtual float GetFastestRotatingPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const { return 0.0f; }
+		[[nodiscard]] inline float GetFastestRotatingPointSpeed(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const {
 			std::vector<float> Speeds;
 			Speeds.reserve(std::size(Vertices));
 			std::ranges::transform(Vertices, std::back_inserter(Speeds),
@@ -139,8 +139,8 @@ namespace Physics
 		virtual LinAlg::Vec3 GetSupportPoint(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot, const LinAlg::Vec3& UDir, const float Bias) const override {
 			return Super::GetSupportPoint(Vertices, Pos, Rot, UDir, Bias);
 		}
-		virtual float GetFastestPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const override {
-			return Super::GetFastestPointSpeed(Vertices, AngVel, UDir);
+		virtual float GetFastestRotatingPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const override {
+			return Super::GetFastestRotatingPointSpeed(Vertices, AngVel, UDir);
 		}
 	//protected:
 	public:
