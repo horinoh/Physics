@@ -155,6 +155,8 @@ void Physics::ConstraintDistance::Solve()
 }
 void Physics::ConstraintDistance::PostSolve() 
 {
+	if (std::isnan(CachedLambda[0])) { CachedLambda[0] = 0.0f; }
+
 #pragma region WARM_STARTING
 	//!< 短時間に大きな力積が加わった場合に不安定になるのを防ぐために、リーズナブルな範囲に制限する
 	constexpr auto Eps = (std::numeric_limits<float>::epsilon)();
@@ -252,6 +254,10 @@ void Physics::ConstraintHinge::Solve()
 }
 void Physics::ConstraintHinge::PostSolve()
 {
+	if (std::isnan(CachedLambda[0])) { CachedLambda[0] = 0.0f; }
+	if (std::isnan(CachedLambda[1])) { CachedLambda[1] = 0.0f; }
+	if (std::isnan(CachedLambda[2])) { CachedLambda[2] = 0.0f; }
+
 	constexpr auto Limit = 20.0f;
 	CachedLambda = { 
 		(std::clamp)(CachedLambda[0], -Limit, Limit), 
@@ -378,6 +384,8 @@ void Physics::ConstraintHingeLimited::Solve()
 }
 void Physics::ConstraintHingeLimited::PostSolve()
 {
+	if (std::isnan(CachedLambda[0])) { CachedLambda[0] = 0.0f; }
+
 	constexpr auto Limit = 20.0f;
 	CachedLambda = { (std::clamp)(CachedLambda[0], -Limit, Limit), 0.0f, 0.0f, 0.0f };
 }
@@ -450,6 +458,9 @@ void Physics::ConstraintBallSocket::Solve()
 }
 void Physics::ConstraintBallSocket::PostSolve()
 {
+	if (std::isnan(CachedLambda[0])) { CachedLambda[0] = 0.0f; }
+	if (std::isnan(CachedLambda[1])) { CachedLambda[1] = 0.0f; }
+
 	constexpr auto Limit = 20.0f;
 	CachedLambda = {
 		(std::clamp)(CachedLambda[0], -Limit, Limit),
@@ -585,6 +596,8 @@ void Physics::ConstraintBallSocketLimited::Solve()
 }
 void Physics::ConstraintBallSocketLimited::PostSolve()
 {
+	if (std::isnan(CachedLambda[0])) { CachedLambda[0] = 0.0f; }
+
 	constexpr auto Limit = 20.0f;
 	CachedLambda = { (std::clamp)(CachedLambda[0], -Limit, Limit), 0.0f, 0.0f, 0.0f };
 }

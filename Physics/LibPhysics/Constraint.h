@@ -404,20 +404,40 @@ namespace Physics
 	//!<	[2] ëŒäpóDà  (diagonally dominant) 
 	//!<		|xy_ij| >= Sigma_j,j!=i |xy_ij|
 	//!<		ëŒäpê¨ï™ÇÃòaÇÃê‚ëŒílÇ™ÅAîÒëŒäpê¨ï™ÇÃòaÇÃê‚ëŒílà»è„Ç∆Ç»ÇÈÇÊÇ§Ç»çsóÒ
+	//!< 
+	//!< ItLimit	åJÇËï‘ÇµâÒêîè„å¿
+	//!< Tolerance	é˚ë©ãñóeíl (>= 0.0f ÇæÇ∆ñ≥å¯ÅAItLimit Ç‹Ç≈çsÇ§)
 	template<size_t N>
-	static LinAlg::Vec<N> GaussSiedel(const LinAlg::Mat<N, N>& A, const LinAlg::Vec<N>& b, const uint32_t ItCount = 10)
+	static LinAlg::Vec<N> GaussSiedel(const LinAlg::Mat<N, N>& A, const LinAlg::Vec<N>& b, const uint32_t ItLimit = 10, const float Tolerance = 0.0f)
 	{
 		auto x = LinAlg::Vec<N>();
-
-		for (uint32_t It = 0; It < ItCount; ++It) {
+		auto CalcX = [&]() {
 			for (auto i = 0; i < N; ++i) {
 				const auto dx = (b[i] - A[i].Dot(x)) / A[i][i];
-				if (dx * 0.01f == dx * 0.01f) {
+				if (!std::isnan(dx)) {
 					x[i] += dx;
 				}
 			}
-		}
+		};
 
+		if (Tolerance > 0.0f) {
+			auto Residual = std::numeric_limits<float>::max();
+			for (uint32_t It = 0; It < ItLimit; ++It) {
+				const auto PrevX = x;
+				CalcX();
+
+				//!< é˚ë©ÇµÇƒÇ¢ÇÍÇŒèIóπ
+				Residual = (x - PrevX).Length() / x.Length();
+				if(Residual <= Tolerance) {
+					break;
+				}
+			}
+		}
+		else {
+			for (uint32_t It = 0; It < ItLimit; ++It) {
+				CalcX();
+			}
+		}
 		return x;
 	}
 }

@@ -107,9 +107,9 @@ namespace Collision
 	namespace Distance 
 	{
 		[[nodiscard]] static float AABBPointSq(const AABB& Ab, const LinAlg::Vec3& Pt) {
-			return LinAlg::Vec3(std::max(std::max(Ab.Min.X() - Pt.X(), 0.0f), std::max(Pt.X() - Ab.Max.X(), 0.0f)),
-				std::max(std::max(Ab.Min.Y() - Pt.Y(), 0.0f), std::max(Pt.Y() - Ab.Max.Y(), 0.0f)),
-				std::max(std::max(Ab.Min.Z() - Pt.Z(), 0.0f), std::max(Pt.Z() - Ab.Max.Z(), 0.0f))).LengthSq();
+			return LinAlg::Vec3((std::max)((std::max)(Ab.Min.X() - Pt.X(), 0.0f), (std::max)(Pt.X() - Ab.Max.X(), 0.0f)),
+				(std::max)((std::max)(Ab.Min.Y() - Pt.Y(), 0.0f), (std::max)(Pt.Y() - Ab.Max.Y(), 0.0f)),
+				(std::max)((std::max)(Ab.Min.Z() - Pt.Z(), 0.0f), (std::max)(Pt.Z() - Ab.Max.Z(), 0.0f))).LengthSq();
 		}
 		[[nodiscard]] static float AABBPoint(const AABB& Ab, const LinAlg::Vec3& Pt) {
 			return  std::sqrtf(AABBPoint(Ab, Pt));
@@ -154,7 +154,7 @@ namespace Collision
 
 		[[nodiscard]] static float PointSphereSq(const LinAlg::Vec3& Pt,
 			const LinAlg::Vec3& SpPos, const float SpRad) {
-			return std::max((Pt - SpPos).LengthSq() - std::pow(SpRad, 2.0f), 0.0f);
+			return (std::max)((Pt - SpPos).LengthSq() - std::pow(SpRad, 2.0f), 0.0f);
 		}
 		[[nodiscard]] static float PointSphere(const LinAlg::Vec3& Pt,
 			const LinAlg::Vec3& SpPos, const float SpRad) {

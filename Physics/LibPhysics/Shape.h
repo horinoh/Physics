@@ -79,7 +79,7 @@ namespace Physics
 				[&](const auto& rhs) {
 					return UDir.Dot(AngVel.Cross(rhs - GetCenterOfMass()));
 				});
-			return std::ranges::max(Speeds);
+			return (std::ranges::max)(Speeds);
 		}
 
 		[[nodiscard]] const LinAlg::Vec3& GetCenterOfMass() const { return CenterOfMass; }
@@ -200,9 +200,9 @@ namespace Physics
 			std::ranges::transform(Vertices, std::back_inserter(Xs), [](const auto& rhs) { return rhs.X(); });
 			std::ranges::transform(Vertices, std::back_inserter(Ys), [](const auto& rhs) { return rhs.Y(); });
 			std::ranges::transform(Vertices, std::back_inserter(Zs), [](const auto& rhs) { return rhs.Z(); });
-			return LinAlg::Vec3(std::ranges::max(Xs) - std::ranges::min(Xs), 
-				std::ranges::max(Ys) - std::ranges::min(Ys), 
-				std::ranges::max(Zs) - std::ranges::min(Zs));
+			return LinAlg::Vec3((std::ranges::max)(Xs) - (std::ranges::min)(Xs), 
+				(std::ranges::max)(Ys) - (std::ranges::min)(Ys), 
+				(std::ranges::max)(Zs) - (std::ranges::min)(Zs));
 		}
 		//!< ボックスの慣性テンソル 1 / 12 * (H^2+D^2,       0,       0)
 		//!<							  (      0, W^2+D^2,       0)

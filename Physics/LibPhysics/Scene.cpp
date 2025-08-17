@@ -126,7 +126,7 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 		}
 #else
 		//!< ‘S‚Ä GJK ‚ÅÕ“Ë”»’è
-		if (Collision::Intersection::RigidBodyRigidBody(RbA, RbB, DeltaSec, Ct)) {
+		if (Collision::Intersection::ConservativeAdvance(RbA, RbB, DeltaSec, Ct)) {
 			if (0.0f == Ct.TimeOfImpact) {
 				Manifolds.Add(Ct);
 			}
@@ -150,7 +150,7 @@ void Physics::Scene::SolveConstraint(const float DeltaSec, const uint32_t ItCoun
 	}
 	Manifolds.PreSolve(DeltaSec);
 
-	//!< Solve() ‚ÍŒJ‚è•Ô‚·‚±‚Æ‚ÅŽû‘©‚³‚¹‚é (‚P“x‚É‚Í‚Q„‘ÌŠÔ‚ÌƒRƒ“ƒXƒgƒŒƒCƒ“ƒg‚µ‚©‰ðŒˆ‚µ‚È‚¢ˆ×)
+	//!< Solve() ‚ðŒJ‚è•Ô‚·‚±‚Æ‚ÅŽû‘©‚³‚¹‚é (‚P“x‚É‚Í‚Q„‘ÌŠÔ‚ÌƒRƒ“ƒXƒgƒŒƒCƒ“ƒg‚µ‚©‰ðŒˆ‚µ‚È‚¢ˆ×)
 	for (uint32_t c = 0; c < ItCount; ++c) {
 		for (auto& i : Constraints) {
 			i->Solve();

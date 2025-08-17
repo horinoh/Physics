@@ -27,6 +27,9 @@ namespace LinAlg
 				});
 		}
 
+		inline bool IsValid() const {
+			return std::ranges::all_of(Data, [](const auto& i) { return !std::isnan(i); });
+		}
 		inline bool NearlyEqual(const Vec2& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
 			return NearlyEqual(*this, rhs, Epsilon); 
 		}
@@ -237,6 +240,9 @@ namespace LinAlg
 		inline static Vec3 Normal(const Vec3& A, const Vec3& B, const Vec3& C) { return (B - A).Cross(C - A); }
 		inline static Vec3 UnitNormal(const Vec3& A, const Vec3& B, const Vec3& C) { return Normal(A, B, C).Normalize(); }
 		
+		inline bool IsValid() const {
+			return std::ranges::all_of(Data, [](const auto& i) { return !std::isnan(i); });
+		}
 		inline bool NearlyEqual(const Vec3& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { 
 			return NearlyEqual(*this, rhs, Epsilon); 
 		}
@@ -464,6 +470,9 @@ namespace LinAlg
 				});
 		}
 
+		inline bool IsValid() const {
+			return std::ranges::all_of(Data, [](const auto& i) { return !std::isnan(i); });
+		}
 		inline bool NearlyEqual(const Vec4& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { 
 			return NearlyEqual(*this, rhs, Epsilon);
 		}
@@ -692,6 +701,9 @@ namespace LinAlg
 				});
 		}
 
+		inline bool IsValid() const {
+			return std::ranges::all_of(Data, [](const auto& i) { return !std::isnan(i); });
+		}
 		inline bool NearlyEqual(const Vec& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const {
 			return NearlyEqual(*this, rhs, Epsilon); 
 		}

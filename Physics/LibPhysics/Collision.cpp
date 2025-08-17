@@ -88,8 +88,8 @@ bool Collision::Intersection::AABBRay(const AABB& Ab,
 			if (t1 > t2) {
 				std::swap(t1, t2);
 			}
-			T = std::max(T, t1);
-			TMax = std::min(TMax, t2);
+			T = (std::max)(T, t1);
+			TMax = (std::min)(TMax, t2);
 			if (T > TMax) { return false; }
 		}
 	}
