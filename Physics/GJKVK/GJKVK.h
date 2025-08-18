@@ -226,10 +226,10 @@ public:
 		//!< 凸包を構築
 		auto Convex = static_cast<Physics::ShapeConvex*>(Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>(Vec3s)).get());
 		//!< 描画用の頂点、インデックスを構築
-		for (auto& i : Convex->Vertices) {
+		for (auto& i : Convex->GetVertices()) {
 			Vertices_CH.emplace_back(glm::vec3(i.X(), i.Y(), i.Z()));
 		}
-		for (auto i : Convex->Indices) {
+		for (auto i : Convex->GetIndices()) {
 			Indices_CH.emplace_back(i[0]);
 			Indices_CH.emplace_back(i[1]);
 			Indices_CH.emplace_back(i[2]);
