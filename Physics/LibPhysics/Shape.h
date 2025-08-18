@@ -24,7 +24,7 @@ namespace Physics
 		[[nodiscard]] virtual SHAPE_TYPE GetShapeType() const = 0;
 
 		[[nodiscard]] virtual Collision::AABB GetAABB(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot) const = 0;
-		[[nodiscard]] inline Collision::AABB GetAABB(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot) const {
+		[[nodiscard]] static inline Collision::AABB GetAABB(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot) {
 			Collision::AABB Ab;
 			for (auto& i : Vertices) {
 				Ab.Expand(Rot.Rotate(i) + Pos);
@@ -57,7 +57,7 @@ namespace Physics
 
 		//!< Žw’è‚Ì•ûŒü (UDir : ³‹K‰»‚³‚ê‚Ä‚¢‚é‚±‚Æ) ‚Éˆê”Ô‰“‚¢“_‚ð•Ô‚·
 		[[nodiscard]] virtual LinAlg::Vec3 GetSupportPoint(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot, const LinAlg::Vec3& UDir, const float Bias) const = 0;
-		[[nodiscard]] inline LinAlg::Vec3 GetSupportPoint(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot, const LinAlg::Vec3& UDir, const float Bias) const {
+		[[nodiscard]] static inline LinAlg::Vec3 GetSupportPoint(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot, const LinAlg::Vec3& UDir, const float Bias) {
 			std::vector<LinAlg::Vec3> Pts;
 			Pts.reserve(std::size(Vertices));
 			std::ranges::transform(Vertices, std::back_inserter(Pts),
@@ -72,12 +72,12 @@ namespace Physics
 
 		//!< ‰ñ“]‚É‚æ‚Á‚Ä UDir •ûŒü‚ÉÅ‚à‘¬‚­“®‚¢‚Ä‚¢‚é’¸“_‚Ì‘¬‚³‚ð•Ô‚·
 		[[nodiscard]] virtual float GetFastestRotatingPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const { return 0.0f; }
-		[[nodiscard]] inline float GetFastestRotatingPointSpeed(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const {
+		[[nodiscard]] static inline float GetFastestRotatingPointSpeed(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& CenterOfMass, const LinAlg::Vec3 & AngVel, const LinAlg::Vec3& UDir) {
 			std::vector<float> Speeds;
 			Speeds.reserve(std::size(Vertices));
 			std::ranges::transform(Vertices, std::back_inserter(Speeds),
 				[&](const auto& rhs) {
-					return UDir.Dot(AngVel.Cross(rhs - GetCenterOfMass()));
+					return UDir.Dot(AngVel.Cross(rhs - CenterOfMass));
 				});
 			return (std::ranges::max)(Speeds);
 		}
@@ -140,10 +140,14 @@ namespace Physics
 			return Super::GetSupportPoint(Vertices, Pos, Rot, UDir, Bias);
 		}
 		virtual float GetFastestRotatingPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const override {
-			return Super::GetFastestRotatingPointSpeed(Vertices, AngVel, UDir);
+			return Super::GetFastestRotatingPointSpeed(Vertices, GetCenterOfMass(), AngVel, UDir);
 		}
-	//protected:
+
 	public:
+		const std::vector<LinAlg::Vec3>& GetVertices() const { return Vertices; }
+		const std::vector<Collision::TriInds>& GetIndices() const { return Indices; }
+
+	protected:
 		std::vector<LinAlg::Vec3> Vertices;
 		//!< •`‰æ‚µ‚È‚¢ê‡‚Í•s—vA‚±‚±‚Å‚Íˆê‰žŽ‚½‚¹‚Ä‚¨‚­
 		std::vector<Collision::TriInds> Indices;

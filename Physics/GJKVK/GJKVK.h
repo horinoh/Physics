@@ -215,7 +215,7 @@ public:
 		//Load(GLTF_PATH / "Avocado" / "glTF-Binary" / "Avocado.glb");
 		//Load(ASSET_PATH / "bunny4.glb");
 		Vec3s.reserve(std::size(Vertices));
-		for (auto& i : Vertices) { Vec3s.emplace_back(Math::Vec3({ i.x, i.y, i.z })); }
+		for (auto& i : Vertices) { Vec3s.emplace_back(LinAlg::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
 		std::vector<LinAlg::Vec3> ShapeVert;

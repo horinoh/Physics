@@ -10,7 +10,7 @@
 
 #define USE_MESH
 #ifdef USE_MESH
-#define USE_MESH_HULL
+#define DRAW_CONVEX_HULL
 #endif
 
 class ConvexHullDX : public Gltf::SDK, public DX
@@ -199,7 +199,7 @@ public:
 		for (auto& i : Meshes.back().Vertices) { Vec3s.emplace_back(LinAlg::Vec3({ i.x, i.y, i.z })); }
 #else
 		//!< ダイアモンド形状
-		std::vector<Math::Vec3> ShapeVert;
+		std::vector<LinAlg::Vec3> ShapeVert;
 		Physics::CreateVertices_Diamond(ShapeVert);
 		std::ranges::copy(ShapeVert, std::back_inserter(Vec3s));
 #endif
@@ -207,10 +207,10 @@ public:
 		PlaceRigidBodies(Vec3s);
 		const auto Convex = static_cast<const Physics::ShapeConvex*>(Scene->Shapes.front().get());
 		if (nullptr != Convex) {
-			for (auto& i : Convex->Vertices) {
+			for (auto& i : Convex->GetVertices()) {
 				Vertices_CH.emplace_back(DirectX::XMFLOAT3(i.X(), i.Y(), i.Z()));
 			}
-			for (auto i : Convex->Indices) {
+			for (auto i : Convex->GetIndices()) {
 				Indices_CH.emplace_back(i[0]);
 				Indices_CH.emplace_back(i[1]);
 				Indices_CH.emplace_back(i[2]);
@@ -505,7 +505,7 @@ public:
 				BCL->IASetIndexBuffer(&IndexBuffers[0].View);
 				BCL->ExecuteIndirect(COM_PTR_GET(IndirectBuffers[0].CommandSignature), 1, COM_PTR_GET(IndirectBuffers[0].Resource), 0, nullptr, 0);
 			}
-#ifdef USE_MESH_HULL
+#ifdef DRAW_CONVEX_HULL
 			//!< 凸包
 			{
 				BCL->SetPipelineState(PS1);

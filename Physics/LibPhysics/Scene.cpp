@@ -163,6 +163,8 @@ void Physics::Scene::SolveConstraint(const float DeltaSec, const uint32_t ItCoun
 	}
 	Manifolds.PostSolve();
 }
+
+#pragma region NO_GJK
 //!< 貫通解決 (GJK 不使用時)
 //!< GJK 不使用時は TOI == 0 は Contacts へ追加されているので、ここで解決する
 void Physics::Scene::SolvePenetration(std::span<Collision::Contact> Contacts)
@@ -181,6 +183,7 @@ void Physics::Scene::SolvePenetration(std::span<Collision::Contact> Contacts)
 		}
 	}
 }
+#pragma endregion
 
 void Physics::Scene::ApplyImpulse(const Collision::Contact& Ct)
 {
@@ -263,9 +266,11 @@ void Physics::Scene::Update(const float DeltaSec)
 
 	//!< コンストレイントの解決 (貫通解決を含む)
 	SolveConstraint(DeltaSec, 5);
+#pragma region NO_GJK
 	//!< GJK 不使用時の貫通解決
 	SolvePenetration(Contacts);
-	
+#pragma endregion
+
 	//!< TOI 毎に時間をスライスして、シミュレーションを進める
 	auto AccumTime = 0.0f;
 	for (const auto& i : Contacts) {

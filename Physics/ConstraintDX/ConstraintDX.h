@@ -231,7 +231,7 @@ public:
 				RbB->Position = Pos - LinAlg::Vec3::AxisX() * 1.2f;
 
 				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintBallSocket>(RbA, RbB, RbA->Position, LinAlg::Vec3::AxisY()));
-				//Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintBallSocketLimited>(RbA, RbB, RbA->Position, Math::Vec3::AxisY(), 135.0f, 135.0f));
+				//Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintBallSocketLimited>(RbA, RbB, RbA->Position, LinAlg::Vec3::AxisY(), 135.0f, 135.0f));
 			}
 			//!< モーターコンストレイント (最左)
 			{

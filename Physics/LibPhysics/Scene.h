@@ -35,7 +35,9 @@ namespace Physics
 #endif
 
 		virtual void SolveConstraint(const float DeltaSec, const uint32_t ItCount);
+#pragma region NO_GJK
 		virtual void SolvePenetration(std::span<Collision::Contact> Contacts);
+#pragma endregion
 
 		virtual void ApplyImpulse(const Collision::Contact& Ct);
 
