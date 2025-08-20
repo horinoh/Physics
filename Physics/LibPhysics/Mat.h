@@ -12,8 +12,12 @@ namespace LinAlg
 		Mat2(const Mat2& rhs) : Rows{ rhs.Rows[0], rhs.Rows[1] } {}
 		Mat2(View2x2 rhs) : View(rhs) {}
 
-		inline static Mat2 Identity() { return Mat2(); }
-		inline static Mat2 Zero() { return { Vec2::Zero(), Vec2::Zero() }; }
+	private:
+		static const Mat2 _Identity;
+		static const Mat2 _Zero;
+	public:
+		inline static const Mat2& Identity() { return _Identity; }
+		inline static const Mat2& Zero() { return _Zero; }
 
 		inline bool NearlyEqual(const Mat2& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { 
 			return std::ranges::equal(Rows, rhs.Rows, 
@@ -220,8 +224,12 @@ namespace LinAlg
 		Mat3(const Mat3& rhs) : Rows{ rhs.Rows[0], rhs.Rows[1], rhs.Rows[2] } {}
 		Mat3(View3x3 rhs) : View(rhs) {}
 
-		inline static Mat3 Identity() { return Mat3(); }
-		inline static Mat3 Zero() { return { Vec3::Zero(), Vec3::Zero(), Vec3::Zero() }; }
+	private:
+		static const Mat3 _Identity;
+		static const Mat3 _Zero;
+	public:
+		inline static const Mat3& Identity() { return _Identity; }
+		inline static const Mat3& Zero() { return _Zero; }
 
 		inline bool NearlyEqual(const Mat3& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { 
 			return std::ranges::equal(Rows, rhs.Rows,
@@ -468,8 +476,12 @@ namespace LinAlg
 		Mat4(const Mat4& rhs) : Rows{ rhs.Rows[0], rhs.Rows[1], rhs.Rows[2], rhs.Rows[3] } {}
 		Mat4(View4x4 rhs) : View(rhs) {}
 
-		inline static Mat4 Identity() { return Mat4(); }
-		inline static Mat4 Zero() { return { Vec4::Zero(), Vec4::Zero(), Vec4::Zero(), Vec4::Zero() }; }
+	private:
+		static const Mat4 _Identity;
+		static const Mat4 _Zero;
+	public:
+		inline static const Mat4& Identity() { return _Identity; }
+		inline static const Mat4& Zero() { return _Zero; }
 
 		inline bool NearlyEqual(const Mat4& rhs, const float Epsilon = (std::numeric_limits<float>::epsilon)()) const { 
 			return std::ranges::equal(Rows, rhs.Rows, 

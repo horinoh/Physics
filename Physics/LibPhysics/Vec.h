@@ -13,13 +13,25 @@ namespace LinAlg
 		Vec2(const float rhs) : Data({ rhs, rhs }) {}
 		Vec2(View2 rhs) : View(rhs) {}
 
-		inline static Vec2 Zero() { return Vec2(0.0f); }
-		inline static Vec2 One() { return Vec2(1.0f); }
-		inline static Vec2 AxisX() { return { 1.0f, 0.0f }; }
-		inline static Vec2 AxisY() { return { 0.0f, 1.0f }; }
-		inline static Vec2 Epsilon() { return  Vec2((std::numeric_limits<float>::epsilon)()); }
-		inline static Vec2 Min() { return Vec2((std::numeric_limits<float>::min)()); }
-		inline static Vec2 Max() { return Vec2((std::numeric_limits<float>::max)()); }
+	private:
+		static const Vec2 _Zero;
+		static const Vec2 _One;
+		static const Vec2 _AxisX;
+		static const Vec2 _AxisY;
+		static const Vec2 _Epsilon;
+		static const Vec2 _Min;
+		static const Vec2 _Max;
+		static const Vec2 _UnitXY;
+	public:
+		inline static const Vec2& Zero() { return _Zero; }
+		inline static const Vec2& One() { return _One; }
+		inline static const Vec2& AxisX() { return _AxisX; }
+		inline static const Vec2& AxisY() { return _AxisY; }
+		inline static const Vec2& Epsilon() { return _Epsilon; }
+		inline static const Vec2& Min() { return _Min; }
+		inline static const Vec2& Max() { return _Max; }
+		inline static const Vec2& UnitXY() { return _UnitXY; }
+
 		inline static bool NearlyEqual(const Vec2& lhs, const Vec2& rhs, const float Epsilon) {
 			return std::ranges::equal(lhs.Data, rhs.Data, 
 				[&](const auto l, const auto r) {
@@ -223,14 +235,27 @@ namespace LinAlg
 		Vec3(const Vec2& rhs, const float z = 0.0f) : Data({ rhs.X(), rhs.Y(), z }) {}
 		Vec3(View3 rhs) : View(rhs) {}
 
-		inline static Vec3 Zero() { return Vec3(0.0f); }
-		inline static Vec3 One() { return Vec3(1.0f); }
-		inline static Vec3 AxisX() { return { 1.0f, 0.0f, 0.0f }; }
-		inline static Vec3 AxisY() { return { 0.0f, 1.0f, 0.0f }; }
-		inline static Vec3 AxisZ() { return { 0.0f, 0.0f, 1.0f }; }
-		inline static Vec3 Epsilon() { return Vec3((std::numeric_limits<float>::epsilon)()); }
-		inline static Vec3 Min() { return Vec3((std::numeric_limits<float>::min)()); }
-		inline static Vec3 Max() { return Vec3((std::numeric_limits<float>::max)()); }
+	private:
+		static const Vec3 _Zero;
+		static const Vec3 _One;
+		static const Vec3 _AxisX;
+		static const Vec3 _AxisY;
+		static const Vec3 _AxisZ;
+		static const Vec3 _Epsilon;
+		static const Vec3 _Min;
+		static const Vec3 _Max;
+		static const Vec3 _UnitXYZ;
+	public:
+		inline static const Vec3& Zero() { return _Zero; }
+		inline static const Vec3& One() { return _One; }
+		inline static const Vec3& AxisX() { return _AxisX; }
+		inline static const Vec3& AxisY() { return _AxisY; }
+		inline static const Vec3& AxisZ() { return _AxisZ; }
+		inline static const Vec3& Epsilon() { return _Epsilon; }
+		inline static const Vec3& Min() { return _Min; }
+		inline static const Vec3& Max() { return _Max; }
+		inline static const Vec3& UnitXYZ() { return _UnitXYZ; }
+
 		inline static bool NearlyEqual(const Vec3& lhs, const Vec3& rhs, const float Epsilon) {
 			return std::ranges::equal(lhs.Data, rhs.Data, 
 				[&](const auto l, const auto r) { 
@@ -454,15 +479,29 @@ namespace LinAlg
 		Vec4(const Vec3& rhs, const float w = 0.0f) : Data({ rhs.X(), rhs.Y(), rhs.Z(), w }) {}
 		Vec4(View4 rhs) : View(rhs) {}
 
-		inline static Vec4 Zero() { return Vec4(0.0f); }
-		inline static Vec4 One() { return Vec4(1.0f); }
-		inline static Vec4 AxisX() { return { 1.0f, 0.0f, 0.0f, 0.0f }; }
-		inline static Vec4 AxisY() { return { 0.0f, 1.0f, 0.0f, 0.0f }; }
-		inline static Vec4 AxisZ() { return { 0.0f, 0.0f, 1.0f, 0.0f }; }
-		inline static Vec4 AxisW() { return { 0.0f, 0.0f, 0.0f, 1.0f }; }
-		inline static Vec4 Epsilon() { return Vec4((std::numeric_limits<float>::epsilon)()); }
-		inline static Vec4 Min() { return Vec4((std::numeric_limits<float>::min)()); }
-		inline static Vec4 Max() { return Vec4((std::numeric_limits<float>::max)()); }
+	private:
+		static const Vec4 _Zero;
+		static const Vec4 _One;
+		static const Vec4 _AxisX;
+		static const Vec4 _AxisY;
+		static const Vec4 _AxisZ;
+		static const Vec4 _AxisW;
+		static const Vec4 _Epsilon;
+		static const Vec4 _Min;
+		static const Vec4 _Max;
+		static const Vec4 _UnitXYZW;
+	public:
+		inline static const Vec4& Zero() { return _Zero; }
+		inline static const Vec4& One() { return _One; }
+		inline static const Vec4& AxisX() { return _AxisX; }
+		inline static const Vec4& AxisY() { return _AxisY; }
+		inline static const Vec4& AxisZ() { return _AxisZ; }
+		inline static const Vec4& AxisW() { return _AxisW; }
+		inline static const Vec4& Epsilon() { return _Epsilon; }
+		inline static const Vec4& Min() { return _Min; }
+		inline static const Vec4& Max() { return _Max; }
+		inline static const Vec4& UnitXYZ() { return _UnitXYZW; }
+
 		inline static bool NearlyEqual(const Vec4& lhs, const Vec4& rhs, const float Epsilon) {
 			return std::ranges::equal(lhs.Data, rhs.Data,
 				[&](const auto l, const auto r) {

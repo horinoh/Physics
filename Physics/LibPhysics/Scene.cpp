@@ -8,8 +8,6 @@
 
 #include "Log.h"
 
-const LinAlg::Vec3 Physics::Scene::BroadPhaseAxis = LinAlg::Vec3::One().Normalize();
-
 #ifdef USE_BRUTE_FORCE
 void Physics::Scene::BruteForce(const float DeltaSec, std::vector<Collision::Contact>& Contacts)
 {
@@ -61,8 +59,8 @@ void Physics::Scene::BroadPhase(const float DeltaSec, std::vector<CollidablePair
 #endif
 
 			//!< 境界端 (上限、下限) を覚えておく
-			BoundEdges.emplace_back(Collision::BoundEdge({ i, BroadPhaseAxis.Dot(Aabb.Min), true })); //!< 下限
-			BoundEdges.emplace_back(Collision::BoundEdge({ i, BroadPhaseAxis.Dot(Aabb.Max), false }));//!< 上限
+			BoundEdges.emplace_back(Collision::BoundEdge({ i, LinAlg::Vec3::UnitXYZ().Dot(Aabb.Min), true})); //!< 下限
+			BoundEdges.emplace_back(Collision::BoundEdge({ i, LinAlg::Vec3::UnitXYZ().Dot(Aabb.Max), false}));//!< 上限
 		}
 
 		//!< 軸に射影した内積値でソート

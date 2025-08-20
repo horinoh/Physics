@@ -124,16 +124,16 @@ LinAlg::Vec4 Collision::SignedVolume(const LinAlg::Vec3& A, const LinAlg::Vec3& 
 std::optional<LinAlg::Vec3> Collision::Barycentric(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C)
 {
 	const auto N = LinAlg::Vec3::Normal(A, B, C);
-	if (N.NearlyEqual(LinAlg::Vec3::Zero())) {
-		return std::nullopt;
-	}
-
-	//!< YZ, ZX, XY 平面
-	constexpr std::array XYZ = { 0, 1, 2 }; 
-	constexpr auto XYZSize = static_cast<int>(std::size(XYZ));
-
+	//if (N.NearlyEqual(LinAlg::Vec3::Zero())) {
+	//	return std::nullopt;
+	//}
+	
 	//!< 原点を 三角形 ABC に射影し P とする
 	const auto P = N * A.Dot(N) / N.LengthSq();
+
+	//!< YZ, ZX, XY 平面
+	constexpr std::array XYZ = { 0, 1, 2 };
+	constexpr auto XYZSize = static_cast<int>(std::size(XYZ));
 
 	//!< 三角形 ABC を YZ, ZX, XY 平面へ射影したそれぞれの面積
 	std::vector<float> Areas;
@@ -244,7 +244,7 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const LinAlg::Vec3&
 	Sps.reserve(4); //!< 4 枠
 
 	//!< (1, 1, 1) 方向のサポートポイントを求める
-	Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, LinAlg::Vec3::One().Normalize(), 0.0f));
+	Sps.emplace_back(Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, LinAlg::Vec3::UnitXYZ(), 0.0f));
 
 	//!< 原点を元に反対側
 	auto Dir = -Sps.back().GetC();
@@ -263,6 +263,9 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const LinAlg::Vec3&
 			break;
 		}
 
+		//!< 新しいサポートポイントを追加
+		Sps.emplace_back(Pt);
+
 		//!< 最近接点を求めない場合は早期終了可能
 		if (!WithClosestPoint) {
 			//!< 新しいサポートポイント Pt が原点を超えていない場合は原点を含まない、早期終了
@@ -270,9 +273,6 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const LinAlg::Vec3&
 				break;
 			}
 		}
-
-		//!< 新しいサポートポイントを追加
-		Sps.emplace_back(Pt);
 
 		//!< シンプレックスが原点を含むなら衝突
 		if ((HasIntersection = Collision::SupportPoint::SimplexSignedVolumes(Sps, Dir, Lambda))) {
@@ -444,8 +444,11 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const LinAlg::Vec3&
 		const auto& A = Sps[CTri[0]], B = Sps[CTri[1]], C = Sps[CTri[2]];
 
 		//!< ABC 上での原点の重心座標を取得
-		const auto Lambda = Barycentric(A.GetC(), B.GetC(), C.GetC());
+		auto Lambda = Barycentric(A.GetC(), B.GetC(), C.GetC());
 		if (Lambda != std::nullopt) {
+			if(!Lambda.value().IsValid()) {
+				Lambda = LinAlg::Vec3::AxisX();
+			}
 			OnA = A.GetA() * Lambda.value()[0] + B.GetA() * Lambda.value()[1] + C.GetA() * Lambda.value()[2];
 			OnB = A.GetB() * Lambda.value()[0] + B.GetB() * Lambda.value()[1] + C.GetB() * Lambda.value()[2];
 #ifdef _DEBUG

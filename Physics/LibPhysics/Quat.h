@@ -15,7 +15,11 @@ namespace LinAlg
 		}
 		Quat(View4 rhs) : View(rhs) {}
 
-		inline static Quat Identity() { return { 0.0f, 0.0f, 0.0f, 1.0f }; }
+	private:
+		static const Quat _Identity;
+	public:
+		inline static const Quat& Identity() { return _Identity; }
+
 		inline static Mat4 ToLeftMat4(const Quat& rhs) {
 			return {
 				{ rhs.W(), -rhs.Z(), rhs.Y(), rhs.X() },

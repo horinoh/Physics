@@ -161,9 +161,12 @@
     <ClCompile Include="Constraint.cpp" />
     <ClCompile Include="Convex.cpp" />
     <ClCompile Include="GJK.cpp" />
+    <ClCompile Include="Mat.cpp" />
+    <ClCompile Include="Quat.cpp" />
     <ClCompile Include="RigidBody.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Shape.cpp" />
+    <ClCompile Include="Vec.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Bound.py" />

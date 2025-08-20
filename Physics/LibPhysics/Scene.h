@@ -43,8 +43,6 @@ namespace Physics
 
 		virtual void Update(const float DeltaSec);
 
-		static const LinAlg::Vec3 BroadPhaseAxis;
-
 		std::vector<std::unique_ptr<Physics::Shape>> Shapes;
 		std::vector<std::unique_ptr<Physics::RigidBody>> RigidBodies;
 
