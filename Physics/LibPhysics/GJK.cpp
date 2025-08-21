@@ -31,16 +31,21 @@ LinAlg::Vec2 Collision::SignedVolume(const LinAlg::Vec3& A, const LinAlg::Vec3& 
 	}
 
 	//!< 外側確定、P が A 側か B 側か
-	return (PrjP <= PrjA) ? LinAlg::Vec2::AxisX() : LinAlg::Vec2::AxisY();
+	if ((PrjA <= PrjB && PrjP <= PrjA) || (PrjA >= PrjB && PrjP >= PrjA)) {
+		return LinAlg::Vec2::AxisX();
+	}
+	return LinAlg::Vec2::AxisY();
 }
 
 //!< 2-シンプレクス (三角形)
 LinAlg::Vec3 Collision::SignedVolume(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C)
 {
 	//!< ABC 上での 原点 の重心座標
-	const auto BC = Barycentric(A, B, C);
-	if (BC != std::nullopt) {
-		return BC.value();
+	{
+		LinAlg::Vec3 Lambda;
+		if (Barycentric(A, B, C, Lambda)) {
+			return Lambda;
+		}
 	}
 	
 	//!< YZ, ZX, XY 平面
@@ -121,13 +126,10 @@ LinAlg::Vec4 Collision::SignedVolume(const LinAlg::Vec3& A, const LinAlg::Vec3& 
 	return Lambda;
 }
 
-std::optional<LinAlg::Vec3> Collision::Barycentric(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C)
+bool Collision::Barycentric(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C, LinAlg::Vec3& Lambda)
 {
 	const auto N = LinAlg::Vec3::Normal(A, B, C);
-	//if (N.NearlyEqual(LinAlg::Vec3::Zero())) {
-	//	return std::nullopt;
-	//}
-	
+
 	//!< 原点を 三角形 ABC に射影し P とする
 	const auto P = N * A.Dot(N) / N.LengthSq();
 
@@ -171,20 +173,19 @@ std::optional<LinAlg::Vec3> Collision::Barycentric(const LinAlg::Vec3& A, const 
 			return LinAlg::Mat2(PrjABC[j] - PrjP, PrjABC[k] - PrjP).Determinant();
 		});
 
-	//!< P が 三角形 ABC の内部にあれば (サブ三角形の面積の符号から判断)、重心座標を返す
-	if (std::ranges::all_of(SubAreas,
+	//!< 重心座標
+	Lambda = LinAlg::Vec3(SubAreas[0], SubAreas[1], SubAreas[2]) / Areas[Index];
+
+	//!< P が 三角形 ABC の内部にあるかどうか (サブ三角形の面積の符号から判断)
+	return std::ranges::all_of(SubAreas,
 		[&](const auto rhs) {
 			return std::signbit(Areas[Index]) == std::signbit(rhs);
-		})) {
-		return LinAlg::Vec3(SubAreas[0], SubAreas[1], SubAreas[2]) / Areas[Index];
-	}
-
-	return std::nullopt;
+		});
 }
-std::optional<LinAlg::Vec3> Collision::Barycentric(const LinAlg::Vec3& Pt, const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C)
+bool Collision::Barycentric(const LinAlg::Vec3& Pt, const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C, LinAlg::Vec3& Lambda) 
 {
 	//!< ABC から Pt を引くことで、原点の重心座標へ帰着
-	return Barycentric(A - Pt, B - Pt, C - Pt);
+	return Barycentric(A - Pt, B - Pt, C - Pt, Lambda);
 }
 
 //!< A, B のサポートポイント、及びその差 C を求める
@@ -444,13 +445,13 @@ void Collision::Intersection::EPA(const Physics::Shape* ShA, const LinAlg::Vec3&
 		const auto& A = Sps[CTri[0]], B = Sps[CTri[1]], C = Sps[CTri[2]];
 
 		//!< ABC 上での原点の重心座標を取得
-		auto Lambda = Barycentric(A.GetC(), B.GetC(), C.GetC());
-		if (Lambda != std::nullopt) {
-			if(!Lambda.value().IsValid()) {
+		LinAlg::Vec3 Lambda;
+		if (Barycentric(A.GetC(), B.GetC(), C.GetC(), Lambda)) {
+			if(!Lambda.IsValid()) {
 				Lambda = LinAlg::Vec3::AxisX();
 			}
-			OnA = A.GetA() * Lambda.value()[0] + B.GetA() * Lambda.value()[1] + C.GetA() * Lambda.value()[2];
-			OnB = A.GetB() * Lambda.value()[0] + B.GetB() * Lambda.value()[1] + C.GetB() * Lambda.value()[2];
+			OnA = A.GetA() * Lambda[0] + B.GetA() * Lambda[1] + C.GetA() * Lambda[2];
+			OnB = A.GetB() * Lambda[0] + B.GetB() * Lambda[1] + C.GetB() * Lambda[2];
 #ifdef _DEBUG
 			//LOG(std::data(std::format("PenetrationDistSq = {}\n", (OnB - OnA).LengthSq())));
 #endif

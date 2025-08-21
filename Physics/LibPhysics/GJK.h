@@ -21,9 +21,9 @@ namespace Collision
 	[[nodiscard]] LinAlg::Vec4 SignedVolume(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C, const LinAlg::Vec3& D);
 	
 	//!< ABC 上での 原点 の重心座標
-	[[nodiscard]] std::optional<LinAlg::Vec3> Barycentric(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C);
+	[[nodiscard]] bool Barycentric(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C, LinAlg::Vec3& Lambda);
 	//!< ABC 上での Pt の重心座標
-	[[nodiscard]] std::optional<LinAlg::Vec3> Barycentric(const LinAlg::Vec3& Pt, const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C);
+	[[nodiscard]] bool Barycentric(const LinAlg::Vec3& Pt, const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C, LinAlg::Vec3& Lambda);
 
 	namespace SupportPoint {
 		//!< サポートポイント : 特定の方向に最も遠い点
