@@ -198,7 +198,6 @@ namespace LinAlg
 		inline operator Float4& () { return Data; }
 
 		inline Quat& ToIdentity() { return (*this = Identity()); }
-		inline Quat& ToNormalized() { return (*this = Normalize()); }
 		
 		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n", X(), Y(), Z(), W()); }
 

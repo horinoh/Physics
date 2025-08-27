@@ -458,7 +458,6 @@ namespace LinAlg
 		inline operator Float3& () { return Data; }
 
 		inline Vec3& ToZero() { return (*this = Zero()); }
-		inline Vec3& ToNormalized() { return (*this = Normalize()); }
 		inline Vec3& Adjust(const float Length) { return (*this = Normalize() * Length); }
 
 		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f})\n", X(), Y(), Z()); }
@@ -700,7 +699,6 @@ namespace LinAlg
 		inline operator Float4& () { return Data; }
 
 		inline Vec4& ToZero() { return (*this = Zero()); }
-		inline Vec4& ToNormalized() { return (*this = Normalize()); }
 		inline Vec4& Adjust(const float Length) { return (*this = Normalize() * Length); }
 
 		inline std::string ToString() const { return std::format("({:1.4f}, {:1.4f}, {:1.4f}, {:1.4f})\n", X(), Y(), Z(), W()); }
@@ -920,7 +918,6 @@ namespace LinAlg
 		inline operator float* () { return std::data(Data); }
 
 		inline Vec& ToZero() { return (*this = Zero()); }
-		inline Vec& ToNormalized() { return (*this = Normalize()); }
 		inline Vec& Adjust(const float Length) { return (*this = Normalize() * Length); }
 
 		inline size_t Size() const { return std::size(Data); }

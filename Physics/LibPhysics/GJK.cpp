@@ -254,7 +254,7 @@ bool Collision::Intersection::GJK(const Physics::Shape* ShA, const LinAlg::Vec3&
 	LinAlg::Vec4 Lambda;
 	while (!HasIntersection) {
 		//!< Dir 方向のサポートポイントを求める
-		const auto Pt = Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, Dir.ToNormalized(), 0.0f);
+		const auto Pt = Collision::SupportPoint::Get(ShA, PosA, RotA, ShB, PosB, RotB, (Dir = Dir.Normalize()), 0.0f);
 
 		//!< Pt は既存の点、もうこれ以上拡張できない -> 衝突無し
 		if (std::ranges::any_of(Sps,
