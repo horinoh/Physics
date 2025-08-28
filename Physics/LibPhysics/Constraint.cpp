@@ -109,9 +109,13 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 		}
 	}
 
+	//!< 事前計算しておく
+	JacobianT = Jacobian.Transpose();
+	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+
 #pragma region WARM_STARTING
 	//!< 前のフレームの力積を、今フレームの計算前に適用することで、少ないイテレーションで安定状態へ導く
-	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
+	ApplyImpulse(JacobianT * CachedLambda);
 #pragma endregion
 
 #pragma region BAUMGARTE_STABILIZATION
@@ -128,8 +132,7 @@ void Physics::ConstraintDistance::Solve()
 	//!< J * InvMass * Transpose(J) * Impulse = -J * v
 	//!< ここで A = J * InvMass * Transpose(J), B = -J * v と置くと A * Impulse = B
 	//!< これをガウスザイデル法で解き、Impulse を求める
-	const auto JT = Jacobian.Transpose();
-	const auto A = Jacobian * GetInverseMassMatrix() * JT;
+	const auto& A = J_IM_JT;
 	const auto B = -Jacobian * GetVelocties()
 #pragma region BAUMGARTE_STABILIZATION
 		//!< 侵された制約を修正するような速度を与える
@@ -139,7 +142,7 @@ void Physics::ConstraintDistance::Solve()
 	//!< A * Lambda = B となる Lambda を求める
 	const auto Lambda = GaussSiedel(A, B);
 
-	ApplyImpulse(JT * Lambda);
+	ApplyImpulse(JacobianT * Lambda);
 
 #pragma region WARM_STARTING
 	//!< ウォームスタート用に今回の力積を蓄積しておく
@@ -212,7 +215,10 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 		}
 	}
 
-	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
+	JacobianT = Jacobian.Transpose();
+	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+
+	ApplyImpulse(JacobianT * CachedLambda);
 
 	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
 	constexpr auto Beta = 0.05f;
@@ -220,13 +226,12 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 }
 void Physics::ConstraintHinge::Solve()
 {
-	const auto JT = Jacobian.Transpose();
-	const auto A = Jacobian * GetInverseMassMatrix() * JT;
+	const auto& A = J_IM_JT;
 	const auto B = -Jacobian * GetVelocties() - LinAlg::Vec<3>(Baumgarte, 0.0f, 0.0f);
 
 	const auto Lambda = GaussSiedel(A, B);
 
-	ApplyImpulse(JT * Lambda);
+	ApplyImpulse(JacobianT * Lambda);
 
 	CachedLambda += Lambda;
 }
@@ -311,7 +316,10 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 		}
 	}
 
-	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
+	JacobianT = Jacobian.Transpose();
+	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+
+	ApplyImpulse(JacobianT * CachedLambda);
 
 	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
 	constexpr auto Beta = 0.05f;
@@ -319,8 +327,7 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 }
 void Physics::ConstraintHingeLimited::Solve()
 {
-	const auto JT = Jacobian.Transpose();
-	const auto A = Jacobian * GetInverseMassMatrix() * JT;
+	const auto& A = J_IM_JT;
 	const auto B = -Jacobian * GetVelocties() - LinAlg::Vec<4>(Baumgarte, 0.0f, 0.0f, 0.0f);
 
 	auto Lambda = GaussSiedel(A, B);
@@ -335,7 +342,7 @@ void Physics::ConstraintHingeLimited::Solve()
 		}
 	}
 
-	ApplyImpulse(JT * Lambda);
+	ApplyImpulse(JacobianT * Lambda);
 
 	CachedLambda += Lambda;
 }
@@ -385,7 +392,10 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 		}
 	}
 
-	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
+	JacobianT = Jacobian.Transpose();
+	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+
+	ApplyImpulse(JacobianT * CachedLambda);
 
 	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
 	constexpr auto Beta = 0.05f;
@@ -393,13 +403,12 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 }
 void Physics::ConstraintBallSocket::Solve() 
 {
-	const auto JT = Jacobian.Transpose();
-	const auto A = Jacobian * GetInverseMassMatrix() * JT;
+	const auto& A = J_IM_JT;
 	const auto B = -Jacobian * GetVelocties() - LinAlg::Vec<2>(Baumgarte, 0.0f);
 
 	const auto Lambda = GaussSiedel(A, B);
 
-	ApplyImpulse(JT * Lambda);
+	ApplyImpulse(JacobianT * Lambda);
 
 	CachedLambda += Lambda;
 }
@@ -489,7 +498,10 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 		}
 	}
 
-	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
+	JacobianT = Jacobian.Transpose();
+	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+
+	ApplyImpulse(JacobianT * CachedLambda);
 
 	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
 	constexpr auto Beta = 0.05f;
@@ -497,8 +509,7 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 }
 void Physics::ConstraintBallSocketLimited::Solve()
 {
-	const auto JT = Jacobian.Transpose();
-	const auto A = Jacobian * GetInverseMassMatrix() * JT;
+	const auto& A = J_IM_JT;
 	const auto B = -Jacobian * GetVelocties() - LinAlg::Vec<4>(Baumgarte, 0.0f, 0.0f, 0.0f);
 
 	auto Lambda = GaussSiedel(A, B);
@@ -515,7 +526,7 @@ void Physics::ConstraintBallSocketLimited::Solve()
 		}
 	}
 
-	ApplyImpulse(JT * Lambda);
+	ApplyImpulse(JacobianT * Lambda);
 
 	CachedLambda += Lambda;
 }
@@ -584,6 +595,9 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 				Jacobian[3] = { XYZ(J1), XYZ(J2), XYZ(J3), XYZ(J4) };
 			}
 
+			JacobianT = Jacobian.Transpose();
+			J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+
 			//!< A ローカルでの相対回転
 			const auto RelRot = InvQA * QBInvInitRot;
 			//!< ワールドでの相対回転軸
@@ -596,8 +610,7 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 }
 void Physics::ConstraintMotor::Solve() 
 {
-	const auto JT = Jacobian.Transpose();
-	const auto A = Jacobian * GetInverseMassMatrix() * JT;
+	const auto& A = J_IM_JT;
 	
 	//!< 与えたい速度 (両者が相対的に一定速度で回転)
 	LinAlg::Vec<12> Vel;
@@ -618,7 +631,7 @@ void Physics::ConstraintMotor::Solve()
 
 	const auto Lambda = GaussSiedel(A, B);
 
-	ApplyImpulse(JT * Lambda);
+	ApplyImpulse(JacobianT * Lambda);
 }
 
 void Physics::ConstraintMoverUpDown::PreSolve(const float DeltaSec)
@@ -651,6 +664,7 @@ Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Colli
 	LNormal = RigidBodyA->ToLocalDir(Ct.WNormal).Normalize();
 
 	Friction = RigidBodyA->Friction * RigidBodyB->Friction;
+	Mg = std::fabsf(Physics::RigidBody::Graivity.Y()) / (RigidBodyA->InvMass + RigidBodyB->InvMass);
 
 	return *this;
 }
@@ -695,7 +709,10 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 		}
 	}
 
-	ApplyImpulse(Jacobian.Transpose() * CachedLambda);
+	JacobianT = Jacobian.Transpose();
+	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+
+	ApplyImpulse(JacobianT * CachedLambda);
 
 	const auto C = (std::min)(AB.Dot(WNormal) + 0.02f, 0.0f);
 	constexpr auto Beta = 0.25f;
@@ -703,8 +720,7 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 }
 void Physics::ConstraintPenetration::Solve()
 {
-	const auto JT = Jacobian.Transpose();
-	const auto A = Jacobian * GetInverseMassMatrix() * JT;
+	const auto& A = J_IM_JT;
 	const auto B = -Jacobian * GetVelocties() - LinAlg::Vec<3>(Baumgarte, 0.0f, 0.0f);
 
 	auto Lambda = GaussSiedel(A, B);
@@ -713,16 +729,14 @@ void Physics::ConstraintPenetration::Solve()
 		CachedLambda += Lambda;
 		CachedLambda[0] = (std::max)(CachedLambda[0], 0.0f);
 		if (Friction > 0.0f) {
-			const auto uMg = Friction * std::fabsf(Physics::RigidBody::Graivity.Y()) / (RigidBodyA->InvMass + RigidBodyB->InvMass);
-			const auto NForce = std::fabsf(Lambda[0] * Friction);
-			const auto Force = (std::max)(uMg, NForce);
+			const auto Force = (std::max)(Mg, std::fabsf(Lambda[0])) * Friction;
 			CachedLambda[1] = (std::clamp)(CachedLambda[1], -Force, Force);
 			CachedLambda[2] = (std::clamp)(CachedLambda[2], -Force, Force);
 		}
 	}
 	Lambda = CachedLambda - Old;
 
-	ApplyImpulse(JT * Lambda);
+	ApplyImpulse(JacobianT * Lambda);
 }
 
 Physics::Manifold::Manifold(const Collision::Contact& Ct) 

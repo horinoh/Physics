@@ -117,6 +117,8 @@ namespace Physics
 		//!< ヤコビ行列 (n * 12) n == コンストレイント数, 12 == 6 (移動3、回転3) 軸の自由度 * 2 オブジェクト
 		//!< 距離 (n == 1)
 		LinAlg::Mat<1, 3 * 4> Jacobian;
+		LinAlg::Mat<3 * 4, 1> JacobianT;
+		LinAlg::Mat<1, 1> J_IM_JT;
 		LinAlg::Vec<1> CachedLambda;
 
 		//!< 適正な位置へ戻すような力を適用する事で位置ドリフトを修正 (Baumgarte stabilization)
@@ -146,6 +148,8 @@ namespace Physics
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V (n == 3)
 		LinAlg::Mat<3, 3 * 4> Jacobian;
+		LinAlg::Mat<3 * 4, 3> JacobianT;
+		LinAlg::Mat<3, 3> J_IM_JT;
 		LinAlg::Vec<3> CachedLambda;
 
 		float Baumgarte = 0.0f;
@@ -174,6 +178,8 @@ namespace Physics
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V、角度制限 (n == 4)
 		LinAlg::Mat<4, 3 * 4> Jacobian;
+		LinAlg::Mat<3 * 4, 4> JacobianT;
+		LinAlg::Mat<4, 4> J_IM_JT;
 		LinAlg::Vec<4> CachedLambda;
 
 		float Baumgarte = 0.0f;
@@ -205,6 +211,8 @@ namespace Physics
 	protected:
 		//!< 距離、軸 (n == 2)
 		LinAlg::Mat<2, 3 * 4> Jacobian;
+		LinAlg::Mat<3 * 4, 2> JacobianT;
+		LinAlg::Mat<2, 2> J_IM_JT;
 		LinAlg::Vec<2> CachedLambda;
 
 		float Baumgarte = 0.0f;
@@ -234,6 +242,8 @@ namespace Physics
 
 	protected:
 		LinAlg::Mat<4, 3 * 4> Jacobian;
+		LinAlg::Mat<3 * 4, 4> JacobianT;
+		LinAlg::Mat<4, 4> J_IM_JT;
 		LinAlg::Vec<4> CachedLambda;
 
 		float Baumgarte = 0.0f;
@@ -265,7 +275,8 @@ namespace Physics
 	protected:
 		//!< 距離、ヒンジ軸に垂直な U, V、ヒンジ軸 (n == 4)
 		LinAlg::Mat<4, 3 * 4> Jacobian;
-
+		LinAlg::Mat<3 * 4, 4> JacobianT;
+		LinAlg::Mat<4, 4> J_IM_JT;
 		LinAlg::Vec3 Baumgarte;
 
 		float Speed;
@@ -338,12 +349,15 @@ namespace Physics
 	protected:
 		//!< 法線 N、接面の U, V (n == 3)
 		LinAlg::Mat<3, 3 * 4> Jacobian;
+		LinAlg::Mat<3 * 4, 3> JacobianT;
+		LinAlg::Mat<3, 3> J_IM_JT;
 		LinAlg::Vec<3> CachedLambda;
 
 		float Baumgarte = 0.0f;
 
 		LinAlg::Vec3 LNormal;
 		float Friction = 0.0f;
+		float Mg = 0.0f;
 	};
 
 	//!< 2 オブジェクト間の衝突情報
