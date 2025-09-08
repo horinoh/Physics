@@ -141,8 +141,11 @@ public:
 		}
 		//!< 静的オブジェクト配置
 		{
+#ifdef USE_MESH
 			constexpr auto Y = -20.0f;
-
+#else
+			constexpr auto Y = -10.0f;
+#endif
 			//!< 拡大する
 			std::vector<LinAlg::Vec3> ExpandedVertices(std::size(Vertices));
 			std::ranges::transform(Vertices, std::back_inserter(ExpandedVertices), [&](const auto& i) { return i * FloorScale; });

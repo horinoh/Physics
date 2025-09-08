@@ -17,7 +17,7 @@ namespace Physics
 	public:
 		//!< ヤコビ行列のセットアップ
 		virtual void PreSolve(const float DeltaSec) {};
-		//!< 繰り返しコールすることで収束させる為、関数化している
+		//!< 繰返して収束させる為、別関数化
 		virtual void Solve() {};
 		virtual void PostSolve() {}
 
@@ -25,22 +25,35 @@ namespace Physics
 		//!< RigidBodyB を必要としないもの (ConstraintMover 系など) があるので、基底では RigidBodyA のみ持たせる
 		Physics::RigidBody* RigidBodyA = nullptr;
 	};
-	//!< 2剛体 A, B と逆質量行列を持つ
+
+	//!< 2 剛体間の制約のみを扱う
+	//!<	2 つ目の制約を解くと 1 つ目の制約が破綻する
+	//!<	再度 1 つ目の制約を解くと、今度は 2 つ目の制約が破綻するが
+	//!<	これを繰り返していくと少しずつ正解へ収束していく
 	class Constraint : public ConstraintBase
 	{
 	public:
-		//!< 質量行列
-		//!< M = (M_A    0    0    0) ... A の質量の逆数が対角成分 (3x3)
-		//!<     (     I_A    0    0) ... A の慣性テンソルの逆行列 (3x3)
-		//!<     (   0   0  M_B    0) ... B の質量の逆数が対角成分
-		//!<     (   0   0    0  I_B) ... B の慣性テンソルの逆行列
-		//!< #TODO 疎行列専用処理最適化の余地あり
+		/*
+		* 質量行列 
+		* M =
+		* \begin{pmatrix}
+		* M_A & 0 & 0 & 0 \\
+		* 0 & I_A & 0 & 0 \\
+		* 0 & 0 & M_B & 0 \\
+		* 0 & 0 & 0 & I_B
+		* \end{pmatrix}
+		*/
 		using MassMatrix = LinAlg::Mat<3 * 4, 3 * 4>;
 
-		//!< V = (V_A) ... A の速度
-		//!<     (W_A) ... A の角速度
-		//!<     (V_B) ... B の速度
-		//!<     (W_B) ... B の角速度
+		/*
+		* V =
+		* \begin{pmatrix}
+		* V_A \\
+		* W_A \\
+		* V_B \\
+		* W_B
+		* \end{pmatrix}
+		*/
 		using Velocities = LinAlg::Vec<3 * 4>;
 	
 	protected:
@@ -119,10 +132,9 @@ namespace Physics
 		LinAlg::Mat<1, 3 * 4> Jacobian;
 		LinAlg::Mat<3 * 4, 1> JacobianT;
 		LinAlg::Mat<1, 1> J_IM_JT;
+
 		LinAlg::Vec<1> CachedLambda;
 
-		//!< 適正な位置へ戻すような力を適用する事で位置ドリフトを修正 (Baumgarte stabilization)
-		//!< 一気にやるとシステムにエネルギーを追加しすぎる為、数フレームかけて適用する
 		float Baumgarte = 0.0f;
 	};
 
@@ -150,8 +162,8 @@ namespace Physics
 		LinAlg::Mat<3, 3 * 4> Jacobian;
 		LinAlg::Mat<3 * 4, 3> JacobianT;
 		LinAlg::Mat<3, 3> J_IM_JT;
-		LinAlg::Vec<3> CachedLambda;
 
+		LinAlg::Vec<3> CachedLambda;
 		float Baumgarte = 0.0f;
 	};
 
@@ -180,8 +192,8 @@ namespace Physics
 		LinAlg::Mat<4, 3 * 4> Jacobian;
 		LinAlg::Mat<3 * 4, 4> JacobianT;
 		LinAlg::Mat<4, 4> J_IM_JT;
-		LinAlg::Vec<4> CachedLambda;
 
+		LinAlg::Vec<4> CachedLambda;
 		float Baumgarte = 0.0f;
 
 		bool IsAngleViolated;
@@ -213,8 +225,8 @@ namespace Physics
 		LinAlg::Mat<2, 3 * 4> Jacobian;
 		LinAlg::Mat<3 * 4, 2> JacobianT;
 		LinAlg::Mat<2, 2> J_IM_JT;
-		LinAlg::Vec<2> CachedLambda;
 
+		LinAlg::Vec<2> CachedLambda;
 		float Baumgarte = 0.0f;
 	};
 
@@ -244,8 +256,8 @@ namespace Physics
 		LinAlg::Mat<4, 3 * 4> Jacobian;
 		LinAlg::Mat<3 * 4, 4> JacobianT;
 		LinAlg::Mat<4, 4> J_IM_JT;
-		LinAlg::Vec<4> CachedLambda;
 
+		LinAlg::Vec<4> CachedLambda;
 		float Baumgarte = 0.0f;
 
 		std::array<bool, 2> IsAngleViolated = { false, false };
@@ -277,6 +289,7 @@ namespace Physics
 		LinAlg::Mat<4, 3 * 4> Jacobian;
 		LinAlg::Mat<3 * 4, 4> JacobianT;
 		LinAlg::Mat<4, 4> J_IM_JT;
+
 		LinAlg::Vec3 Baumgarte;
 
 		float Speed;
@@ -351,8 +364,8 @@ namespace Physics
 		LinAlg::Mat<3, 3 * 4> Jacobian;
 		LinAlg::Mat<3 * 4, 3> JacobianT;
 		LinAlg::Mat<3, 3> J_IM_JT;
-		LinAlg::Vec<3> CachedLambda;
 
+		LinAlg::Vec<3> CachedLambda;
 		float Baumgarte = 0.0f;
 
 		LinAlg::Vec3 LNormal;
@@ -360,8 +373,7 @@ namespace Physics
 		float Mg = 0.0f;
 	};
 
-	//!< 2 オブジェクト間の衝突情報
-	//!< 新しい衝突点を追加していく、無効になった衝突は削除される
+	//!< 2 オブジェクト間の、衝突情報と貫通制約のペアのリスト
 	class Manifold
 	{
 	public:
@@ -372,28 +384,32 @@ namespace Physics
 
 	protected:
 		friend class ManifoldCollector;
-		static constexpr uint8_t MaxContacts = 4; //!< 覚えておく衝突数
+		static constexpr uint8_t MaxContactAndConstraints = 4; //!< リスト最大数
 
-		//!< コンストラクト時にセットした A, B の順序を覚えておく、以降の追加はこの順に従う
+		//!< 初期作成時にセットした A, B の順序、以降はこの順に従う
 		Physics::RigidBody* RigidBodyA = nullptr;
 		Physics::RigidBody* RigidBodyB = nullptr;
 
+		//!< 衝突情報と貫通制約のペア
 		using ContactAndConstraint = std::pair<Collision::Contact, ConstraintPenetration>;
-		std::vector<ContactAndConstraint> Constraints;
+		std::vector<ContactAndConstraint> ContactAndConstraints;
 	};
-	//!< 2 オブジェクト間の衝突情報 (マニフォールド) を収集
+
+	//!< マニフォールドを収集
 	class ManifoldCollector
 	{
 	public:
 		void Add(const Collision::Contact& Ct);
 		void RemoveExpired() {
-			//!< 無効になった衝突点をマニフォールドから削除
-			for (auto& i : Manifolds) { i.RemoveExpired(); }
+			//!< 古くなった衝突情報を削除
+			for (auto& i : Manifolds) { 
+				i.RemoveExpired(); 
+			}
 
-			//!< 衝突点を１つも持たなくなったマニフォールドを削除
+			//!< リストが空になったマニフォールドは削除
 			const auto Range = std::ranges::remove_if(Manifolds, 
 				[](const auto& i) {
-					return std::empty(i.Constraints);
+					return std::empty(i.ContactAndConstraints);
 				});
 			Manifolds.erase(std::cbegin(Range), std::cend(Range));
 		}
@@ -406,21 +422,20 @@ namespace Physics
 		std::vector<Manifold> Manifolds;
 	};
 
-	//!< Linear Complimentary Problem (LCP)
-	//!<	A * x = b 
-	//!<	行列 A, ベクトル b が既知の時、未知のベクトル x を求める
-
-	//!< ガウスザイデル法では以下のいずれかの場合に LCP を解くことができる (ここで扱う行列は対角優位なので、ガウスザイデル法が使用可能)
-	//!<	[1] 正定値 (positive definite) 
-	//!<		v^t * M * v > 0 
-	//!<		ベクトル v の転地と v で挟むように掛けたときに結果が正となるような行列 M
-	//!<
-	//!<	[2] 対角優位 (diagonally dominant) 
-	//!<		|xy_ij| >= Sigma_j,j!=i |xy_ij|
-	//!<		対角成分の和の絶対値が、非対角成分の和の絶対値以上となるような行列
-	//!< 
-	//!< ItLimit	繰り返し回数上限
-	//!< Tolerance	収束許容値 (>= 0.0f だと無効、ItLimit まで行う)
+	/*
+	* Linear Complimentary Problem (LCP)
+	* 
+	* A x = b ... A: 行列, b: ベクトル, x: 未知ベクトル の時
+	* ガウスザイデル法で x を求める
+	* ガウスザイデル法では以下のいずれかの場合に解くことができる 
+	* 
+	* 対称正定値行列 (Symmetric positive definite)
+	*	v^t M v > 0 ... ベクトル v の転地と v で挟むように掛けたときに結果が正となるような行列 M
+	* 対角優位行列 (Diagonally dominant)
+	*	|x_ii| \geqq \sum_{j, j \neq i} |x_ij| ... 対角成分の和の絶対値が、非対角成分の和の絶対値以上となるような行列
+	* 
+	* (ここでは対角優位な行列しか扱わないので、ガウスザイデル法で解ける)
+	*/
 	template<size_t N>
 	static LinAlg::Vec<N> GaussSiedel(const LinAlg::Mat<N, N>& A, const LinAlg::Vec<N>& b, const uint32_t ItLimit = 10, const float Tolerance = 0.0f)
 	{
@@ -436,11 +451,12 @@ namespace Physics
 
 		if (Tolerance > 0.0f) {
 			auto Residual = std::numeric_limits<float>::max();
+			//!< 繰返し回数上限まで
 			for (uint32_t It = 0; It < ItLimit; ++It) {
 				const auto PrevX = x;
 				CalcX();
 
-				//!< 収束していれば終了
+				//!< 収束していれば早期終了
 				Residual = (x - PrevX).Length() / x.Length();
 				if(Residual <= Tolerance) {
 					break;
@@ -448,6 +464,7 @@ namespace Physics
 			}
 		}
 		else {
+			//!< 繰返し回数上限まで
 			for (uint32_t It = 0; It < ItLimit; ++It) {
 				CalcX();
 			}

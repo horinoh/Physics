@@ -7,10 +7,42 @@
 //!< Vec3 の各要素を引数展開するマクロ
 #define XYZ(VEC) (VEC).X(), (VEC).Y(), (VEC).Z()
 
-//!< Lambda = -J * v / (J * M.Inverse() * J.Transpose())
-//!<	Lambda : ラグランジュの未定乗数 (Lagrange multiplier) 
-//!<	J : ヤコビ行列 dC/dt = J * v = 0
-
+/*
+* C(q_1, q_2,\ldots,q_n) = 0
+* 
+* 一階微分をすると
+* \dot{C} = \frac{dC}{dq} \frac{dq}{dt} = \frac{dC}{dq} v = 0
+* \frac{dC}{dq} はヤコビ行列 (J) として知られ、勾配を表す
+* \dot{C} = J v = 0
+* 
+* 二階微分をすると
+* \ddot{C} = \dot{J} v + J a = 0 ... (1)
+* 
+* ここでニュートンの運動方程式から
+* F = M a (ここでは n 個の剛体があるので M は質量行列)
+* a = M^{-1} F
+* 
+* これを (1) に代入すると
+* \ddot{C} = \dot{J} v + J M^{-1} F = 0
+* J M^{-1} F = -\dot{J} v ... (2)
+* 
+* ダランベールの原理から、制約力は仕事をしない
+* 制約力は速度に垂直になる
+* F v = 0
+* 
+* 制約力は勾配 J に並行の為
+* F は J の定数倍で表され
+* F = J^T \lambda_f
+* ここで \lambda_f はラグランジュの未定乗数 (ベクトル量)
+*
+* (2) に代入して \lambda_f について解くと
+* J M^{-1} J^T \lambda_f = -\dot{J} v
+* \lambda_f = -\dot{J} v / J M^{-1} J^T
+* 
+* 力積ベース (力の積分) のラグランジュの未定乗数は以下のようになる
+* J M^{-1} J^T \lambda_i = -J v
+* \lambda_i = -J v / J M^{-1} J^T
+*/
 Physics::Constraint::MassMatrix Physics::ConstraintAnchor::CreateInverseMassMatrix(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
 {
 	MassMatrix InvM;
@@ -91,15 +123,32 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	//!< ワールドへ変換 (オブジェクトが動く事を考慮して都度やる必要がある)
 	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
+	//!< アンカー間
 	const auto AB = WAnchorB - WAnchorA;
 	{
 		//!< それぞれの剛体における、重心からアンカー位置 (ワールド) へのベクトル
 		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
 		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
 
-		//!< 距離コンストレイント ヤコビ行列を作成
-		//!< J = (2 * (WAnchorA - WAnchorB), 2 * RA.Cross(WAnchorA - WAnchorB), 2 * (WAnchorB - WAnchorA), 2 * RB.Cross(WAnchorB - WAnchorA))
-		//!< J = (2 * -AB, 2 * RA.Cross(-AB), 2 * AB, 2 * RB.Cross(AB))
+		/*
+		* C = (R_2 - R_1) (R_2 - R_1) = 0 ... R_1, R_2 は A, B のワールドアンカー位置
+		*  &= R_2 R_2 - R_2 R_1 - R_1 R_2 + R_1 R_1
+		*  &= \dot{R_2} R_2 + R_2 \dot{R_2} - \dot{R_2} R_1 - R_2 \dot{R_1} - \dot{R_1} R_2 - R_1 \dot{R_2} + \dot{R_1} R_1 + R_1 \dot{R_1}
+		*  &= 2 (R_2 - R_1) \dot{R_2} + 2 (R_1 - R_2) \dot{R_1}
+		* \dot{R_1} = v_1 + w_1 \cross R_1, \dot{R_2} = v_2 + w_2 \cross R_2 より
+		*  &= 2 (R_2 - R_1) (v_2 + w_2 \cross R_2) + 2 (R_1 - R_2) (v_1 + w_1 \cross R_1)
+		*  &= 
+		*  \begin{pmatrix}
+		*  2 (R_1 - R_2) & 2 R_1 \cross (R_1 - R_2) & 2 (R_2 - R_1) & 2 R_2 \cross (R_2 - R_1)
+		*  \end{pmatrix}
+		*  \begin{pmatrix}
+		*  v_1 \\
+		*  w_1 \\ 
+		*  v_2 \\ 
+		*  w_2
+		*  \end{pmatrix}
+		* なので J = 2 (-AB), 2 RA.Cross(-AB), 2 AB, 2 RB.Cross(AB) となる
+		*/
 		{
 			const auto J1 = -AB * 2.0f;
 			const auto J2 = RA.Cross(J1);
@@ -114,38 +163,44 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
 
 #pragma region WARM_STARTING
-	//!< 前のフレームの力積を、今フレームの計算前に適用することで、少ないイテレーションで安定状態へ導く
+	//!< 前フレームの値を今フレームの計算前に適用することで、少ない繰返し回数で安定状態へ収束させる
 	ApplyImpulse(JacobianT * CachedLambda);
 #pragma endregion
 
 #pragma region BAUMGARTE_STABILIZATION
-	//!< 適正な位置へ戻すような力を適用する事で修正を試みる
-	//!< C は侵された制約距離 (デルタ時間では C / DeltaSec)、許容誤差 (0.01f) を超えていれば有効 (振動防止)
-	const auto C = (std::max)(AB.Dot(AB) - 0.01f, 0.0f);
-	//!< 完全に修正するとエネルギー与え過ぎで不安定になるので Beta (== 0.05f) で調整
+	/*
+	* ここではアンカー位置が一致する状態を目指しているので AB の長さが 0 になるような修正 C / DeltaSec を行う (C = AB.Dot(AB))
+	* システムにエネルギーを与える為わずかに振動することになる、これを回避する為許容範囲 (Torelance) 内の場合は影響を与えないようにしている
+	* 完全に修正するとシステムにエネルギーを与え過ぎ不安定になるので C に \beta を乗算して数フレームかけて修正する
+	*/
+	constexpr auto Torelance = 0.01f;
+	const auto C = (std::max)(AB.Dot(AB) - Torelance, 0.0f);
 	constexpr auto Beta = 0.05f;
 	Baumgarte = Beta * C / DeltaSec;
 #pragma endregion
 }
+
+/*
+* J M^{-1} J^T \lambda = -J v
+* J M^{-1} J^T = A, \lambda = x, -J v = B とすると
+* A x = B となる、これを x (==\lambda) についてガウスザイデル法で解く
+*/
 void Physics::ConstraintDistance::Solve()  
 {
-	//!< J * InvMass * Transpose(J) * Impulse = -J * v
-	//!< ここで A = J * InvMass * Transpose(J), B = -J * v と置くと A * Impulse = B
-	//!< これをガウスザイデル法で解き、Impulse を求める
 	const auto& A = J_IM_JT;
 	const auto B = -Jacobian * GetVelocties()
 #pragma region BAUMGARTE_STABILIZATION
-		//!< 侵された制約を修正するような速度を与える
+		//!< 安定化の為の修正 (バウムガルテの安定化法)
 		- LinAlg::Vec<1>(Baumgarte);
 #pragma endregion
 
-	//!< A * Lambda = B となる Lambda を求める
+	//!< ガウスザイデル法で x (==\lambda) を求める
 	const auto Lambda = GaussSiedel(A, B);
 
 	ApplyImpulse(JacobianT * Lambda);
 
 #pragma region WARM_STARTING
-	//!< ウォームスタート用に今回の力積を蓄積しておく
+	//!< 次フレーム用に今回の力積の大きさを蓄積しておく (ウォームスタート)
 	CachedLambda += Lambda;
 #pragma endregion
 }
@@ -154,7 +209,8 @@ void Physics::ConstraintDistance::PostSolve()
 	if (std::isnan(CachedLambda[0])) { CachedLambda[0] = 0.0f; }
 
 #pragma region WARM_STARTING
-	//!< 短時間に大きな力積が加わった場合に不安定になるのを防ぐために、リーズナブルな範囲に制限する
+	//!< 衝突時など (短時間に大きな力積が加わった場合) に大きな修正力積になり、
+	//!< ウォームスタートが効きすぎて不安定になる事があるので CachedLambda の値を適切な範囲に制限する
 	constexpr auto Eps = (std::numeric_limits<float>::epsilon)();
 	CachedLambda[0] = (std::clamp)(CachedLambda[0], -Eps, Eps);
 #pragma endregion
@@ -168,7 +224,7 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	{
 		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
 		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
-		//!< 距離コンストレイント ヤコビ行列
+		//!< 距離コンストレイント
 		{
 			const auto J1 = -AB * 2.0f;
 			const auto J2 = RA.Cross(J1);
@@ -220,7 +276,8 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 
 	ApplyImpulse(JacobianT * CachedLambda);
 
-	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
+	constexpr auto Torelance = 0.01f;
+	const auto C = (std::max)((AB).Dot(AB) - Torelance, 0.0f);
 	constexpr auto Beta = 0.05f;
 	Baumgarte = Beta * C / DeltaSec;
 }
@@ -321,7 +378,8 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 
 	ApplyImpulse(JacobianT * CachedLambda);
 
-	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
+	constexpr auto Torelance = 0.01f;
+	const auto C = (std::max)((AB).Dot(AB) - Torelance, 0.0f);
 	constexpr auto Beta = 0.05f;
 	Baumgarte = Beta * C / DeltaSec;
 }
@@ -397,7 +455,8 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 
 	ApplyImpulse(JacobianT * CachedLambda);
 
-	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
+	constexpr auto Torelance = 0.01f;
+	const auto C = (std::max)((AB).Dot(AB) - Torelance, 0.0f);
 	constexpr auto Beta = 0.05f;
 	Baumgarte = Beta * C / DeltaSec;
 }
@@ -503,7 +562,8 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 
 	ApplyImpulse(JacobianT * CachedLambda);
 
-	const auto C = (std::max)((AB).Dot(AB) - 0.01f, 0.0f);
+	constexpr auto Torelance = 0.01f;
+	const auto C = (std::max)((AB).Dot(AB) - Torelance, 0.0f);
 	constexpr auto Beta = 0.05f;
 	Baumgarte = Beta * C / DeltaSec;
 }
@@ -660,7 +720,7 @@ Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Colli
 	LAnchorA = Ct.LPointA;
 	LAnchorB = Ct.LPointB;
 
-	//!< A ローカル
+	//!< A ローカル接触法線
 	LNormal = RigidBodyA->ToLocalDir(Ct.WNormal).Normalize();
 
 	Friction = RigidBodyA->Friction * RigidBodyB->Friction;
@@ -673,12 +733,30 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 	const auto WAnchorA = RigidBodyA->ToWorldPos(LAnchorA);
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 	const auto AB = WAnchorB - WAnchorA;
+
 	//!< 法線をワールドスペースへ
 	const auto WNormal = RigidBodyA->ToWorldDir(LNormal);
 	const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
 	const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass(); 
 	{
-		//!< J = (-N, RA x N, N, RB x N)
+		/*
+		* C = N (R_2 - R_1) = 0 ... R_1, R_2 は A, B のワールドアンカー位置
+		* \dot{C} = n \dot{R_2} - n \dot{R_1} = 0
+		* \dot{R_1} = v_1 + w_1 \cross R_1, \dot{R_2} = v_2 + w_2 \cross R_2 より
+		* \dot{C} = n (v_2 + w_2 \cross R_2) - n (v_1 + w_1 \cross R_1)
+		* & = n v_2 + w_2 (R_2 \cross n) - n v_1 - w_1 (R_1 \cross n) ... a (b \cross c) = b (c \cross a) = c (a \cross b) なので
+		* &=
+		* \begin{ pmatrix }
+		* -n & -R_1 \cross n & n & R_2 \cross n
+		* \end{ pmatrix }
+		* \begin{ pmatrix }
+		* v_1 \\
+		* w_1 \\
+		* v_2 \\
+		* w_2
+		* \end{ pmatrix }
+		* なので J = (-N, -RA.Cross(N), N, RB.Cross(N)) となる
+		*/
 		const auto J1 = -WNormal;
 		const auto J2 = RA.Cross(J1);
 		const auto J3 = -J1;
@@ -687,12 +765,15 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 	}
 
 	//!< 摩擦がある場合、接線方向のコンストレイントを考慮
+	//!< 力を \mu mg に制限する以外は、法線の場合と同様
 	if (Friction > 0.0f) {
-		//!< 直交ベクトル U, V を求める
+		//!< 接線 (直交) ベクトル U, V を求める
 		LinAlg::Vec3 U, V;
 		WNormal.GetOrtho(U, V);
+		
 		//!< U
 		{
+			// J = (-U, -RA.Cross(U), U, RB.Cross(U)) 
 			const auto J1 = -U;
 			const auto J2 = RA.Cross(J1);
 			const auto J3 = -J1;
@@ -701,6 +782,7 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 		}
 		//!< V
 		{
+			// J = (-V, -RA.Cross(V), V, RB.Cross(V)) 
 			const auto J1 = -V;
 			const auto J2 = RA.Cross(J1);
 			const auto J3 = -J1;
@@ -714,7 +796,8 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 
 	ApplyImpulse(JacobianT * CachedLambda);
 
-	const auto C = (std::min)(AB.Dot(WNormal) + 0.02f, 0.0f);
+	constexpr auto Torelance = 0.02f;
+	const auto C = (std::min)(AB.Dot(WNormal) + Torelance, 0.0f);
 	constexpr auto Beta = 0.25f;
 	Baumgarte = Beta * C / DeltaSec;
 }
@@ -727,10 +810,14 @@ void Physics::ConstraintPenetration::Solve()
 
 	const auto Old = CachedLambda; {
 		CachedLambda += Lambda;
+		//!< N
 		CachedLambda[0] = (std::max)(CachedLambda[0], 0.0f);
 		if (Friction > 0.0f) {
+			//!< 法線方向の力から、摩擦力を計算
 			const auto Force = (std::max)(Mg, std::fabsf(Lambda[0])) * Friction;
+			//!< U
 			CachedLambda[1] = (std::clamp)(CachedLambda[1], -Force, Force);
+			//!< V
 			CachedLambda[2] = (std::clamp)(CachedLambda[2], -Force, Force);
 		}
 	}
@@ -739,6 +826,7 @@ void Physics::ConstraintPenetration::Solve()
 	ApplyImpulse(JacobianT * Lambda);
 }
 
+//!< 1 フレームのみの制約だとウォームスタートの恩恵が無い為、接触をキャッシュする
 Physics::Manifold::Manifold(const Collision::Contact& Ct) 
 	: RigidBodyA(Ct.RigidBodyA), RigidBodyB(Ct.RigidBodyB) 
 {
@@ -746,52 +834,55 @@ Physics::Manifold::Manifold(const Collision::Contact& Ct)
 }
 void Physics::Manifold::Add(const Collision::Contact& CtOrig)
 {
-	//!< 剛体 A, B の順序が食い違っている場合は辻褄を合わせる
+	//!< A, B の順序が食い違っている場合はスワップして合わせる
 	auto Ct = CtOrig;
-	if (RigidBodyA != CtOrig.RigidBodyA) { Ct.Swap(); }
+	if (RigidBodyA != CtOrig.RigidBodyA) { 
+		Ct.Swap(); 
+	}
 
-	//!< 法線を反転する必要がある #TODO 何故？ P43
-	Ct.WNormal *= -1.0f; 
+	Ct.WNormal *= -1.0f;
 
-	//!< 既存とほぼ同じ接触位置の場合は何もしない (既存を残し新規を破棄する、古い方が収束している傾向がある為)
+	//!< 既存とほぼ同じ接触位置の場合は追加対象とせず破棄 (既存を残す、古い方がウォームスタートの恩恵がある為)
 	constexpr auto Eps2 = 0.02f * 0.02f;
-	if (std::ranges::any_of(Constraints,
+	if (std::ranges::any_of(ContactAndConstraints,
 		[&](const auto& i) {
 			return (i.first.WPointA - Ct.WPointA).LengthSq() < Eps2 || (i.first.WPointB - Ct.WPointB).LengthSq() < Eps2;
 		})) {
 		return;
 	}
 
-	//!< 新規要素 (接触点と制約のペア)
+	//!< 新規要素 (接触情報と貫通制約のペア)
 	const auto NewItem = ContactAndConstraint({ Ct, ConstraintPenetration(Ct) });
-	if (std::size(Constraints) < MaxContacts) {
-		//!< 空きがある場合は追加
-		Constraints.emplace_back(NewItem);
+	if (std::size(ContactAndConstraints) < MaxContactAndConstraints) {
+		//!< 空きがあればそのまま追加
+		ContactAndConstraints.emplace_back(NewItem);
 	}
 	else {
 		//!< (新規を) 一旦追加してしまう
-		Constraints.emplace_back(NewItem);
+		ContactAndConstraints.emplace_back(NewItem);
 		
 		//!< (新規を含めた) 平均値を求める
-		const auto Avg = (std::accumulate(std::cbegin(Constraints), std::cend(Constraints), LinAlg::Vec3::Zero(),
+		const auto Avg = (std::accumulate(std::cbegin(ContactAndConstraints), std::cend(ContactAndConstraints), LinAlg::Vec3::Zero(),
 			[](const auto& Acc, const auto& i) {
 				return Acc + i.first.WPointA;
-			})) / static_cast<float>(std::size(Constraints));
+			})) / static_cast<float>(std::size(ContactAndConstraints));
 
-		//!< 平均値に一番近い要素を取り除く (大きく貫通しているであろう要素ほど残ることになる)
-		Constraints.erase(std::ranges::min_element(Constraints,
+		//!< 平均値に一番近い要素を取り除く (大きく貫通しているものほど深刻として残す)
+		ContactAndConstraints.erase(std::ranges::min_element(ContactAndConstraints,
 			[&](const auto& lhs, const auto& rhs) {
 				return (Avg - lhs.first.WPointA).LengthSq() < (Avg - rhs.first.WPointA).LengthSq();
 			}));
 	}
 }
+
+//!< 古くなった接触情報を削除
 void Physics::Manifold::RemoveExpired()
 {
 	constexpr auto Eps2 = 0.02f * 0.02f;
-	const auto Range = std::ranges::remove_if(Constraints, 
+	const auto Range = std::ranges::remove_if(ContactAndConstraints, 
 		[&](const auto& rhs) {
 			const auto& Ct = rhs.first;
-			//!< 衝突時のローカル位置を、現在のトランスフォームで変換 (衝突時のローカル位置 LPointA, LPointB を覚えておく必要がある)
+			//!< 衝突時のローカル位置を、現在のトランスフォームでワールド位置へ変換
 			const auto AB = Ct.RigidBodyB->ToWorldPos(Ct.LPointB) - Ct.RigidBodyA->ToWorldPos(Ct.LPointA);
 			const auto& WNrm = Ct.WNormal;
 			const auto PenetrateDepth = WNrm.Dot(AB);
@@ -804,7 +895,7 @@ void Physics::Manifold::RemoveExpired()
 			const auto ABTan = (AB - ABNrm);
 			return ABTan.LengthSq() >= Eps2;
 		});
-	Constraints.erase(std::cbegin(Range), std::cend(Range));
+	ContactAndConstraints.erase(std::cbegin(Range), std::cend(Range));
 }
 
 //!< 衝突情報を追加
@@ -820,7 +911,7 @@ void Physics::ManifoldCollector::Add(const Collision::Contact& Ct)
 		It->Add(Ct);
 	}
 	else {
-		//!< マニフォールドと衝突情報を追加
+		//!< 新規として追加
 		Manifolds.emplace_back(Manifold(Ct));
 	}
 }
@@ -828,7 +919,7 @@ void Physics::ManifoldCollector::Add(const Collision::Contact& Ct)
 void Physics::ManifoldCollector::PreSolve(const float DeltaSec) 
 {
 	for (auto& i : Manifolds) {
-		for (auto& j : i.Constraints) {
+		for (auto& j : i.ContactAndConstraints) {
 			j.second.PreSolve(DeltaSec);
 		}
 	}
@@ -836,7 +927,7 @@ void Physics::ManifoldCollector::PreSolve(const float DeltaSec)
 void Physics::ManifoldCollector::Solve()
 {
 	for (auto& i : Manifolds) {
-		for (auto& j : i.Constraints) {
+		for (auto& j : i.ContactAndConstraints) {
 			j.second.Solve();
 		}
 	}
@@ -844,7 +935,7 @@ void Physics::ManifoldCollector::Solve()
 void Physics::ManifoldCollector::PostSolve()
 {
 	for (auto& i : Manifolds) {
-		for (auto& j : i.Constraints) {
+		for (auto& j : i.ContactAndConstraints) {
 			j.second.PostSolve();
 		}
 	}
