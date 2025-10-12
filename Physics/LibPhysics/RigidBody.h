@@ -29,8 +29,24 @@ namespace Physics
 		[[nodiscard]] LinAlg::Vec3 ToWorldDir(const LinAlg::Vec3& rhs) const { return ToWorld(rhs, LinAlg::Vec3::Zero()); }
 
 		[[nodiscard]] LinAlg::Mat3 ToWorld(const LinAlg::Mat3& rhs) const {
+			/*
+			* J_local = R^-1 J_world
+			* w_local = I_local^-1 J_local 
+			* より 
+			* w_local = I_local^-1 (R^-1 J_world)
+			* 
+			* w_world = R w_local なので 
+			* &= R (I_local^-1 R^-1 J_world)
+			* &= (R I_local^-1 R^-1) J_world
+			* 
+			* w_world = (I_world^-1) J_world であるので
+			* I_world^-1 = R I_local^-1 R^-1 ということになる
+			* 
+			* スケーリングが無いので R^-1 は R^t でよい
+			* 回転した慣性テンソルは以下の式で求まる
+			* I_world^-1 = R I_local^-1 R^t
+			*/
 			const auto Rot3 = static_cast<const LinAlg::Mat3>(Rotation);
-			//!< 本来は Rot3 * rhs * Rot3.Inverse() だが、スケーリングが無いので Rot3 * rhs * Rot3.Transpose() で良い
 			return Rot3 * rhs * Rot3.Transpose();
 		}
 		[[nodiscard]] LinAlg::Mat3 GetWorldInertiaTensor() const { return ToWorld(InertiaTensor); }
@@ -43,12 +59,19 @@ namespace Physics
 		}
 		void ApplyLinearImpulse(const LinAlg::Vec3& Impulse) {
 			if (0.0f != InvMass) {
+				/*
+				* J = m dv
+				* dv = J / m
+				*/
 				LinearVelocity += Impulse * InvMass;
 			}
 		}
 		void ApplyAngularImpulse(const LinAlg::Vec3& Impulse) {
 			if (0.0f != InvMass) {
-				//!< w = Inv(I) * AngularJ 
+				/*
+				* J = I dw
+				* dw = I^-1 J
+				*/
 				AngularVelocity += GetWorldInverseInertiaTensor() * Impulse;
 
 				//!< 角速度に限界値を設ける (通常パフォーマンス的理由による)
@@ -62,7 +85,10 @@ namespace Physics
 		void ApplyImpulse(const LinAlg::Vec3& ImpactPoint, const LinAlg::Vec3& Impulse) {
 			if (0.0f != InvMass) {
 				ApplyLinearImpulse(Impulse);
-				//!< AngularJ = Radius x LinearJ
+
+				/*
+				* J_angular = R \cross J_linear
+				*/
 				const auto Radius = ImpactPoint - GetWorldCenterOfMass();
 				ApplyAngularImpulse(Radius.Cross(Impulse));
 			}

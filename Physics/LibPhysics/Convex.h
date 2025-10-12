@@ -12,8 +12,7 @@ namespace Convex
 	void BuildTetrahedron(const std::vector<LinAlg::Vec3>& Mesh, std::vector<LinAlg::Vec3>& Vertices, std::vector<Collision::TriInds >& Indices);
 
 	//!< 指定の点が凸包の内部点かどうか
-	[[nodiscard]] static bool IsInternal(const LinAlg::Vec3& Pt, const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices)
-	{
+	[[nodiscard]] static bool IsInternal(const LinAlg::Vec3& Pt, const std::vector<LinAlg::Vec3>& Vertices, const std::vector<Collision::TriInds>& Indices) {
 		//!< 全ての三角形に対し、負の側にあれば内部点
 		return std::ranges::all_of(Indices,
 			[&](const auto rhs) {

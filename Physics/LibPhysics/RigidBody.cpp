@@ -34,20 +34,29 @@ void Physics::RigidBody::Update(const float DeltaSec)
 		const auto InvWIT = GetWorldInverseInertiaTensor();
 		const auto WIT = GetWorldInertiaTensor();
 
-		//!< Šp‰Á‘¬“x AngAccel = InvWIT * (w x (WIT * w))
+		/*
+		* ƒgƒ‹ƒN \tau = I \alpha = r \cross F
+		* Šp‰^“®—Ê L = I \omega = r \cross P = r \cross (I \omega)
+		* 
+		* \tau = I \alpha
+		* \tau = \omega \cross (I \omega) 
+		* ‚æ‚è
+		* I \alpha = \omega \cross (I \omega)
+		* \alpha = I^-1 (\omega \cross (I \omega))
+		*/
 		const auto AngAccel = InvWIT * (AngularVelocity.Cross(WIT * AngularVelocity));
 		
 		//!< Šp‘¬“x‚ÌXV
 		AngularVelocity += AngAccel * DeltaSec;
 
-		//!< Šp•Ï‰»‚ÌŽlŒ³”•\Œ»
+		//!< ƒfƒ‹ƒ^Šp‘¬“x‚ÌŽlŒ³”•\Œ»
 		const auto DeltaAng = AngularVelocity * DeltaSec;
 		const auto DeltaQuat = LinAlg::Quat(DeltaAng, DeltaAng.Length());
-	
-		//!< (Šp•Ï‰»‚É‚æ‚é) ‰ñ“]‚ÌXV
+		
+		//!< ‰ñ“]‚ÌXV (‰ÁŽZ‚Å‚Í‚È‚­ŽlŒ³”‚ÌæŽZ)
 		Rotation = (DeltaQuat * Rotation).Normalize();
 
-		//!< (Šp•Ï‰»‚É‚æ‚é) ˆÊ’u‚ÌXV
+		//!< (‰ñ“]‚É‚æ‚é) ˆÊ’u‚ÌXV
 		const auto WorldCenter = GetWorldCenterOfMass();
 		Position = WorldCenter + DeltaQuat.Rotate(Position - WorldCenter);
 	}

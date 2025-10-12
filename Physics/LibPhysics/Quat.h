@@ -102,7 +102,6 @@ namespace LinAlg
 		inline Vec3 ToVec3() const { return static_cast<Vec3>(*this); }
 		inline Mat3 ToMat3() const { return static_cast<Mat3>(*this); }
 	
-		//!< A * B = L(A) * B = R(B) * A ‚Æ‚È‚é‚æ‚¤‚È 4x4 s—ñ
 		inline Mat4 ToLeftMat4() const { return ToLeftMat4(*this); }
 		inline Mat4 ToRightMat4() const { return ToRightMat4(*this); }
 

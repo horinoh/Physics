@@ -67,6 +67,16 @@ namespace Collision
 		float Value;
 		bool IsMin;
 	};
+	struct BoundEdgeMin : BoundEdge
+	{
+		using Super = BoundEdge;
+		BoundEdgeMin(int Idx, float Val) : Super({ Idx, Val }) { IsMin = true; }
+	};
+	struct BoundEdgeMax : BoundEdge
+	{
+		using Super = BoundEdge;
+		BoundEdgeMax(int Idx, float Val) : Super({ Idx, Val }) { IsMin = false; }
+	};
 
 	struct ContactBase
 	{

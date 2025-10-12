@@ -55,7 +55,7 @@ namespace Physics
 			};
 		}
 
-		//!< 指定の方向 (UDir : 正規化されていること) に一番遠い点を返す
+		//!< 指定の方向 UDir (単位ベクトル) に一番遠い点を返す
 		[[nodiscard]] virtual LinAlg::Vec3 GetSupportPoint(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot, const LinAlg::Vec3& UDir, const float Bias) const = 0;
 		[[nodiscard]] static inline LinAlg::Vec3 GetSupportPoint(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot, const LinAlg::Vec3& UDir, const float Bias) {
 			std::vector<LinAlg::Vec3> Pts;
@@ -70,7 +70,8 @@ namespace Physics
 				}) + UDir * Bias;
 		}
 
-		//!< 回転によって UDir 方向に最も速く動いている頂点の速さを返す
+		//!< 回転によって UDir (単位ベクトル) 方向に最も速く動いている頂点の速さを返す
+		//!< 線形速度がゼロでも、回転する長いオブジェクトは衝突を引き起こす可能性があるため
 		[[nodiscard]] virtual float GetFastestRotatingPointSpeed(const LinAlg::Vec3& AngVel, const LinAlg::Vec3& UDir) const { return 0.0f; }
 		[[nodiscard]] static inline float GetFastestRotatingPointSpeed(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& CenterOfMass, const LinAlg::Vec3 & AngVel, const LinAlg::Vec3& UDir) {
 			std::vector<float> Speeds;
@@ -109,9 +110,16 @@ namespace Physics
 
 		virtual SHAPE_TYPE GetShapeType() const override { return SHAPE_TYPE::SPHERE; }
 
-		//!< 球の慣性テンソル 2 / 5  * (R^2,   0,   0)
-		//!<						 (  0, R^2,   0)
-		//!<						 (  0,   0, R^2)
+		/*
+		* 球の慣性テンソル
+		* 
+		* \frac{2}{5} 
+		* \begin{pmatrix}
+		* R^2 & 0   & 0   \\
+		* 0   & R^2 & 0   \\
+		* 0   & 0   & R^2
+		* \end{pmatrix}
+		*/
 		virtual LinAlg::Mat3 CalcInertiaTensor() const override {
 			return Radius * Radius * 2.0f / 5.0f * LinAlg::Mat3::Identity();
 		}
@@ -208,9 +216,16 @@ namespace Physics
 				(std::ranges::max)(Ys) - (std::ranges::min)(Ys), 
 				(std::ranges::max)(Zs) - (std::ranges::min)(Zs));
 		}
-		//!< ボックスの慣性テンソル 1 / 12 * (H^2+D^2,       0,       0)
-		//!<							  (      0, W^2+D^2,       0)
-		//!<							  (      0,       0, W^2+H^2)
+		/*
+		* ボックスの慣性テンソル 
+		* 
+		* \frac{1}{12}
+		* \begin{pmatrix}
+		* H^2 + D^2 & 0 & 0 \\
+		* 0 & W^2 + D^2 & 0 \\
+		* 0 & 0 & W^2 + H^2
+		* \end{pmatrix}
+		*/
 		virtual LinAlg::Mat3 CalcInertiaTensor() const override {
 			const auto Ext = CalcExtent();
 			const auto W2 = Ext.X() * Ext.X();
@@ -224,10 +239,6 @@ namespace Physics
 			};
 		}
 	};
-
-	//!< シリンダーの慣性テンソル (1/12 (3R^2 + H^2),                 0,       0)
-	//!<                       (                0, 1/12 (3R^2 + H^2),       0)
-	//!<					   (                0,                 0, 1/2 R^2)
 	class ShapeConvex : public ShapeConvexBase
 	{
 	private:
@@ -249,6 +260,17 @@ namespace Physics
 		virtual LinAlg::Vec3 CalcCenterOfMass() const override;
 		virtual LinAlg::Mat3 CalcInertiaTensor() const override;
 	};
+
 	void CreateVertices_Diamond(std::vector<LinAlg::Vec3>& Dst);
+
+	/*
+	* シリンダーの慣性テンソル
+	*
+	* \begin{pmatrix}
+	* \frac{1}{12} (3R^2 + H^2) & 0 & 0 \\
+	* 0 & \frac{1}{12} (3R^2 + H^2) & 0 \\
+	* 0 & 0 & \frac{1}{2} R^2
+	* \end{pmatrix}
+	*/
 }
 

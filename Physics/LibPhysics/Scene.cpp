@@ -50,17 +50,15 @@ void Physics::Scene::BroadPhase(const float DeltaSec, std::vector<CollidablePair
 			Aabb.Expand(Aabb.Min + DVel);
 			Aabb.Expand(Aabb.Max + DVel);
 
-#if false
-			//!< ‚³‚ç‚É­‚µŠg’£ (Žæ‚è‚±‚Ú‚µ–hŽ~H)
+			//!< ‚³‚ç‚É­‚µŠg’£
 			const auto Epsilon = 0.01f;
 			const auto DEp = LinAlg::Vec3::One() * Epsilon;
 			Aabb.Expand(Aabb.Min - DEp);
 			Aabb.Expand(Aabb.Max + DEp);
-#endif
 
 			//!< ‹«ŠE’[ (ãŒÀA‰ºŒÀ) ‚ðŠo‚¦‚Ä‚¨‚­
-			BoundEdges.emplace_back(Collision::BoundEdge({ i, LinAlg::Vec3::UnitXYZ().Dot(Aabb.Min), true})); //!< ‰ºŒÀ
-			BoundEdges.emplace_back(Collision::BoundEdge({ i, LinAlg::Vec3::UnitXYZ().Dot(Aabb.Max), false}));//!< ãŒÀ
+			BoundEdges.emplace_back(Collision::BoundEdgeMin({ i, LinAlg::Vec3::UnitXYZ().Dot(Aabb.Min)}));
+			BoundEdges.emplace_back(Collision::BoundEdgeMax({ i, LinAlg::Vec3::UnitXYZ().Dot(Aabb.Max)}));
 		}
 
 		//!< Ž²‚ÉŽË‰e‚µ‚½“àÏ’l‚Åƒ\[ƒg
@@ -204,6 +202,27 @@ void Physics::Scene::ApplyImpulse(const Collision::Contact& Ct)
 			const auto RelVelA = VelA - VelB;
 
 			//!< –@üAÚü•ûŒü‚Ì—ÍÏ J ‚ð“K—p‚·‚é‚Ì‹¤’Êˆ—
+			/*
+			* ‰^“®—Ê•Û‘¶‘¥‚æ‚è
+			* v_a = v_a0 + J / m
+			* 
+			* Šp‰^“®—Ê•Û‘¶‘¥‚æ‚è
+			* w_a = w_a0 + I^-1 (r_a \cross n) J
+			* 
+			* v_total = v_a + r_a \cross w_a
+			* 
+			* J = \frac{Coef (v_b - v_a)}{(m_a^-1 + m_b^-1) + ((I_a^-1 r_a \cross n) \cross r_a + (I_b^-1 r_b \cross n) \cross r_b) n}
+			* ‚±‚±‚Å
+			*	’e«ŒW”‚Ìê‡ Coef = (1 + e) 
+			*	–€ŽCŒW”‚Ìê‡ Coef = \mu 
+			*
+			* ‚±‚±‚ÅˆÈ‰º‚Ì‚æ‚¤‚É’u‚­‚Æ
+			*	V = v_b - v_a
+			*	M = (m_a^-1 + m_b^-1)
+			*	J_a = (I_a^-1 r_a \cross n) \cross r_a
+			*	J_b = (I_b^-1 r_b \cross n) \cross r_b
+			* &= \frac{Coef V}{M + (J_a + J_b) n}
+			*/
 			auto Apply = [&](const auto& Axis, const auto& Vel, const float Coef) {
 				const auto AngJA = (InvWITA * RA.Cross(Axis)).Cross(RA);
 				const auto AngJB = (InvWITB * RB.Cross(Axis)).Cross(RB);
@@ -211,7 +230,7 @@ void Physics::Scene::ApplyImpulse(const Collision::Contact& Ct)
 				const auto J = Vel * Coef / (TotalInvMass + AngFactor);
 				Ct.RigidBodyA->ApplyImpulse(WPointA, -J);
 				Ct.RigidBodyB->ApplyImpulse(WPointB, J);
-				};
+			};
 
 			//!< –@ü•ûŒü —ÍÏJ (‰^“®—Ê•Ï‰»)
 			const auto& Nrm = Ct.WNormal;
@@ -304,10 +323,3 @@ void Physics::Scene::Update(const float DeltaSec)
 	}
 #endif
 }
-
-//PerformanceCounter::~PerformanceCounter() 
-//{
-//	const auto End = std::chrono::system_clock::now();
-//	const auto MilliSec = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(End - Start).count() / 1000.0);
-//	LOG(std::data(std::format("{} msec\n", MilliSec)));
-//}
