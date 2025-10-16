@@ -1,6 +1,7 @@
 #pragma once
 
 #include "LinAlg.h"
+#include "Collision.h"
 
 namespace Physics
 {
@@ -93,6 +94,8 @@ namespace Physics
 				ApplyAngularImpulse(Radius.Cross(Impulse));
 			}
 		}
+
+		static void ApplyImpulse(const Collision::Contact& Ct);
 
 		void Update(const float DeltaSec);
 

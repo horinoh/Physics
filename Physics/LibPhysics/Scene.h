@@ -2,7 +2,6 @@
 
 #include <vector>
 
-#include "Collision.h"
 #include "Constraint.h"
 
 //#define USE_BRUTE_FORCE
@@ -39,7 +38,7 @@ namespace Physics
 		virtual void SolvePenetration(std::span<Collision::Contact> Contacts);
 #pragma endregion
 
-		virtual void ApplyImpulse(const Collision::Contact& Ct);
+		//virtual void ApplyImpulse(const Collision::Contact& Ct);
 
 		virtual void Update(const float DeltaSec);
 
