@@ -2,13 +2,13 @@
 #include "Shape.h"
 
 Physics::RigidBody::RigidBody(const Physics::Shape* Sh, const float InvMass)
-	: Shape(Sh), InvMass(InvMass)
+	: Shape(Sh), Mass_Inverse(InvMass)
 {
 	if (0.0f != InvMass) {
 		InertiaTensor = Shape->GetInertiaTensor() / InvMass;
 	}
 	//!< InvMass を加味したもの (加味しないものはシェイプから取得すること)
-	InvInertiaTensor = Shape->GetInvInertiaTensor() * InvMass;
+	InertiaTensor_Inverse = Shape->GetInertiaTensor_Inverse() * Mass_Inverse;
 }
 
 LinAlg::Vec3 Physics::RigidBody::GetCenterOfMass() const 
@@ -21,48 +21,33 @@ void Physics::RigidBody::ApplyImpulse(const Collision::Contact& Ct)
 	const auto& WPointA = Ct.WPointA;
 	const auto& WPointB = Ct.WPointB;
 
-	const auto TotalInvMass = Ct.RigidBodyA->InvMass + Ct.RigidBodyB->InvMass;
+	const auto TotalInvMass = Ct.RigidBodyA->Mass_Inverse + Ct.RigidBodyB->Mass_Inverse;
 	{
 		//!< 半径 (重心 -> 衝突点)
-		const auto RA = WPointA - Ct.RigidBodyA->GetWorldCenterOfMass();
-		const auto RB = WPointB - Ct.RigidBodyB->GetWorldCenterOfMass();
+		const auto RA = WPointA - Ct.RigidBodyA->GetCenterOfMass_World();
+		const auto RB = WPointB - Ct.RigidBodyB->GetCenterOfMass_World();
 		{
 			//!< 逆慣性テンソル (ワールドスペース)
-			const auto InvWITA = Ct.RigidBodyA->GetWorldInverseInertiaTensor();
-			const auto InvWITB = Ct.RigidBodyB->GetWorldInverseInertiaTensor();
+			const auto InvIA = Ct.RigidBodyA->GetInertiaTensor_Inverse_World();
+			const auto InvIB = Ct.RigidBodyB->GetInertiaTensor_Inverse_World();
 
 			//!< (A 視点の) 相対速度
-			const auto VelA = Ct.RigidBodyA->LinearVelocity + Ct.RigidBodyA->AngularVelocity.Cross(RA);
-			const auto VelB = Ct.RigidBodyB->LinearVelocity + Ct.RigidBodyB->AngularVelocity.Cross(RB);
+			const auto VelA = Ct.RigidBodyA->Velocity_Linear + Ct.RigidBodyA->Velocity_Angular.Cross(RA);
+			const auto VelB = Ct.RigidBodyB->Velocity_Linear + Ct.RigidBodyB->Velocity_Angular.Cross(RB);
 			const auto RelVelA = VelA - VelB;
 
-			//!< 法線、接線方向の力積 J を適用するの共通処理
-			/*
-			* 運動量保存則より
-			* v_a = v_a0 + J / m
-			*
-			* 角運動量保存則より
-			* w_a = w_a0 + I^-1 (r_a \cross n) J
-			*
-			* v_total = v_a + r_a \cross w_a
-			*
-			* J = \frac{Coef (v_b - v_a)}{(m_a^-1 + m_b^-1) + ((I_a^-1 r_a \cross n) \cross r_a + (I_b^-1 r_b \cross n) \cross r_b) n}
-			* ここで
-			*	弾性係数の場合 Coef = (1 + e)
-			*	摩擦係数の場合 Coef = \mu
-			*
-			* ここで以下のように置くと
-			*	V = v_b - v_a
-			*	M = (m_a^-1 + m_b^-1)
-			*	J_a = (I_a^-1 r_a \cross n) \cross r_a
-			*	J_b = (I_b^-1 r_b \cross n) \cross r_b
-			* &= \frac{Coef V}{M + (J_a + J_b) n}
-			*/
-			auto Apply = [&](const auto& Axis, const auto& Vel, const float Coef) {
-				const auto AngJA = (InvWITA * RA.Cross(Axis)).Cross(RA);
-				const auto AngJB = (InvWITB * RB.Cross(Axis)).Cross(RB);
-				const auto AngFactor = (AngJA + AngJB).Dot(Axis);
-				const auto J = Vel * Coef / (TotalInvMass + AngFactor);
+			//!< c = 1 + e(弾性の場合), \mu(摩擦の場合)
+			//!< v = v_b - v_a
+			//!< m = (m_a^-1 + m_b^-1)
+			//!< n = 法線ベクトル(弾性の場合), 接線ベクトル(摩擦の場合)
+			//!< J_a = (I_a^-1 r_a \cross n) \cross r_a
+			//!< J_b = (I_b^-1 r_b \cross n) \cross r_b
+			//!< とすると
+			//!< J = \frac{c v}{m + (J_a + J_b) n}
+			auto Apply = [&](const auto& N, const auto& Vel, const float Coef) {
+				const auto JA = (InvIA * RA.Cross(N)).Cross(RA);
+				const auto JB = (InvIB * RB.Cross(N)).Cross(RB);
+				const auto J = Vel * Coef / (TotalInvMass + (JA + JB).Dot(N));
 				Ct.RigidBodyA->ApplyImpulse(WPointA, -J);
 				Ct.RigidBodyB->ApplyImpulse(WPointB, J);
 				};
@@ -93,39 +78,29 @@ void Physics::RigidBody::Update(const float DeltaSec)
 
 	//!< (速度による) 位置の更新
 	{
-		Position += LinearVelocity * DeltaSec;
+		Position += Velocity_Linear * DeltaSec;
 	}
 
 	//!< (角速度による) 位置、回転の更新
 	{
-		//!< ワールド空間の (逆) 慣性テンソル
-		const auto InvWIT = GetWorldInverseInertiaTensor();
-		const auto WIT = GetWorldInertiaTensor();
-
-		/*
-		* トルク \tau = I \alpha = r \cross F
-		* 角運動量 L = I \omega = r \cross P = r \cross (I \omega)
-		* 
-		* \tau = I \alpha
-		* \tau = \omega \cross (I \omega) 
-		* より
-		* I \alpha = \omega \cross (I \omega)
-		* \alpha = I^-1 (\omega \cross (I \omega))
-		*/
-		const auto AngAccel = InvWIT * (AngularVelocity.Cross(WIT * AngularVelocity));
+		//!< トルク \tau = \omega \cross (I \omega) = I \alpha より
+		//!< 角加速度 \alpha = I^-1 (\omega \cross (I \omega))
+		const auto I_Inv = GetInertiaTensor_Inverse_World();
+		const auto I = GetInertiaTensor_World();
+		const auto AngAccel = I_Inv * (Velocity_Angular.Cross(I * Velocity_Angular));
 		
 		//!< 角速度の更新
-		AngularVelocity += AngAccel * DeltaSec;
+		Velocity_Angular += AngAccel * DeltaSec;
 
 		//!< デルタ角速度の四元数表現
-		const auto DeltaAng = AngularVelocity * DeltaSec;
-		const auto DeltaQuat = LinAlg::Quat(DeltaAng, DeltaAng.Length());
+		const auto DeltaVel = Velocity_Angular * DeltaSec;
+		const auto DeltaQuat = LinAlg::Quat(DeltaVel, DeltaVel.Length());
 		
-		//!< 回転の更新 (加算ではなく四元数の乗算)
+		//!< 回転の更新 q^' = dq * q
 		Rotation = (DeltaQuat * Rotation).Normalize();
 
 		//!< (回転による) 位置の更新
-		const auto WorldCenter = GetWorldCenterOfMass();
-		Position = WorldCenter + DeltaQuat.Rotate(Position - WorldCenter);
+		const auto CenterOfMass = GetCenterOfMass_World();
+		Position = CenterOfMass + DeltaQuat.Rotate(Position - CenterOfMass);
 	}
 }

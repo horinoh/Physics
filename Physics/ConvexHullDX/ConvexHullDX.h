@@ -134,8 +134,8 @@ public:
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
 					auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 1.0f)).get();
-					Rb->Position = LinAlg::Vec3(static_cast<float>(x - n2) * Offset, Y, static_cast<float>(z - n2) * Offset);
-					Rb->Rotation = LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(90.0f));
+					Rb->GetPosition() = LinAlg::Vec3(static_cast<float>(x - n2) * Offset, Y, static_cast<float>(z - n2) * Offset);
+					Rb->GetRotation() = LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(90.0f));
 				}
 			}
 		}
@@ -153,9 +153,9 @@ public:
 			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>(ExpandedVertices)).get()->Init();
 
 			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
-			Rb->Position = LinAlg::Vec3::AxisY() * Y;
-			Rb->Rotation = LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(270.0f));
-			Rb->Elasticity = 0.99f;
+			Rb->GetPosition() = LinAlg::Vec3::AxisY() * Y;
+			Rb->GetRotation() = LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(270.0f));
+			Rb->SetElasticity(0.99f);
 		}
 	}
 
@@ -594,9 +594,9 @@ public:
 			for (auto i = 0, i0 = 0, i1 = 0; i < std::size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances0)) {
 					const auto Rb = Scene->RigidBodies[i].get();
-					const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
-					const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
-					const auto Scl = 0.0f == Rb->InvMass ? DirectX::XMMatrixScaling(FloorScale, FloorScale, FloorScale) : DirectX::XMMatrixScaling(1.0f, 1.0f, 1.0f);
+					const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->GetPosition())));
+					const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->GetRotation())));
+					const auto Scl = 0.0f == Rb->GetMass_Inverse() ? DirectX::XMMatrixScaling(FloorScale, FloorScale, FloorScale) : DirectX::XMMatrixScaling(1.0f, 1.0f, 1.0f);
 					if (i0 < _countof(WorldBuffer.Instances0)) {
 						DirectX::XMStoreFloat4x4(&WorldBuffer.Instances0[i0++].World, Scl * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 					}

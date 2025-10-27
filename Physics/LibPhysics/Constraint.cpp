@@ -48,10 +48,10 @@ Physics::Constraint::MassMatrix Physics::ConstraintAnchor::CreateInverseMassMatr
 	MassMatrix InvM;
 
 	//!< M_A
-	InvM[0][0] = InvM[1][1] = InvM[2][2] = RbA->InvMass;
+	InvM[0][0] = InvM[1][1] = InvM[2][2] = RbA->GetMass_Inverse();
 
 	//!< I_A
-	const auto InvTensorA = RbA->GetWorldInverseInertiaTensor();
+	const auto InvTensorA = RbA->GetInertiaTensor_Inverse_World();
 	for (auto i = 0; i < 3; ++i) {
 		InvM[3 + i][3 + 0] = InvTensorA[i][0];
 		InvM[3 + i][3 + 1] = InvTensorA[i][1];
@@ -59,10 +59,10 @@ Physics::Constraint::MassMatrix Physics::ConstraintAnchor::CreateInverseMassMatr
 	}
 
 	//!< M_B
-	InvM[6][6] = InvM[7][7] = InvM[8][8] = RbB->InvMass;
+	InvM[6][6] = InvM[7][7] = InvM[8][8] = RbB->GetMass_Inverse();
 
 	//!< I_B
-	const auto InvTensorB = RbB->GetWorldInverseInertiaTensor();
+	const auto InvTensorB = RbB->GetInertiaTensor_Inverse_World();
 	for (auto i = 0; i < 3; ++i) {
 		InvM[9 + i][9 + 0] = InvTensorB[i][0];
 		InvM[9 + i][9 + 1] = InvTensorB[i][1];
@@ -73,16 +73,16 @@ Physics::Constraint::MassMatrix Physics::ConstraintAnchor::CreateInverseMassMatr
 }
 Physics::Constraint::Velocities Physics::ConstraintAnchor::CreateVelocties(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
 {
-	return { XYZ(RbA->LinearVelocity), XYZ(RbA->AngularVelocity), XYZ(RbB->LinearVelocity), XYZ(RbB->AngularVelocity) };
+	return { XYZ(RbA->GetVelocity_Linear()), XYZ(RbA->GetVelocity_Angular()), XYZ(RbB->GetVelocity_Linear()), XYZ(RbB->GetVelocity_Angular()) };
 }
 
 void Physics::ConstraintAnchor::ApplyImpulse(const Physics::Constraint::Velocities& Impulse)
 {
-	RigidBodyA->ApplyLinearImpulse({ Impulse[0], Impulse[1], Impulse[2] });
-	RigidBodyA->ApplyAngularImpulse({ Impulse[3], Impulse[4], Impulse[5] });
+	RigidBodyA->ApplyImpulse_Linear({ Impulse[0], Impulse[1], Impulse[2] });
+	RigidBodyA->ApplyImpulse_Angular({ Impulse[3], Impulse[4], Impulse[5] });
 
-	RigidBodyB->ApplyLinearImpulse({ Impulse[6], Impulse[7], Impulse[8] });
-	RigidBodyB->ApplyAngularImpulse({ Impulse[9], Impulse[10], Impulse[11] });
+	RigidBodyB->ApplyImpulse_Linear({ Impulse[6], Impulse[7], Impulse[8] });
+	RigidBodyB->ApplyImpulse_Angular({ Impulse[9], Impulse[10], Impulse[11] });
 }
 Physics::ConstraintAnchor& Physics::ConstraintAnchor::Init(const Physics::RigidBody* RbA, const Physics::RigidBody* RbB)
 {
@@ -118,7 +118,7 @@ Physics::ConstraintAnchorAxis& Physics::ConstraintAnchorAxis::Init(const Physics
 
 	LAxisA = RigidBodyA->ToLocalDir(WAxis);
 
-	InvInitRot = (RigidBodyA->Rotation.Inverse() * RigidBodyB->Rotation).Inverse();
+	InvInitRot = (RigidBodyA->GetRotation().Inverse() * RigidBodyB->GetRotation()).Inverse();
 
 	return *this;
 }
@@ -132,8 +132,8 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	const auto AB = WAnchorB - WAnchorA;
 	{
 		//!< それぞれの剛体における、重心からアンカー位置 (ワールド) へのベクトル
-		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
-		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
+		const auto RA = WAnchorA - RigidBodyA->GetCenterOfMass_World();
+		const auto RB = WAnchorB - RigidBodyB->GetCenterOfMass_World();
 
 		/*
 		* R_1, R_2 の距離がゼロとなる制約なので C = (R_2 - R_1).LengthSq() = Dot(R_2 - R_1, R_2 - R_1) = 0
@@ -167,12 +167,12 @@ void Physics::ConstraintDistance::PreSolve(const float DeltaSec)
 	}
 
 	//!< 事前計算しておく
-	JacobianT = Jacobian.Transpose();
-	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+	Jacobian_Transpose = Jacobian.Transpose();
+	J_IM_JT = Jacobian * GetInverseMassMatrix() * Jacobian_Transpose;
 
 #pragma region WARM_STARTING
 	//!< 前フレームの値を今フレームの計算前に適用することで、少ない繰返し回数で安定状態へ収束させる
-	ApplyImpulse(JacobianT * CachedLambda);
+	ApplyImpulse(Jacobian_Transpose * CachedLambda);
 #pragma endregion
 
 #pragma region BAUMGARTE_STABILIZATION
@@ -205,7 +205,7 @@ void Physics::ConstraintDistance::Solve()
 	//!< ガウスザイデル法で x (==\lambda) を求める
 	const auto Lambda = GaussSiedel(A, B);
 
-	ApplyImpulse(JacobianT * Lambda);
+	ApplyImpulse(Jacobian_Transpose * Lambda);
 
 #pragma region WARM_STARTING
 	//!< 次フレーム用に今回の力積の大きさを蓄積しておく (ウォームスタート)
@@ -316,8 +316,8 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	const auto WAnchorB = RigidBodyB->ToWorldPos(LAnchorB);
 	const auto AB = WAnchorB - WAnchorA;
 	{
-		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
-		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
+		const auto RA = WAnchorA - RigidBodyA->GetCenterOfMass_World();
+		const auto RB = WAnchorB - RigidBodyB->GetCenterOfMass_World();
 		//!< 距離コンストレイント
 		{
 			const auto J1 = -AB * 2.0f;
@@ -329,8 +329,8 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 	}
 	//!< 四元数コンストレイント
 	{
-		const auto& QA = RigidBodyA->Rotation;
-		const auto& QB = RigidBodyB->Rotation;
+		const auto& QA = RigidBodyA->GetRotation();
+		const auto& QB = RigidBodyB->GetRotation();
 		const auto InvQA = QA.Inverse();
 
 		const auto P = LinAlg::Mat4(LinAlg::Vec4::AxisX(), LinAlg::Vec4::AxisY(), LinAlg::Vec4::AxisZ(), LinAlg::Vec4::Zero());
@@ -361,10 +361,10 @@ void Physics::ConstraintHinge::PreSolve(const float DeltaSec)
 		}
 	}
 
-	JacobianT = Jacobian.Transpose();
-	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+	Jacobian_Transpose = Jacobian.Transpose();
+	J_IM_JT = Jacobian * GetInverseMassMatrix() * Jacobian_Transpose;
 
-	ApplyImpulse(JacobianT * CachedLambda);
+	ApplyImpulse(Jacobian_Transpose * CachedLambda);
 
 	constexpr auto Torelance = 0.01f;
 	const auto C = (std::max)((AB).Dot(AB) - Torelance, 0.0f);
@@ -378,7 +378,7 @@ void Physics::ConstraintHinge::Solve()
 
 	const auto Lambda = GaussSiedel(A, B);
 
-	ApplyImpulse(JacobianT * Lambda);
+	ApplyImpulse(Jacobian_Transpose * Lambda);
 
 	CachedLambda += Lambda;
 }
@@ -404,8 +404,8 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 
 	//!< 距離コンストレイント
 	{
-		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
-		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
+		const auto RA = WAnchorA - RigidBodyA->GetCenterOfMass_World();
+		const auto RB = WAnchorB - RigidBodyB->GetCenterOfMass_World();
 		{
 			const auto J1 = -AB * 2.0f;
 			const auto J2 = RA.Cross(J1);
@@ -417,8 +417,8 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 
 	//!< 四元数コンストレイント (角度制限付き)
 	{
-		const auto& QA = RigidBodyA->Rotation;
-		const auto& QB = RigidBodyB->Rotation;
+		const auto& QA = RigidBodyA->GetRotation();
+		const auto& QB = RigidBodyB->GetRotation();
 		const auto InvQA = QA.Inverse();
 
 		const auto P = LinAlg::Mat4(LinAlg::Vec4::AxisX(), LinAlg::Vec4::AxisY(), LinAlg::Vec4::AxisZ(), LinAlg::Vec4::Zero());
@@ -481,10 +481,10 @@ void Physics::ConstraintHingeLimited::PreSolve(const float DeltaSec)
 		}
 	}
 
-	JacobianT = Jacobian.Transpose();
-	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+	Jacobian_Transpose = Jacobian.Transpose();
+	J_IM_JT = Jacobian * GetInverseMassMatrix() * Jacobian_Transpose;
 
-	ApplyImpulse(JacobianT * CachedLambda);
+	ApplyImpulse(Jacobian_Transpose * CachedLambda);
 
 	constexpr auto Torelance = 0.01f;
 	const auto C = (std::max)((AB).Dot(AB) - Torelance, 0.0f);
@@ -508,7 +508,7 @@ void Physics::ConstraintHingeLimited::Solve()
 		}
 	}
 
-	ApplyImpulse(JacobianT * Lambda);
+	ApplyImpulse(Jacobian_Transpose * Lambda);
 
 	CachedLambda += Lambda;
 }
@@ -529,8 +529,8 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 	
 	//!< 距離コンストレイント
 	{
-		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
-		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
+		const auto RA = WAnchorA - RigidBodyA->GetCenterOfMass_World();
+		const auto RB = WAnchorB - RigidBodyB->GetCenterOfMass_World();
 
 		{
 			const auto J1 = -AB * 2.0f;
@@ -542,8 +542,8 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 	}
 	//!< 四元数コンストレイント
 	{
-		const auto& QA = RigidBodyA->Rotation;
-		const auto& QB = RigidBodyB->Rotation;
+		const auto& QA = RigidBodyA->GetRotation();
+		const auto& QB = RigidBodyB->GetRotation();
 		const auto InvQA = QA.Inverse();
 
 		const auto P = LinAlg::Mat4(LinAlg::Vec4::AxisX(), LinAlg::Vec4::AxisY(), LinAlg::Vec4::AxisZ(), LinAlg::Vec4::Zero());
@@ -561,10 +561,10 @@ void Physics::ConstraintBallSocket::PreSolve(const float DeltaSec)
 		}
 	}
 
-	JacobianT = Jacobian.Transpose();
-	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+	Jacobian_Transpose = Jacobian.Transpose();
+	J_IM_JT = Jacobian * GetInverseMassMatrix() * Jacobian_Transpose;
 
-	ApplyImpulse(JacobianT * CachedLambda);
+	ApplyImpulse(Jacobian_Transpose * CachedLambda);
 
 	constexpr auto Torelance = 0.01f;
 	const auto C = (std::max)((AB).Dot(AB) - Torelance, 0.0f);
@@ -578,7 +578,7 @@ void Physics::ConstraintBallSocket::Solve()
 
 	const auto Lambda = GaussSiedel(A, B);
 
-	ApplyImpulse(JacobianT * Lambda);
+	ApplyImpulse(Jacobian_Transpose * Lambda);
 
 	CachedLambda += Lambda;
 }
@@ -602,8 +602,8 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 
 	//!< 距離コンストレイント
 	{
-		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
-		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
+		const auto RA = WAnchorA - RigidBodyA->GetCenterOfMass_World();
+		const auto RB = WAnchorB - RigidBodyB->GetCenterOfMass_World();
 
 		{
 			const auto J1 = -AB * 2.0f;
@@ -616,8 +616,8 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 
 	//!< 四元数コンストレイント
 	{
-		const auto& QA = RigidBodyA->Rotation;
-		const auto& QB = RigidBodyB->Rotation;
+		const auto& QA = RigidBodyA->GetRotation();
+		const auto& QB = RigidBodyB->GetRotation();
 		const auto InvQA = QA.Inverse();
 
 		const auto P = LinAlg::Mat4(LinAlg::Vec4::AxisX(), LinAlg::Vec4::AxisY(), LinAlg::Vec4::AxisZ(), LinAlg::Vec4::Zero());
@@ -673,10 +673,10 @@ void Physics::ConstraintBallSocketLimited::PreSolve(const float DeltaSec)
 		}
 	}
 
-	JacobianT = Jacobian.Transpose();
-	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+	Jacobian_Transpose = Jacobian.Transpose();
+	J_IM_JT = Jacobian * GetInverseMassMatrix() * Jacobian_Transpose;
 
-	ApplyImpulse(JacobianT * CachedLambda);
+	ApplyImpulse(Jacobian_Transpose * CachedLambda);
 
 	constexpr auto Torelance = 0.01f;
 	const auto C = (std::max)((AB).Dot(AB) - Torelance, 0.0f);
@@ -702,7 +702,7 @@ void Physics::ConstraintBallSocketLimited::Solve()
 		}
 	}
 
-	ApplyImpulse(JacobianT * Lambda);
+	ApplyImpulse(Jacobian_Transpose * Lambda);
 
 	CachedLambda += Lambda;
 }
@@ -723,8 +723,8 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 
 	//!< 距離コンストレイント
 	{
-		const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
-		const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass();
+		const auto RA = WAnchorA - RigidBodyA->GetCenterOfMass_World();
+		const auto RB = WAnchorB - RigidBodyB->GetCenterOfMass_World();
 
 		const auto J1 = -AB * 2.0f;
 		const auto J2 = RA.Cross(J1);
@@ -735,8 +735,8 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 
 	//!< 四元数コンストレイント
 	{
-		const auto& QA = RigidBodyA->Rotation;
-		const auto& QB = RigidBodyB->Rotation;
+		const auto& QA = RigidBodyA->GetRotation();
+		const auto& QB = RigidBodyB->GetRotation();
 		const auto InvQA = QA.Inverse();
 		const auto QBInvInitRot = QB * InvInitRot;
 
@@ -775,8 +775,8 @@ void Physics::ConstraintMotor::PreSolve(const float DeltaSec)
 				Jacobian[3] = { XYZ(J1), XYZ(J2), XYZ(J3), XYZ(J4) };
 			}
 
-			JacobianT = Jacobian.Transpose();
-			J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+			Jacobian_Transpose = Jacobian.Transpose();
+			J_IM_JT = Jacobian * GetInverseMassMatrix() * Jacobian_Transpose;
 
 			//!< A ローカルでの相対回転
 			const auto RelRot = InvQA * QBInvInitRot;
@@ -815,27 +815,27 @@ void Physics::ConstraintMotor::Solve()
 
 	const auto Lambda = GaussSiedel(A, B);
 
-	ApplyImpulse(JacobianT * Lambda);
+	ApplyImpulse(Jacobian_Transpose * Lambda);
 }
 
 void Physics::ConstraintMoverUpDown::PreSolve(const float DeltaSec)
 {
 	//!< (ここでは) Y 軸方向に半径 4 のコサイン軌道
 	constexpr auto Radius = 4.0f;
-	RigidBodyA->LinearVelocity[1] = std::cosf(Timer) * Radius;
+	RigidBodyA->GetVelocity_Linear()[1] = std::cosf(Timer) * Radius;
 	Timer += DeltaSec;
 }
 void Physics::ConstraintMoverRotateX::PreSolve(const float DeltaSec) 
 {
-	RigidBodyA->AngularVelocity[0] = LinAlg::ToRadian(60.0f);
+	RigidBodyA->GetVelocity_Angular()[0] = LinAlg::ToRadian(60.0f);
 }
 void Physics::ConstraintMoverRotateY::PreSolve(const float DeltaSec)
 {
-	RigidBodyA->AngularVelocity[1] = LinAlg::ToRadian(60.0f);
+	RigidBodyA->GetVelocity_Angular()[1] = LinAlg::ToRadian(60.0f);
 }
 void Physics::ConstraintMoverRotateZ::PreSolve(const float DeltaSec)
 {
-	RigidBodyA->AngularVelocity[2] = LinAlg::ToRadian(60.0f);
+	RigidBodyA->GetVelocity_Angular()[2] = LinAlg::ToRadian(60.0f);
 }
 Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Collision::Contact& Ct)
 {
@@ -847,8 +847,8 @@ Physics::ConstraintPenetration& Physics::ConstraintPenetration::Init(const Colli
 	//!< A ローカル接触法線
 	LNormal = RigidBodyA->ToLocalDir(Ct.WNormal).Normalize();
 
-	Friction = RigidBodyA->Friction * RigidBodyB->Friction;
-	Mg = std::fabsf(Physics::RigidBody::Graivity.Y()) / (RigidBodyA->InvMass + RigidBodyB->InvMass);
+	Friction = RigidBodyA->GetFriction() * RigidBodyB->GetFriction();
+	Mg = std::fabsf(Physics::RigidBody::Graivity.Y()) / (RigidBodyA->GetMass_Inverse() + RigidBodyB->GetMass_Inverse());
 
 	return *this;
 }
@@ -860,8 +860,8 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 
 	//!< 法線をワールドスペースへ
 	const auto WNormal = RigidBodyA->ToWorldDir(LNormal);
-	const auto RA = WAnchorA - RigidBodyA->GetWorldCenterOfMass();
-	const auto RB = WAnchorB - RigidBodyB->GetWorldCenterOfMass(); 
+	const auto RA = WAnchorA - RigidBodyA->GetCenterOfMass_World();
+	const auto RB = WAnchorB - RigidBodyB->GetCenterOfMass_World(); 
 	{
 		/*
 		* C = N (R_2 - R_1) = 0 ... R_1, R_2 は A, B のワールドアンカー位置
@@ -915,10 +915,10 @@ void Physics::ConstraintPenetration::PreSolve(const float DeltaSec)
 		}
 	}
 
-	JacobianT = Jacobian.Transpose();
-	J_IM_JT = Jacobian * GetInverseMassMatrix() * JacobianT;
+	Jacobian_Transpose = Jacobian.Transpose();
+	J_IM_JT = Jacobian * GetInverseMassMatrix() * Jacobian_Transpose;
 
-	ApplyImpulse(JacobianT * CachedLambda);
+	ApplyImpulse(Jacobian_Transpose * CachedLambda);
 
 	constexpr auto Torelance = 0.02f;
 	const auto C = (std::min)(AB.Dot(WNormal) + Torelance, 0.0f);
@@ -947,7 +947,7 @@ void Physics::ConstraintPenetration::Solve()
 	}
 	Lambda = CachedLambda - Old;
 
-	ApplyImpulse(JacobianT * Lambda);
+	ApplyImpulse(Jacobian_Transpose * Lambda);
 }
 
 //!< 1 フレームのみの制約だとウォームスタートの恩恵が無い為、接触をキャッシュする

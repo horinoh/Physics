@@ -134,8 +134,8 @@ public:
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
 					auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 1.0f)).get();
-					Rb->Position = LinAlg::Vec3(static_cast<float>(x - n2) * Offset, Y, static_cast<float>(z - n2) * Offset);
-					Rb->Rotation = LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(90.0f));
+					Rb->GetPosition() = LinAlg::Vec3(static_cast<float>(x - n2) * Offset, Y, static_cast<float>(z - n2) * Offset);
+					Rb->GetRotation() = LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(90.0f));
 				}
 			}
 		}
@@ -153,9 +153,9 @@ public:
 			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeConvex>(ExpandedVertices)).get()->Init();
 
 			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
-			Rb->Position = LinAlg::Vec3::AxisY() * Y;
-			Rb->Rotation = LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(270.0f));
-			Rb->Elasticity = 0.99f;
+			Rb->GetPosition() = LinAlg::Vec3::AxisY() * Y;
+			Rb->GetRotation() = LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(270.0f));
+			Rb->SetElasticity(0.99f);
 		}
 	}
 
@@ -611,9 +611,9 @@ public:
 		if (nullptr != Scene) {
 			for (auto i = 0, i0 = 0, i1 = 0; i < std::size(Scene->RigidBodies); ++i) {
 				const auto Rb = Scene->RigidBodies[i].get();
-				const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
-				const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
-				const auto Scl = 0.0f == Rb->InvMass ? glm::scale(glm::mat4(1.0f), glm::vec3(FloorScale)) : glm::mat4(1.0f);
+				const auto Pos = glm::make_vec3(static_cast<float*>(Rb->GetPosition()));
+				const auto Rot = glm::make_quat(static_cast<float*>(Rb->GetRotation()));
+				const auto Scl = 0.0f == Rb->GetMass_Inverse() ? glm::scale(glm::mat4(1.0f), glm::vec3(FloorScale)) : glm::mat4(1.0f);
 				if (i0 < _countof(WorldBuffer.Instances0)) {
 					WorldBuffer.Instances0[i0++].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot) * Scl;
 				}

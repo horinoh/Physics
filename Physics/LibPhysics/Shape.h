@@ -21,7 +21,7 @@ namespace Physics
 			BOX,
 			CONVEX,
 		};
-		[[nodiscard]] virtual SHAPE_TYPE GetShapeType() const = 0;
+		[[nodiscard]] virtual SHAPE_TYPE GetType() const = 0;
 
 		[[nodiscard]] virtual Collision::AABB GetAABB(const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot) const = 0;
 		[[nodiscard]] static inline Collision::AABB GetAABB(std::span<const LinAlg::Vec3> Vertices, const LinAlg::Vec3& Pos, const LinAlg::Quat& Rot) {
@@ -85,12 +85,12 @@ namespace Physics
 
 		[[nodiscard]] const LinAlg::Vec3& GetCenterOfMass() const { return CenterOfMass; }
 		[[nodiscard]] const LinAlg::Mat3& GetInertiaTensor() const { return InertiaTensor; }
-		[[nodiscard]] const LinAlg::Mat3& GetInvInertiaTensor() const { return InvInertiaTensor; }
+		[[nodiscard]] const LinAlg::Mat3& GetInertiaTensor_Inverse() const { return InertiaTensor_Inverse; }
 
 	protected:
 		LinAlg::Vec3 CenterOfMass = LinAlg::Vec3::Zero();
 		LinAlg::Mat3 InertiaTensor = LinAlg::Mat3::Identity();
-		LinAlg::Mat3 InvInertiaTensor = LinAlg::Mat3::Identity();
+		LinAlg::Mat3 InertiaTensor_Inverse = LinAlg::Mat3::Identity();
 	};
 
 	class ShapeSphere : public Shape
@@ -104,11 +104,11 @@ namespace Physics
 
 		virtual Shape* Init() override {
 			InertiaTensor = CalcInertiaTensor();
-			InvInertiaTensor = InertiaTensor.Inverse();
+			InertiaTensor_Inverse = InertiaTensor.Inverse();
 			return this;
 		}
 
-		virtual SHAPE_TYPE GetShapeType() const override { return SHAPE_TYPE::SPHERE; }
+		virtual SHAPE_TYPE GetType() const override { return SHAPE_TYPE::SPHERE; }
 
 		/*
 		* 球の慣性テンソル
@@ -132,7 +132,10 @@ namespace Physics
 			return Pos + UDir * (Radius + Bias);
 		}
 
-	public:
+		[[nodiscard]] inline float GetRadius() const { return Radius; }
+		inline void SetRadius(const float R) { Radius = R; }
+
+	protected:
 		float Radius = 1.0f;
 	};
 
@@ -152,12 +155,13 @@ namespace Physics
 		}
 
 	public:
-		const std::vector<LinAlg::Vec3>& GetVertices() const { return Vertices; }
-		const std::vector<Collision::TriInds>& GetIndices() const { return Indices; }
+		[[nodiscard]] inline const std::vector<LinAlg::Vec3>& GetVertices() const { return Vertices; }
+		[[nodiscard]] inline const std::vector<Collision::TriInds>& GetIndices() const { return Indices; }
 
 	protected:
 		std::vector<LinAlg::Vec3> Vertices;
-		//!< 描画しない場合は不要、ここでは一応持たせておく
+
+		//!< 凸包を描画しない場合は不要 (一応持たせておく事にする)
 		std::vector<Collision::TriInds> Indices;
 	};
 	class ShapeBox : public ShapeConvexBase
@@ -198,11 +202,11 @@ namespace Physics
 
 		virtual Shape* Init() override {
 			InertiaTensor = CalcInertiaTensor() + GetParallelAxisTheoremTensor();
-			InvInertiaTensor = InertiaTensor.Inverse();
+			InertiaTensor_Inverse = InertiaTensor.Inverse();
 			return this;
 		}
 
-		virtual SHAPE_TYPE GetShapeType() const override { return SHAPE_TYPE::BOX; }
+		virtual SHAPE_TYPE GetType() const override { return SHAPE_TYPE::BOX; }
 
 		LinAlg::Vec3 CalcExtent() const {
 			std::vector<float> Xs, Ys, Zs;
@@ -251,11 +255,11 @@ namespace Physics
 		virtual Shape* Init() override {
 			CenterOfMass = CalcCenterOfMass();
 			InertiaTensor = CalcInertiaTensor();
-			InvInertiaTensor = InertiaTensor.Inverse();
+			InertiaTensor_Inverse = InertiaTensor.Inverse();
 			return this;
 		}
 
-		virtual SHAPE_TYPE GetShapeType() const override { return SHAPE_TYPE::CONVEX; }
+		virtual SHAPE_TYPE GetType() const override { return SHAPE_TYPE::CONVEX; }
 
 		virtual LinAlg::Vec3 CalcCenterOfMass() const override;
 		virtual LinAlg::Mat3 CalcInertiaTensor() const override;

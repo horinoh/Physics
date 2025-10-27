@@ -130,7 +130,7 @@ public:
 				for (auto x = 0; x < n; ++x) {
 					for (auto z = 0; z < n; ++z) {
 						auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 1.0f)).get();
-						Rb->Position = LinAlg::Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y + static_cast<float>(y) * 1.5f, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
+						Rb->GetPosition() = LinAlg::Vec3(static_cast<float>(x - n2) * Radius * 2.0f * 1.5f, Y + static_cast<float>(y) * 1.5f, static_cast<float>(z - n2) * Radius * 2.0f * 1.5f);
 					}
 				}
 			}
@@ -144,8 +144,8 @@ public:
 			Scene->Shapes.emplace_back(std::make_unique<Physics::ShapeBox>(Radius * 2.0f)).get()->Init();
 
 			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
-			Rb->Position = LinAlg::Vec3::AxisY() * Y;
-			Rb->Elasticity = 0.99f;
+			Rb->GetPosition() = LinAlg::Vec3::AxisY() * Y;
+			Rb->SetElasticity(0.99f);
 		}
 	}
 	virtual void OnCreate(HWND hWnd, HINSTANCE hInstance, LPCWSTR Title) override {
@@ -414,10 +414,10 @@ public:
 			for (auto i = 0; i < std::size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances)) {
 					const auto Rb = Scene->RigidBodies[i].get();
-					if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::BOX) {
-						const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Position)));
-						const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->Rotation)));
-						const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->CalcExtent() * 0.5f;
+					if (Rb->GetShape()->GetType() == Physics::Shape::SHAPE_TYPE::BOX) {
+						const auto Pos = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->GetPosition())));
+						const auto Rot = DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>(static_cast<const float*>(Rb->GetRotation())));
+						const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->GetShape())->CalcExtent() * 0.5f;
 
 						DirectX::XMStoreFloat4x4(&WorldBuffer.Instances[i].World, DirectX::XMMatrixScaling(Scl.X(), Scl.Y(), Scl.Z()) * DirectX::XMMatrixRotationQuaternion(Rot) * DirectX::XMMatrixTranslationFromVector(Pos));
 					}

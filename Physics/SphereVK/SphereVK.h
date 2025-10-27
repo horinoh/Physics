@@ -133,7 +133,7 @@ public:
 				for (auto y = 0; y < ny; ++y) {
 					for (auto z = 0; z < n; ++z) {
 						auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 1.0f)).get();
-						Rb->Position = LinAlg::Vec3(static_cast<float>(x - n2) * Offset, Y + y * Offset, static_cast<float>(z - n2) * Offset);
+						Rb->GetPosition() = LinAlg::Vec3(static_cast<float>(x - n2) * Offset, Y + y * Offset, static_cast<float>(z - n2) * Offset);
 					}
 				}
 			}
@@ -151,8 +151,8 @@ public:
 			for (auto x = 0; x < n; ++x) {
 				for (auto z = 0; z < n; ++z) {
 					auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
-					Rb->Position = LinAlg::Vec3(static_cast<float>(x - n2) * Radius * 0.25f, Y, static_cast<float>(z - n2) * Radius * 0.25f);
-					Rb->Elasticity = 0.99f;
+					Rb->GetPosition() = LinAlg::Vec3(static_cast<float>(x - n2) * Radius * 0.25f, Y, static_cast<float>(z - n2) * Radius * 0.25f);
+					Rb->SetElasticity(0.99f);
 				}
 			}
 		}
@@ -428,10 +428,10 @@ public:
 		if (nullptr != Scene) {
 			for (auto i = 0; i < std::size(Scene->RigidBodies); ++i) {
 				const auto Rb = Scene->RigidBodies[i].get();
-				const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
-				const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
-				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE) {
-					const auto Scl = static_cast<const Physics::ShapeSphere*>(Rb->Shape)->Radius;
+				const auto Pos = glm::make_vec3(static_cast<float*>(Rb->GetPosition()));
+				const auto Rot = glm::make_quat(static_cast<float*>(Rb->GetRotation()));
+				if (Rb->GetShape()->GetType() == Physics::Shape::SHAPE_TYPE::SPHERE) {
+					const auto Scl = static_cast<const Physics::ShapeSphere*>(Rb->GetShape())->GetRadius();
 					if (i < _countof(WorldBuffer.Instances)) {
 						WorldBuffer.Instances[i].World = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
 					}

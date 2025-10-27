@@ -44,9 +44,9 @@ void Physics::Scene::BroadPhase(const float DeltaSec, std::vector<CollidablePair
 		for (auto i = 0; i < RbCount; ++i) {
 			const auto Rb = RigidBodies[i].get();
 
-			auto Aabb = Rb->Shape->GetAABB(Rb->Position, Rb->Rotation);
+			auto Aabb = Rb->GetShape()->GetAABB(Rb->GetPosition(), Rb->GetRotation());
 			//!< デルタ時間に移動する分だけ AABB を拡張する
-			const auto DVel = Rb->LinearVelocity * DeltaSec;
+			const auto DVel = Rb->GetVelocity_Linear() * DeltaSec;
 			Aabb.Expand(Aabb.Min + DVel);
 			Aabb.Expand(Aabb.Max + DVel);
 
@@ -95,14 +95,14 @@ void Physics::Scene::NarrowPhase(const float DeltaSec, const std::vector<Collida
 		const auto RbA = RigidBodies[i.first].get();
 		const auto RbB = RigidBodies[i.second].get();
 		
-		if (0.0f == RbA->InvMass && 0.0f == RbB->InvMass) {
+		if (0.0f == RbA->GetMass_Inverse() && 0.0f == RbB->GetMass_Inverse()) {
 			continue;
 		}
 
 		Collision::Contact Ct;
 #if true
 		//!< 球同士は GJK ではなく、カスタム衝突判定
-		if (RbA->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE && RbB->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE) {
+		if (RbA->GetShape()->GetType() == Physics::Shape::SHAPE_TYPE::SPHERE && RbB->GetShape()->GetType() == Physics::Shape::SHAPE_TYPE::SPHERE) {
 			if (Collision::Intersection::SphereSphere(RbA, RbB, DeltaSec, Ct)) {
 				Contacts.emplace_back(Ct);
 			}	
@@ -168,13 +168,13 @@ void Physics::Scene::SolvePenetration(std::span<Collision::Contact> Contacts)
 	for (const auto& i : Contacts) {
 		//!< 非 GJK の場合のみここで貫通解決を行う
 		if (0.0f == i.TimeOfImpact) {
-			const auto TotalInvMass = i.RigidBodyA->InvMass + i.RigidBodyB->InvMass;
+			const auto TotalInvMass = i.RigidBodyA->GetMass_Inverse() + i.RigidBodyB->GetMass_Inverse();
 			const auto DistAB = i.WPointB - i.WPointA;
-			if (0.0f != i.RigidBodyA->InvMass) {
-				i.RigidBodyA->Position += DistAB * (i.RigidBodyA->InvMass / TotalInvMass);
+			if (0.0f != i.RigidBodyA->GetMass_Inverse()) {
+				i.RigidBodyA->GetPosition() += DistAB * (i.RigidBodyA->GetMass_Inverse() / TotalInvMass);
 			}
-			if (0.0f != i.RigidBodyB->InvMass) {
-				i.RigidBodyB->Position -= DistAB * (i.RigidBodyB->InvMass / TotalInvMass);
+			if (0.0f != i.RigidBodyB->GetMass_Inverse()) {
+				i.RigidBodyB->GetPosition() -= DistAB * (i.RigidBodyB->GetMass_Inverse() / TotalInvMass);
 			}
 		}
 	}
@@ -246,6 +246,6 @@ void Physics::Scene::Update(const float DeltaSec)
 
 	//!< 奈落判定になったら破棄
 	constexpr auto Abyss = -100.0f;
-	const auto Range = std::ranges::remove_if(RigidBodies, [](const auto& rhs) { return rhs->Position.Y() < Abyss; });
+	const auto Range = std::ranges::remove_if(RigidBodies, [](const auto& rhs) { return rhs->GetPosition().Y() < Abyss; });
 	RigidBodies.erase(std::cbegin(Range), std::cend(Range));
 }

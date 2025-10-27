@@ -15,15 +15,18 @@ namespace Physics
 
 namespace Collision
 {
-	//!< SignedVolue : 射影が最大となる軸や平面を見つけ、それに対し原点を射影して内部にあれば重心を返す
+	//!< 原点をシンプレクス上へ射影し、重心パラメータを返す
 	[[nodiscard]] LinAlg::Vec2 SignedVolume(const LinAlg::Vec3& A, const LinAlg::Vec3& B);
 	[[nodiscard]] LinAlg::Vec3 SignedVolume(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C);
 	[[nodiscard]] LinAlg::Vec4 SignedVolume(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C, const LinAlg::Vec3& D);
 	
 	//!< ABC 上での 原点 の重心座標
-	[[nodiscard]] bool Barycentric(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C, LinAlg::Vec3& Lambda);
+	[[nodiscard]] bool Barycentric(const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C,
+		LinAlg::Vec3& Lambda);
 	//!< ABC 上での Pt の重心座標
-	[[nodiscard]] bool Barycentric(const LinAlg::Vec3& Pt, const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C, LinAlg::Vec3& Lambda);
+	[[nodiscard]] bool Barycentric(const LinAlg::Vec3& Pt, 
+		const LinAlg::Vec3& A, const LinAlg::Vec3& B, const LinAlg::Vec3& C, 
+		LinAlg::Vec3& Lambda);
 
 	namespace SupportPoint {
 		//!< サポートポイント : 特定の方向に最も遠い点
@@ -47,8 +50,9 @@ namespace Collision
 		[[nodiscard]] static Points Get(const Physics::RigidBody* RbA, 
 			const Physics::RigidBody* RbB, 
 			const LinAlg::Vec3& UDir, const float Bias);
-		//!< n-シンプレックスが原点を含むかどうかを返す
-		//!< 過程で原点のシンプレックス上での重心座標、原点へのベクトルを求めている
+
+		//!< シンプレクス上での原点の重心座標と、原点へ向かう方向を求める
+		//!< 原点を含む (方向ベクトルがほぼゼロ) かどうかを返り値として返す
 		static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<Points>& Sps,
 			LinAlg::Vec3& Dir, LinAlg::Vec4& Lambda)
 		{

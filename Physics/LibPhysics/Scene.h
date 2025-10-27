@@ -38,14 +38,12 @@ namespace Physics
 		virtual void SolvePenetration(std::span<Collision::Contact> Contacts);
 #pragma endregion
 
-		//virtual void ApplyImpulse(const Collision::Contact& Ct);
-
 		virtual void Update(const float DeltaSec);
 
 		std::vector<std::unique_ptr<Physics::Shape>> Shapes;
 		std::vector<std::unique_ptr<Physics::RigidBody>> RigidBodies;
 
-		// 静的なコンストレイント (距離、ヒンジ、...)
+		// 静的なコンストレイント (距離、ヒンジ、等...)
 		std::vector<std::unique_ptr<Physics::ConstraintBase>> Constraints;
 		// 動的なコンストレイント (貫通)
 		Physics::ManifoldCollector Manifolds;

@@ -128,13 +128,13 @@ public:
 				constexpr auto JntCount = 5;
 
 				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Sp, 0.0f)).get();
-				RbA->Position = JntRootPos;
+				RbA->GetPosition() = JntRootPos;
 
 				for (auto i = 0; i < JntCount; ++i) {
 					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Sp, 1.0f)).get();
-					RbB->Position = RbA->Position + LinAlg::Vec3::AxisX() * JntLen;
+					RbB->GetPosition() = RbA->GetPosition() + LinAlg::Vec3::AxisX() * JntLen;
 
-					Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintDistance>(RbA, RbB, RbA->Position));
+					Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintDistance>(RbA, RbB, RbA->GetPosition()));
 					RbA = RbB;
 				}
 			}
@@ -143,13 +143,13 @@ public:
 				const auto Pos = LinAlg::Vec3(0.0f, -6.0f, 0.0f);
 
 				auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 0.0f)).get();
-				Rb->Position = Pos;
+				Rb->GetPosition() = Pos;
 
 				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverUpDown>(Rb));
 				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverRotateY>(Rb));
 
 				Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
-				Rb->Position = Pos + LinAlg::Vec3::AxisY() * 5.2f;
+				Rb->GetPosition() = Pos + LinAlg::Vec3::AxisY() * 5.2f;
 			}
 			//!< ヒンジコンストレイント (右)
 			{
@@ -158,13 +158,13 @@ public:
 				constexpr auto JntCount = 5;
 
 				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 0.0f)).get();
-				RbA->Position = JntRootPos;
+				RbA->GetPosition() = JntRootPos;
 
 				for (auto i = 0; i < JntCount; ++i) {
 					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
-					RbB->Position = RbA->Position + LinAlg::Vec3::AxisZ() * JntLen;
+					RbB->GetPosition() = RbA->GetPosition() + LinAlg::Vec3::AxisZ() * JntLen;
 
-					Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintHinge>(RbA, RbB, RbA->Position, LinAlg::Vec3::AxisX()));
+					Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintHinge>(RbA, RbB, RbA->GetPosition(), LinAlg::Vec3::AxisX()));
 					RbA = RbB;
 				}
 			}
@@ -174,14 +174,14 @@ public:
 				const auto Pos = LinAlg::Vec3(7.5f, -5.0f, 0.0f);
 
 				auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 0.0f)).get();
-				Rb->Position = Pos;
+				Rb->GetPosition() = Pos;
 				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverRotateZ>(Rb));
 
 				Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 0.0f)).get();
-				Rb->Position = Pos - LinAlg::Vec3::AxisZ() + LinAlg::Vec3::AxisY() * 0.0f;
+				Rb->GetPosition() = Pos - LinAlg::Vec3::AxisZ() + LinAlg::Vec3::AxisY() * 0.0f;
 				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverRotateZ>(Rb));
 				Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 0.0f)).get();
-				Rb->Position = Pos + LinAlg::Vec3::AxisZ() + LinAlg::Vec3::AxisY() * 0.0f;
+				Rb->GetPosition() = Pos + LinAlg::Vec3::AxisZ() + LinAlg::Vec3::AxisY() * 0.0f;
 				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMoverRotateZ>(Rb));
 
 				constexpr auto Div = 16;
@@ -189,18 +189,18 @@ public:
 				constexpr auto DRadian = std::numbers::pi_v<float> * 2.0f / Div;
 
 				auto Rb0 = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
-				Rb0->Position = Pos + LinAlg::Vec3(Radius * std::cosf(0.0f), Radius * std::sin(0.0f), 0.0f);
+				Rb0->GetPosition() = Pos + LinAlg::Vec3(Radius * std::cosf(0.0f), Radius * std::sin(0.0f), 0.0f);
 				auto RbA = Rb0;
 				for(auto i = 1; i < Div; ++i) {
 					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
 					const auto Rad = DRadian * i;
-					RbB->Position = Pos + LinAlg::Vec3(Radius * std::cosf(Rad), Radius * std::sin(Rad), 0.0f);
+					RbB->GetPosition() = Pos + LinAlg::Vec3(Radius * std::cosf(Rad), Radius * std::sin(Rad), 0.0f);
 					
-					const auto Anchor = (RbA->Position + RbB->Position) * 0.5f;
+					const auto Anchor = (RbA->GetPosition() + RbB->GetPosition()) * 0.5f;
 					Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintDistance>(RbA, RbB, Anchor));
 					RbA = RbB;
 				}
-				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintDistance>(RbA, Rb0, RbA->Position));
+				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintDistance>(RbA, Rb0, RbA->GetPosition()));
 			}
 #endif
 			//!< 角度制限ヒンジコンストレイント (左)
@@ -210,13 +210,13 @@ public:
 				constexpr auto JntCount = 5;
 
 				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 0.0f)).get();
-				RbA->Position = JntRootPos;
+				RbA->GetPosition() = JntRootPos;
 
 				for (auto i = 0; i < JntCount; ++i) {
 					auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
-					RbB->Position = RbA->Position + LinAlg::Vec3::AxisX() * JntLen;
+					RbB->GetPosition() = RbA->GetPosition() + LinAlg::Vec3::AxisX() * JntLen;
 
-					Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintHingeLimited>(RbA, RbB, RbA->Position, LinAlg::Vec3::AxisZ()));
+					Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintHingeLimited>(RbA, RbB, RbA->GetPosition(), LinAlg::Vec3::AxisZ()));
 					RbA = RbB;
 				}
 			}
@@ -225,12 +225,12 @@ public:
 				const auto Pos = LinAlg::Vec3(15.0f, 6.0f, 0.0f);
 
 				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Sp, 0.0f)).get();
-				RbA->Position = Pos;
+				RbA->GetPosition() = Pos;
 
 				auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
-				RbB->Position = Pos + LinAlg::Vec3::AxisX() * 1.2f;
+				RbB->GetPosition() = Pos + LinAlg::Vec3::AxisX() * 1.2f;
 
-				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintBallSocket>(RbA, RbB, RbA->Position, LinAlg::Vec3::AxisY()));
+				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintBallSocket>(RbA, RbB, RbA->GetPosition(), LinAlg::Vec3::AxisY()));
 				//Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintBallSocketLimited>(RbA, RbB, RbA->Position, LinAlg::Vec3::AxisY(), 135.0f, 135.0f));
 			}
 			//!< モーターコンストレイント (最左)
@@ -238,12 +238,12 @@ public:
 				const auto Pos = LinAlg::Vec3(-15.0f, 6.0f, 0.0f);
 
 				auto RbA = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Sp, 0.0f)).get();
-				RbA->Position = Pos;
+				RbA->GetPosition() = Pos;
 
 				auto RbB = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Box, 1.0f)).get();
-				RbB->Position = Pos - LinAlg::Vec3::AxisY() * 1.2f;
+				RbB->GetPosition() = Pos - LinAlg::Vec3::AxisY() * 1.2f;
 
-				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMotor>(RbA, RbB, RbA->Position, LinAlg::Vec3::AxisY(), 2.0f));
+				Scene->Constraints.emplace_back(std::make_unique<Physics::ConstraintMotor>(RbA, RbB, RbA->GetPosition(), LinAlg::Vec3::AxisY(), 2.0f));
 			}
 		}
 	}
@@ -575,16 +575,16 @@ public:
 		if (nullptr != Scene) {
 			for (auto i = 0, i0 = 0, i1 = 0; i < std::size(Scene->RigidBodies); ++i) {
 				const auto Rb = Scene->RigidBodies[i].get();
-				const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
-				const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
-				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::BOX) {
-					const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->Shape)->CalcExtent() * 0.5f;
+				const auto Pos = glm::make_vec3(static_cast<float*>(Rb->GetPosition()));
+				const auto Rot = glm::make_quat(static_cast<float*>(Rb->GetRotation()));
+				if (Rb->GetShape()->GetType() == Physics::Shape::SHAPE_TYPE::BOX) {
+					const auto Scl = static_cast<const Physics::ShapeBox*>(Rb->GetShape())->CalcExtent() * 0.5f;
 					if (i0 < _countof(WorldBuffer.Instances0)) {
 						WorldBuffer.Instances0[i0++].World = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl.X(), Scl.Y(), Scl.Z()));
 					}
 				}
-				if (Rb->Shape->GetShapeType() == Physics::Shape::SHAPE_TYPE::SPHERE) {
-					const auto Scl = static_cast<const Physics::ShapeSphere*>(Rb->Shape)->Radius;
+				if (Rb->GetShape()->GetType() == Physics::Shape::SHAPE_TYPE::SPHERE) {
+					const auto Scl = static_cast<const Physics::ShapeSphere*>(Rb->GetShape())->GetRadius();
 					if (i1 < _countof(WorldBuffer.Instances1)) {
 						WorldBuffer.Instances1[i1++].World = glm::scale(glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot), glm::vec3(Scl));
 					}

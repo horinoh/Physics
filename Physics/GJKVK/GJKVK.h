@@ -186,12 +186,12 @@ public:
 			if (0 < std::size(Scene->RigidBodies)) {
 				const auto Rb = Scene->RigidBodies[0].get();
 
-				Rb->Position = LinAlg::Vec3(
-					(std::clamp)(Rb->Position.X() + X, -5.0f, 5.0f),
-					(std::clamp)(Rb->Position.Y() + Y, -5.0f, 5.0f),
-					(std::clamp)(Rb->Position.Z() + Z, -5.0f, 5.0f)
+				Rb->GetPosition() = LinAlg::Vec3(
+					(std::clamp)(Rb->GetPosition().X() + X, -5.0f, 5.0f),
+					(std::clamp)(Rb->GetPosition().Y() + Y, -5.0f, 5.0f),
+					(std::clamp)(Rb->GetPosition().Z() + Z, -5.0f, 5.0f)
 				);
-				Rb->Rotation = LinAlg::Quat(LinAlg::Vec3::AxisY(), LinAlg::ToRadian(RotY)) * LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(RotX));
+				Rb->GetRotation() = LinAlg::Quat(LinAlg::Vec3::AxisY(), LinAlg::ToRadian(RotY)) * LinAlg::Quat(LinAlg::Vec3::AxisX(), LinAlg::ToRadian(RotX));
 			}
 		}
 
@@ -237,8 +237,8 @@ public:
 
 		for (auto i = 0; i < _countof(WorldBuffer.Instances); ++i) {
 			auto Rb = Scene->RigidBodies.emplace_back(std::make_unique<Physics::RigidBody>(Scene->Shapes.back().get(), 0.0f)).get();
-			Rb->Position = 0 == i ? LinAlg::Vec3::AxisZ() * 5.0f : LinAlg::Vec3::Zero();
-			Rb->Rotation = LinAlg::Quat::Identity();
+			Rb->GetPosition() = 0 == i ? LinAlg::Vec3::AxisZ() * 5.0f : LinAlg::Vec3::Zero();
+			Rb->GetRotation() = LinAlg::Quat::Identity();
 		}
 
 		const auto& CB = CommandBuffers[0];
@@ -599,8 +599,8 @@ public:
 			for (auto i = 0; i < std::size(Scene->RigidBodies); ++i) {
 				if (i < _countof(WorldBuffer.Instances)) {
 					const auto Rb = Scene->RigidBodies[i].get();
-					const auto Pos = glm::make_vec3(static_cast<float*>(Rb->Position));
-					const auto Rot = glm::make_quat(static_cast<float*>(Rb->Rotation));
+					const auto Pos = glm::make_vec3(static_cast<float*>(Rb->GetPosition()));
+					const auto Rot = glm::make_quat(static_cast<float*>(Rb->GetRotation()));
 
 					WorldBuffer.Instances[i].World = glm::translate(glm::mat4(1.0f), Pos) * glm::mat4_cast(Rot);
 				}

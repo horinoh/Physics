@@ -281,10 +281,10 @@ void Collision::Closest::SegmentSegment(const LinAlg::Vec3& SegA, const LinAlg::
 	const Physics::RigidBody* RbB,
 	const float DeltaSec, ContactBase& Ct) 
 {
-	const auto SpA = static_cast<const Physics::ShapeSphere*>(RbA->Shape);
-	const auto SpB = static_cast<const Physics::ShapeSphere*>(RbB->Shape);
+	const auto SpA = static_cast<const Physics::ShapeSphere*>(RbA->GetShape());
+	const auto SpB = static_cast<const Physics::ShapeSphere*>(RbB->GetShape());
 	//!< 速度はデルタ時間のものを渡すこと
-	const auto T = Intersection::SphereShpere(SpA->Radius, SpB->Radius, RbA->Position, RbB->Position, RbA->LinearVelocity * DeltaSec, RbB->LinearVelocity * DeltaSec);
+	const auto T = Intersection::SphereShpere(SpA->GetRadius(), SpB->GetRadius(), RbA->GetPosition(), RbB->GetPosition(), RbA->GetVelocity_Linear() * DeltaSec, RbB->GetVelocity_Linear() * DeltaSec);
 	if (T != std::nullopt) {
 		//!< 衝突剛体を覚えておく
 		Ct.RigidBodyA = const_cast<Physics::RigidBody*>(RbA);
@@ -293,15 +293,15 @@ void Collision::Closest::SegmentSegment(const LinAlg::Vec3& SegA, const LinAlg::
 		Ct.TimeOfImpact = T.value() * DeltaSec;
 
 		//!< 衝突時刻の(中心)位置
-		const auto CPosA = RbA->Position + RbA->LinearVelocity * Ct.TimeOfImpact;
-		const auto CPosB = RbB->Position + RbB->LinearVelocity * Ct.TimeOfImpact;
+		const auto CPosA = RbA->GetPosition() + RbA->GetVelocity_Linear() * Ct.TimeOfImpact;
+		const auto CPosB = RbB->GetPosition() + RbB->GetVelocity_Linear() * Ct.TimeOfImpact;
 
 		//!< 法線 A -> B
 		Ct.WNormal = (CPosB - CPosA).Normalize();
 
 		//!< 衝突点 (半径の分オフセット)
-		Ct.WPointA = CPosA + Ct.WNormal * SpA->Radius;
-		Ct.WPointB = CPosB - Ct.WNormal * SpB->Radius;
+		Ct.WPointA = CPosA + Ct.WNormal * SpA->GetRadius();
+		Ct.WPointB = CPosB - Ct.WNormal * SpB->GetRadius();
 
 		//!< 衝突点のローカル座標 (球では不要なので ContactBase で十分)
 		//Ct.CalcLocal();		
@@ -361,8 +361,8 @@ bool Collision::Intersection::ConservativeAdvance(const Physics::RigidBody* RbA,
 		//!< A -> B 方向
 		const auto Dir = AB / SepDist;
 		//!< A の相対速度、角速度
-		const auto LVel = (WRbA.LinearVelocity - WRbB.LinearVelocity).Dot(Dir);
-		const auto AVel = WRbA.Shape->GetFastestRotatingPointSpeed(WRbA.AngularVelocity, Dir) - WRbB.Shape->GetFastestRotatingPointSpeed(WRbB.AngularVelocity, Dir);
+		const auto LVel = (WRbA.GetVelocity_Linear() - WRbB.GetVelocity_Linear()).Dot(Dir);
+		const auto AVel = WRbA.GetShape()->GetFastestRotatingPointSpeed(WRbA.GetVelocity_Angular(), Dir) - WRbB.GetShape()->GetFastestRotatingPointSpeed(WRbB.GetVelocity_Angular(), Dir);
 		const auto OrthoSpeed = LVel + AVel;
 		if (OrthoSpeed <= 0.0f) {
 			//!< 近づいていない
