@@ -9,3 +9,7 @@
     ~~~
 - リンカエラー 4099 が出る場合、(#pragma では回避できない) ので以下のようにする
     - Configuration Properties - Linker - CommandLine - AdditionalOptions - /ignore:4099
+
+<!--
+## [ドキュメント](https://github.com/horinoh/Physics/tree/master/Document)
+-->
