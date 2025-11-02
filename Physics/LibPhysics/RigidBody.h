@@ -41,16 +41,16 @@ namespace Physics
 		}
 		void ApplyImpulse_Linear(const LinAlg::Vec3& Impulse) {
 			if (0.0f != Mass_Inverse) {
-				//!< J = m v より v = J / m
+				//!< $dv = \frac{J}{ms}$ 
 				Velocity_Linear += Impulse * Mass_Inverse;
 			}
 		}
 		void ApplyImpulse_Angular(const LinAlg::Vec3& Impulse) {
 			if (0.0f != Mass_Inverse) {
-				//!< J = I \omega より \omega = I^-1 J
+				//!< $d\omega = I^{-1} \cdot \vec{J}$
 				Velocity_Angular += GetInertiaTensor_Inverse_World() * Impulse;
 
-				//!< 角速度に限界値を設ける (通常パフォーマンス的理由による)
+				//!< 角速度に限界値を設ける (パフォーマンス的理由)
 				constexpr auto Limit = 30.0f;
 				if (Velocity_Angular.LengthSq() > Limit * Limit) {
 					Velocity_Angular.Adjust(Limit);
@@ -62,7 +62,7 @@ namespace Physics
 			if (0.0f != Mass_Inverse) {
 				ApplyImpulse_Linear(Impulse);
 
-				//!< 角力積 J_ang = Radius \cross J
+				//!< $\vec{J}_{angular} = \vec{r} \times \vec{J}_{linear}$
 				const auto Radius = ImpactPoint - GetCenterOfMass_World();
 				ApplyImpulse_Angular(Radius.Cross(Impulse));
 			}

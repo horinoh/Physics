@@ -40,8 +40,8 @@ void Physics::RigidBody::ApplyImpulse(const Collision::Contact& Ct)
 			//!< v = v_b - v_a
 			//!< m = (m_a^-1 + m_b^-1)
 			//!< n = –@üƒxƒNƒgƒ‹(’e«‚Ìê‡), ÚüƒxƒNƒgƒ‹(–€ŽC‚Ìê‡)
-			//!< J_a = (I_a^-1 r_a \cross n) \cross r_a
-			//!< J_b = (I_b^-1 r_b \cross n) \cross r_b
+			//!< J_a = (I_a^{-1} r_a \times n) \times r_a
+			//!< J_b = (I_b^{-1} r_b \times n) \times r_b
 			//!< ‚Æ‚·‚é‚Æ
 			//!< J = \frac{c v}{m + (J_a + J_b) n}
 			auto Apply = [&](const auto& N, const auto& Vel, const float Coef) {
@@ -83,8 +83,9 @@ void Physics::RigidBody::Update(const float DeltaSec)
 
 	//!< (Šp‘¬“x‚É‚æ‚é) ˆÊ’uA‰ñ“]‚ÌXV
 	{
-		//!< ƒgƒ‹ƒN \tau = \omega \cross (I \omega) = I \alpha ‚æ‚è
-		//!< Šp‰Á‘¬“x \alpha = I^-1 (\omega \cross (I \omega))
+		//!< ‰ñ“]‚µ‚Ä‚¢‚é•¨‘Ì‚Í“à•”ƒgƒ‹ƒN‚ðŽ‚Â $\vec{\tau} = \vec{\omega} \times I \cdot \vec{\omega}$
+		//!< $\vec{\tau} = I \cdot \vec{\alpha}$ ‚æ‚è
+		//!< ‰ñ“]•¨‘Ì‚ÌŠp‰Á‘¬“x‚Í $\vec{\alpha} = I^{-1} \cdot (\vec{\omega} \times I \cdot \vec{\omega})$
 		const auto I_Inv = GetInertiaTensor_Inverse_World();
 		const auto I = GetInertiaTensor_World();
 		const auto AngAccel = I_Inv * (Velocity_Angular.Cross(I * Velocity_Angular));
@@ -96,7 +97,7 @@ void Physics::RigidBody::Update(const float DeltaSec)
 		const auto DeltaVel = Velocity_Angular * DeltaSec;
 		const auto DeltaQuat = LinAlg::Quat(DeltaVel, DeltaVel.Length());
 		
-		//!< ‰ñ“]‚ÌXV q^' = dq * q
+		//!< ‰ñ“] (ŽlŒ³”) ‚ÌXV‚ÍæŽZ $q^' = dq q$
 		Rotation = (DeltaQuat * Rotation).Normalize();
 
 		//!< (‰ñ“]‚É‚æ‚é) ˆÊ’u‚ÌXV
