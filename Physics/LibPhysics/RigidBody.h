@@ -41,13 +41,13 @@ namespace Physics
 		}
 		void ApplyImpulse_Linear(const LinAlg::Vec3& Impulse) {
 			if (0.0f != Mass_Inverse) {
-				//!< $dv = \frac{J}{ms}$ 
+				//!< dv = \frac{J}{ms}
 				Velocity_Linear += Impulse * Mass_Inverse;
 			}
 		}
 		void ApplyImpulse_Angular(const LinAlg::Vec3& Impulse) {
 			if (0.0f != Mass_Inverse) {
-				//!< $d\omega = I^{-1} \cdot \vec{J}$
+				//!< d\omega = I^{-1} \cdot \vec{J}
 				Velocity_Angular += GetInertiaTensor_Inverse_World() * Impulse;
 
 				//!< 角速度に限界値を設ける (パフォーマンス的理由)

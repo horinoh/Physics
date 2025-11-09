@@ -51,7 +51,7 @@ namespace Collision
 			const Physics::RigidBody* RbB, 
 			const LinAlg::Vec3& UDir, const float Bias);
 
-		//!< シンプレクス上での原点の重心座標と、原点へ向かう方向を求める
+		//!< シンプレクス上での原点の重心パラメータと、重心座標から原点へ向かう方向ベクトルを求める
 		//!< 原点を含む (方向ベクトルがほぼゼロ) かどうかを返り値として返す
 		static [[nodiscard]] bool SimplexSignedVolumes(const std::vector<Points>& Sps,
 			LinAlg::Vec3& Dir, LinAlg::Vec4& Lambda)

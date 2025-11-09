@@ -38,8 +38,10 @@ namespace Physics
 		[[nodiscard]] virtual LinAlg::Mat3 CalcInertiaTensor() const {
 			return LinAlg::Mat3::Identity();
 		}
+		//!< 平行軸の定理 (モデル中心と重心がずれている場合の慣性テンソルの調整)
+		//! $I = I_g + M d^2$ I_g:重心を通る軸回りの慣性モーメント、M:質量、d:軸と重心の距離
 		[[nodiscard]] inline LinAlg::Mat3 GetParallelAxisTheoremTensor() const {
-			//!< 重心がズレている場合の慣性テンソルの調整
+			//!< モデル中心と重心のずれ
 			const auto R = -GetCenterOfMass();
 			const auto R2 = R.LengthSq();
 			const auto XX = R.X() * R.X();
@@ -266,15 +268,5 @@ namespace Physics
 	};
 
 	void CreateVertices_Diamond(std::vector<LinAlg::Vec3>& Dst);
-
-	/*
-	* シリンダーの慣性テンソル
-	*
-	* \begin{pmatrix}
-	* \frac{1}{12} (3R^2 + H^2) & 0 & 0 \\
-	* 0 & \frac{1}{12} (3R^2 + H^2) & 0 \\
-	* 0 & 0 & \frac{1}{2} R^2
-	* \end{pmatrix}
-	*/
 }
 

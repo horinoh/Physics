@@ -36,12 +36,12 @@ void Physics::RigidBody::ApplyImpulse(const Collision::Contact& Ct)
 			const auto VelB = Ct.RigidBodyB->Velocity_Linear + Ct.RigidBodyB->Velocity_Angular.Cross(RB);
 			const auto RelVelA = VelA - VelB;
 
-			//!< c = 1 + e(弾性の場合), \mu(摩擦の場合)
-			//!< v = v_b - v_a
-			//!< m = (m_a^-1 + m_b^-1)
-			//!< n = 法線ベクトル(弾性の場合), 接線ベクトル(摩擦の場合)
-			//!< J_a = (I_a^{-1} r_a \times n) \times r_a
-			//!< J_b = (I_b^{-1} r_b \times n) \times r_b
+			//!< c = 1 + \epsilon (法線方向の場合), \mu (接線方向の場合)
+			//!< v = v_b - v_a (法線方向、接線方向)
+			//!< m = (m^{-1}_a + m^{-1}_b)
+			//!< n = 法線ベクトル (法線方向の場合), 接線ベクトル (接線方向の場合)
+			//!< J_a = (I^{-1}_a r_a \times n) \times r_a
+			//!< J_b = (I^{-1}_b r_b \times n) \times r_b
 			//!< とすると
 			//!< J = \frac{c v}{m + (J_a + J_b) n}
 			auto Apply = [&](const auto& N, const auto& Vel, const float Coef) {
@@ -83,9 +83,10 @@ void Physics::RigidBody::Update(const float DeltaSec)
 
 	//!< (角速度による) 位置、回転の更新
 	{
-		//!< 回転している物体は内部トルクを持つ $\vec{\tau} = \vec{\omega} \times I \cdot \vec{\omega}$
-		//!< $\vec{\tau} = I \cdot \vec{\alpha}$ より
-		//!< 回転物体の角加速度は $\vec{\alpha} = I^{-1} \cdot (\vec{\omega} \times I \cdot \vec{\omega})$
+		//!< 回転している物体は内部トルクを持つ 
+		//!< \vec{\tau} = \vec{\omega} \times I \cdot \vec{\omega}
+		//!< \vec{\tau} = I \cdot \vec{\alpha} より回転物体の角加速度は 
+		//!< \vec{\alpha} = I^{-1} \cdot (\vec{\omega} \times I \cdot \vec{\omega})
 		const auto I_Inv = GetInertiaTensor_Inverse_World();
 		const auto I = GetInertiaTensor_World();
 		const auto AngAccel = I_Inv * (Velocity_Angular.Cross(I * Velocity_Angular));
@@ -97,7 +98,7 @@ void Physics::RigidBody::Update(const float DeltaSec)
 		const auto DeltaVel = Velocity_Angular * DeltaSec;
 		const auto DeltaQuat = LinAlg::Quat(DeltaVel, DeltaVel.Length());
 		
-		//!< 回転 (四元数) の更新は乗算 $q^' = dq q$
+		//!< 回転 (四元数) の更新は乗算 q^' = dq q
 		Rotation = (DeltaQuat * Rotation).Normalize();
 
 		//!< (回転による) 位置の更新

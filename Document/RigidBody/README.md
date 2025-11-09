@@ -33,6 +33,8 @@
     
     より角速度変化は $d\omega = I^{-1} \cdot \vec{J}$
 
+- 力積と角力積
+
     $\vec{J}_{angular} = \vec{r} \times \vec{J}_{linear}$
 
 ### 運動エネルギー
@@ -56,5 +58,10 @@
     $\vec{\alpha} = I^{-1} \cdot (\vec{\omega} \times I \cdot \vec{\omega})$
 
 ## 衝突力積
+- 法線方向
 
+    $\vec{J} = \frac{(1 + \epsilon) v_n}{m^{-1}_1+m^{-1}_2 + (I^{-1}_1 (\vec{r}_1 \times \vec{n}) \times \vec{r}_1 + I^{-1}_2 (\vec{r}_2 \times \vec{n}) \times \vec{r}_2) \cdot \vec{n}}$
 
+- 接線方向
+
+    $\vec{J} = \frac{\mu v_t}{m^{-1}_1+m^{-1}_2 + (I^{-1}_1 (\vec{r}_1 \times \vec{t}) \times \vec{r}_1 + I^{-1}_2 (\vec{r}_2 \times \vec{t}) \times \vec{r}_2) \cdot \vec{t}}$
