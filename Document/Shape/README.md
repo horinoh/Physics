@@ -22,44 +22,42 @@
 - モデル中心と重心がずれている場合など、重心からずれた軸で回転させる場合に使用
 - $I_g$ は重心を通る軸回りの慣性モーメント、M は質量、d は重心から軸までの距離
 
-$
-    I = I_g + M d^2
-$
+    $ I = I_g + M d^2 $
 
 ### 形状毎の慣性モーメント
 
 - 球
 
-$
+    $
     I_g = \frac{2}{5} M
     \begin{pmatrix}
     R^2 & 0   & 0   \\
     0   & R^2 & 0   \\
     0   & 0   & R^2
-    \end{pmatrix}
-$
+    \end{pmatrix} 
+    $
 
 - 箱
 
-$
+    $
     I_g = \frac{1}{12} M 
     \begin{pmatrix} 
     (H^2 + D^2) & 0 & 0 \\ 
     0 & (W^2 + D^2) & 0 \\ 
     0 & 0 & (W^2 + H^2)
-    \end{pmatrix}
-$
+    \end{pmatrix} 
+    $
 
 - シリンダー
 
-$
+    $ 
     I_g = \frac{1}{12} M
     \begin{pmatrix}
     (3R^2 + H^2) & 0 & 0 \\
     0 & (3R^2 + H^2) & 0 \\
     0 & 0 & R^2
-    \end{pmatrix}
-$
+    \end{pmatrix} 
+    $
 
 ## 凸包
 

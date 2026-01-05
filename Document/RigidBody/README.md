@@ -35,7 +35,7 @@
 
 - 力積と角力積
 
-    $\vec{J}_{angular} = \vec{r} \times \vec{J}_{linear}$
+    $\vec{J}_a = \vec{r} \times \vec{J}_l$
 
 ### 運動エネルギー
 
